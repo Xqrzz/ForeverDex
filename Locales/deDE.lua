@@ -63,7 +63,6 @@ ns.Locales.deDE = {
     DUEL_YOU = "DU",
     DUEL_OPPONENT = "GEGNER",
     DUEL_CARDS = "Karten",
-    DUEL_TALLY = "Gemeinsam: %d   -   Nur du: %d   -   Nur Gegner: %d",
     DUEL_FILTER_ALL = "Alle",
     DUEL_FILTER_BOTH = "Gemeinsam",
     DUEL_FILTER_MINE = "Nur du",

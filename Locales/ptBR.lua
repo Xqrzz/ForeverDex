@@ -63,7 +63,6 @@ ns.Locales.ptBR = {
     DUEL_YOU = "VOCÊ",
     DUEL_OPPONENT = "OPONENTE",
     DUEL_CARDS = "cartas",
-    DUEL_TALLY = "Em comum: %d   -   Só você: %d   -   Só oponente: %d",
     DUEL_FILTER_ALL = "Todas",
     DUEL_FILTER_BOTH = "Em comum",
     DUEL_FILTER_MINE = "Só você",

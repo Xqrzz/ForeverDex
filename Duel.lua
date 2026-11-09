@@ -448,9 +448,6 @@ slamFade:SetToAlpha(1)
 slamFade:SetDuration(0.25)
 slamFade:SetStartDelay(0.4)
 
-local tally = arena:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-tally:SetPoint("TOP", vsFrame, "BOTTOM", 0, -2)
-tally:SetJustifyH("CENTER")
 
 -- Card list: each row sets the two names against each other around the combination.
 local list = CreateFrame("Frame", nil, arena)
@@ -597,9 +594,14 @@ render = function()
     pageText:SetText(L.PAGE:format(state.page, pages))
     previous:SetEnabled(state.page > 1)
     nextPage:SetEnabled(state.page < pages)
-    for i, filter in ipairs(filters) do filter:SetEnabled(i ~= state.filter) end
-    tally:SetText(L.DUEL_TALLY:format(counts.both, counts.mine, counts.theirs))
+    local totals = { counts.both + counts.mine + counts.theirs, counts.both, counts.mine, counts.theirs }
+    for i, filter in ipairs(filters) do
+        filter:SetEnabled(i ~= state.filter)
+        filter:SetText(("%s (%d)"):format(filterNames[i], totals[i]))
+        Art.FitLine(filter:GetFontString(), filter:GetText(), 114)
+    end
 
+    local widest = 0
     for i, row in ipairs(rows) do
         local item = visible[(state.page - 1) * ROWS + i]
         row:SetShown(item ~= nil)
@@ -608,10 +610,16 @@ render = function()
             local combination = Catalog.Describe(slot, item.own or item.other)
             local _, description = Catalog.Describe(slot, item.own or item.other)
             row.label:SetText(("#%03d  %s"):format(slot.index, description))
+            widest = math.max(widest, row.label:GetStringWidth())
             Art.ClassIcon(row.classIcon, combination and combination.token)
             paintName(row.leftName, row.leftMark, row.leftWash, item.own, BLUE)
             paintName(row.rightName, row.rightMark, row.rightWash, item.other, RED)
         end
+    end
+    -- Icons share one position; the widest line of the page centers the column.
+    for _, row in ipairs(rows) do
+        row.classIcon:ClearAllPoints()
+        row.classIcon:SetPoint("LEFT", row, "CENTER", -(21 + widest) / 2, 0)
     end
     return counts
 end

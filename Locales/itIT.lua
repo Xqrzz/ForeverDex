@@ -63,7 +63,6 @@ ns.Locales.itIT = {
     DUEL_YOU = "TU",
     DUEL_OPPONENT = "AVVERSARIO",
     DUEL_CARDS = "carte",
-    DUEL_TALLY = "In comune: %d   -   Solo tu: %d   -   Solo lui: %d",
     DUEL_FILTER_ALL = "Tutte",
     DUEL_FILTER_BOTH = "In comune",
     DUEL_FILTER_MINE = "Solo tu",
