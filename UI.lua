@@ -1,22 +1,22 @@
 local _, ns = ...
 local L, Catalog, Collection, Art = ns.L, ns.Catalog, ns.Collection, ns.Art
 
--- Mise en page inspirée du Journal des donjons : cadre à portrait, liste des
--- races à gauche, grille de « boutons d’instance » à droite, onglets en bas.
+-- Layout inspired by the Adventure Guide: portrait frame, race list on
+-- the left, grid of "instance buttons" on the right, tabs at the bottom.
 local PAGE_SIZE, COLUMNS = 9, 3
 local CARD_W, CARD_H, GAP = 214, 118, 12
 local CARD_TEXT_W = CARD_W - 20
 local BANNER_W, BANNER_H, BANNER_TEXT_X = 680, 190, 92
 local BANNER_TEXT_W = BANNER_W - BANNER_TEXT_X - 16
 local INK = { 0.24, 0.13, 0.05 }
--- Partie utile des vignettes d’instance du Journal (175 × 95 dans un fichier 256 × 128).
+-- Useful part of the Adventure Guide instance thumbnails (175 × 95 in a 256 × 128 file).
 local COVER_COORDS = { 0, 0.68359375, 0, 0.7421875 }
 
 local page, sortMode, viewMode, detailKey, pendingReveal = 1, 1, 1, nil, nil
 local filters = { races = {}, classes = {}, sexes = {} }
 local refresh, updateTarget
 
--- Un template absent de ce client ne doit pas empêcher l’addon de se charger.
+-- A template missing from this client must not prevent the addon from loading.
 local function create(frameType, name, parent, template, fallback)
     if template then
         local ok, frame = pcall(CreateFrame, frameType, name, parent, template)
@@ -36,7 +36,7 @@ local function text(parent, font, r, g, b)
     return line
 end
 
--- Affiche un texte à la plus grande taille qui tient sur une ligne.
+-- Displays text at the largest size that fits on one line.
 local function fitText(line, value, size, minimum, maxWidth)
     maxWidth = maxWidth or CARD_TEXT_W
     line:SetText(value)
@@ -66,7 +66,7 @@ local function styleInset(frame)
     frame:SetBackdropBorderColor(0.55, 0.45, 0.3)
 end
 
--- Fenêtre ----------------------------------------------------------------------
+-- Window ----------------------------------------------------------------------
 
 local panel, nativePanel = create("Frame", "ForeverDexWindow", UIParent, "PortraitFrameTemplate", "BackdropTemplate")
 panel:SetSize(940, 580)
@@ -100,7 +100,7 @@ else
     panel.CloseButton = panel.CloseButton or close
 end
 
--- Engrenage : ouvre les paramètres de l’addon.
+-- Gear: opens the addon settings.
 local gear = CreateFrame("Button", nil, panel)
 gear:SetSize(16, 16)
 if panel.CloseButton then
@@ -119,7 +119,7 @@ gear:SetScript("OnEnter", function(self)
 end)
 gear:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
--- En-tête : progression globale, recherche, tri et capture.
+-- Header: overall progress, search, sort and capture.
 local counts = text(panel, "GameFontNormal")
 counts:SetPoint("TOPLEFT", 70, -31)
 local percent = text(panel, "GameFontHighlightSmall", 0.85, 0.85, 0.85)
@@ -140,7 +140,7 @@ sortButton:SetSize(150, 26)
 sortButton:SetDefaultText(sortNames[sortMode])
 sortButton:SetPoint("RIGHT", panelCapture, "LEFT", -10, 0)
 
--- Filtres à cocher : une colonne par catégorie, toutes visibles d’un coup.
+-- Checkbox filters: one column per category, all visible at once.
 local filterFrame = CreateFrame("Frame", nil, panel, "BackdropTemplate")
 local filterButton = button(panel, L.FILTERS, 96, function()
     filterFrame:SetShown(not filterFrame:IsShown())
@@ -153,7 +153,7 @@ filterFrame:SetFrameLevel(panel:GetFrameLevel() + 60)
 filterFrame:EnableMouse(true)
 filterFrame:Hide()
 styleInset(filterFrame)
--- Un clic en dehors du panneau le referme.
+-- A click outside the panel closes it.
 filterFrame:SetScript("OnShow", function(self) pcall(self.RegisterEvent, self, "GLOBAL_MOUSE_DOWN") end)
 filterFrame:SetScript("OnHide", function(self) self:UnregisterEvent("GLOBAL_MOUSE_DOWN") end)
 filterFrame:SetScript("OnEvent", function(self)
@@ -243,7 +243,7 @@ if not nativeSearch then
     search:SetScript("OnEnterPressed", search.ClearFocus)
 end
 
--- Colonne des races --------------------------------------------------------------
+-- Race column --------------------------------------------------------------
 
 local sidebar, nativeSidebar = create("Frame", nil, panel, "InsetFrameTemplate", "BackdropTemplate")
 if not nativeSidebar then styleInset(sidebar) end
@@ -291,7 +291,7 @@ for i, filter in ipairs(raceRows) do
     row.bar:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 7, 2)
     row.bar:SetPoint("RIGHT", -6, 0)
     row:SetScript("OnClick", function(self)
-        -- La liste choisit une seule race ; le panneau Filtres permet d’en cocher plusieurs.
+        -- The list picks a single race; the Filters panel lets you check several.
         wipe(filters.races)
         if self.filter.id then filters.races[self.filter.id] = true end
         detailKey, page = nil, 1
@@ -301,7 +301,7 @@ for i, filter in ipairs(raceRows) do
     raceButtons[i] = row
 end
 
--- Bouton de duel, en bas de la colonne des races.
+-- Duel button, at the bottom of the race column.
 local compare = button(sidebar, L.COMPARE, 172, function()
     if ns.Duel then ns.Duel.Request() end
 end)
@@ -315,7 +315,7 @@ compare:SetScript("OnEnter", function(self)
 end)
 compare:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
--- Zone principale ---------------------------------------------------------------
+-- Main area ---------------------------------------------------------------
 
 local content, nativeContent = create("Frame", nil, panel, "InsetFrameTemplate", "BackdropTemplate")
 if not nativeContent then styleInset(content) end
@@ -329,7 +329,7 @@ local veil = content:CreateTexture(nil, "BACKGROUND", nil, 2)
 veil:SetAllPoints(journalArt)
 veil:SetColorTexture(0, 0, 0, 0.3)
 
--- Fil d’Ariane façon barre de navigation du Journal.
+-- Breadcrumb in the style of the Adventure Guide navigation bar.
 local crumbs = {}
 for i = 1, 3 do
     local crumb = CreateFrame("Button", nil, content)
@@ -371,7 +371,7 @@ local function setCrumbs(items)
     end
 end
 
--- Couvertures du Journal, mises en cache par carte du monde.
+-- Adventure Guide covers, cached per world map.
 local covers = {}
 local function getCover(theme)
     if not theme or not EJ_GetInstanceForMap or not EJ_GetInstanceInfo then return end
@@ -391,7 +391,7 @@ local function getCover(theme)
     return covers[map] or nil
 end
 
--- Une « plaque » regroupe la couverture, son dégradé et le cadre doré.
+-- A "plate" groups the cover, its gradient and the gold frame.
 local function buildPlate(frame)
     local plate = { width = frame:GetWidth() - 6, height = frame:GetHeight() - 6 }
     plate.tint = frame:CreateTexture(nil, "BACKGROUND", nil, 0)
@@ -427,8 +427,8 @@ local function paintPlate(plate, combination, entry)
     else
         plate.tint:SetColorTexture(0.2 * dim, 0.15 * dim, 0.1 * dim)
     end
-    -- L’écran de chargement de la race est l’image la plus détaillée ; le décor de la
-    -- cabine d’essayage puis la couverture du Journal servent de secours.
+    -- The race loading screen is the most detailed image; the dressing room
+    -- backdrop and then the Adventure Guide cover serve as fallbacks.
     local shown = Art.LoadingScreen(plate.cover, theme, plate.width, plate.height)
     if not shown then shown = Art.Scenery(plate.cover, theme, plate.width, plate.height) end
     if not shown then
@@ -466,10 +466,10 @@ local function paintMedallion(medallion, combination, entry, live)
     icon:SetDesaturated(not entry and not live)
 end
 
--- Grille de cartes ----------------------------------------------------------------
+-- Card grid ----------------------------------------------------------------
 
--- Étoile de favori, sur les cartes et sur la fiche. Le marqueur de raid existe sur
--- tous les clients ; il est grisé tant que la carte n’est pas favorite.
+-- Favorite star, on the cards and the detail page. The raid marker exists on
+-- every client; it is grayed out as long as the card is not a favorite.
 local function favoriteStar(parent, size)
     local star = CreateFrame("Button", nil, parent)
     star:SetSize(size, size)
@@ -540,7 +540,7 @@ for i = 1, PAGE_SIZE do
     card.targeted:SetPoint("TOPLEFT", 54, -18)
     card.targeted:SetText(L.TARGETED)
 
-    -- Pastille sombre : le numéro et le niveau restent lisibles sur toutes les images.
+    -- Dark badge: the number and level stay readable on every image.
     card.badge = card:CreateTexture(nil, "ARTWORK", nil, 3)
     card.badge:SetPoint("TOPRIGHT", -5, -5)
     card.badge:SetColorTexture(0, 0, 0, 0.6)
@@ -570,7 +570,7 @@ for i = 1, PAGE_SIZE do
     card.details:SetWidth(CARD_W - 40)
     card.details:SetWordWrap(false)
 
-    -- Éclair doré joué quand la balle de capture révèle cette carte.
+    -- Gold flash played when the capture ball reveals this card.
     card.flash = card:CreateTexture(nil, "OVERLAY", nil, 7)
     card.flash:SetAllPoints()
     card.flash:SetTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
@@ -626,7 +626,7 @@ local function paintCard(card, row)
     if slot.key == pendingReveal then entry = nil end
     paintPlate(card.plate, row.details, entry)
     card.number:SetText(("%s#%03d"):format(slot.sex and "" or L.BONUS_BADGE, slot.index))
-    -- Une carte découverte montre le niveau du joueur plutôt qu’un statut redondant.
+    -- A discovered card shows the player's level rather than a redundant status.
     if entry then
         card.status:SetText(entry.level and L.LEVEL_SHORT:format(entry.level) or "")
         card.status:SetTextColor(1, 0.9, 0.65)
@@ -637,7 +637,7 @@ local function paintCard(card, row)
     card.badge:SetSize(math.max(card.number:GetStringWidth(), card.status:GetStringWidth()) + 12,
         (entry and not entry.level) and 18 or 31)
 
-    -- Le pseudo est la vedette ; la guilde, quand elle existe, s’intercale dessous.
+    -- The name is the star; the guild, when there is one, sits below it.
     fitText(card.name, entry and entry.name or "???", 20, 13)
     if entry then card.name:SetTextColor(1, 0.82, 0) else card.name:SetTextColor(0.6, 0.6, 0.6) end
     local guild = entry and entry.guild
@@ -645,7 +645,7 @@ local function paintCard(card, row)
     if guild then fitText(card.guild, "<" .. guild .. ">", 12, 9) end
     card.name:ClearAllPoints()
     card.name:SetPoint("BOTTOMLEFT", 10, guild and 39 or 27)
-    -- Le dégradé s’arrête juste au-dessus du texte pour laisser l’image visible.
+    -- The gradient stops just above the text to keep the image visible.
     card.plate.shade:SetHeight(guild and 74 or 60)
     paintStar(card.star, entry)
     card.details:SetText(row.description)
@@ -664,7 +664,7 @@ empty:SetPoint("CENTER", grid, "CENTER")
 empty:SetJustifyH("CENTER")
 empty:SetText(L.NO_RESULTS)
 
--- Pagination : flèches du grimoire et molette.
+-- Pagination: spellbook arrows and mouse wheel.
 local pager = CreateFrame("Frame", nil, content)
 pager:SetPoint("BOTTOMLEFT", 8, 6)
 pager:SetPoint("BOTTOMRIGHT", -8, 6)
@@ -704,7 +704,7 @@ content:SetScript("OnMouseWheel", function(_, delta)
     end
 end)
 
--- Fiche détaillée façon page de rencontre ----------------------------------------
+-- Detail page in the style of an encounter page ----------------------------------------
 
 local detail = CreateFrame("Frame", nil, content)
 detail:SetPoint("TOPLEFT", 4, -32)
@@ -718,25 +718,25 @@ local coverHolder = CreateFrame("Frame", nil, detail)
 coverHolder:SetSize(BANNER_W, BANNER_H)
 coverHolder:SetPoint("TOPLEFT", 22, -18)
 detail.plate = buildPlate(coverHolder)
--- Le voile part de la gauche : le texte reste lisible et le décor dégagé à droite.
+-- The veil starts from the left: text stays readable and the scenery clear on the right.
 detail.plate.shade:Hide()
 local bannerVeil = coverHolder:CreateTexture(nil, "BORDER")
 bannerVeil:SetPoint("TOPLEFT", 3, -3)
 bannerVeil:SetPoint("BOTTOMLEFT", 3, 3)
 bannerVeil:SetWidth(540)
 Art.Gradient(bannerVeil, 0, 0, 0, 0.9, 0, "HORIZONTAL")
--- Au-delà de cette taille, l’anneau de la mini-carte pixellise.
+-- Beyond this size, the minimap ring pixelates.
 detail.medallion = Art.Medallion(coverHolder, 72)
--- Le décalage s’exprime à l’échelle du médaillon (4 × 72/31 ≈ 9 pixels).
+-- The offset is expressed at medallion scale (4 × 72/31 ≈ 9 pixels).
 detail.medallion:SetPoint("LEFT", coverHolder, "LEFT", 4, 0)
 detail.medallion:SetFrameLevel(coverHolder:GetFrameLevel() + 4)
 
--- Bandeau de la fiche : médaillon, puis pseudo, guilde et combinaison empilés à sa droite.
+-- Detail page banner: medallion, then name, guild and combination stacked to its right.
 local showcase = CreateFrame("Frame", nil, coverHolder)
 showcase:SetAllPoints()
 showcase:SetFrameLevel(coverHolder:GetFrameLevel() + 3)
 
--- Le pseudo est la vedette de la carte : grande police dorée, contour et ombre portée.
+-- The name is the star of the card: large gold font, outline and drop shadow.
 local bannerName = showcase:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
 bannerName:SetShadowColor(0, 0, 0, 1)
 bannerName:SetShadowOffset(2, -2)
@@ -771,7 +771,7 @@ local function paintShowcase(entry)
     if entry then bannerName:SetTextColor(1, 0.82, 0) else bannerName:SetTextColor(0.6, 0.6, 0.6) end
     bannerGuild:SetShown(guild ~= nil)
     if guild then fitText(bannerGuild, "<" .. guild .. ">", 16, 10, BANNER_TEXT_W) end
-    -- La pile reste centrée verticalement, avec ou sans guilde.
+    -- The stack stays vertically centered, with or without a guild.
     bannerName:ClearAllPoints()
     bannerName:SetPoint("BOTTOMLEFT", BANNER_TEXT_X, guild and 104 or 93)
     bannerIcon:ClearAllPoints()
@@ -809,7 +809,7 @@ local function inkText(font, r, g, b)
     return line
 end
 
--- Titre souligné d’une colonne, sous le bandeau ; renvoie le titre et son filet.
+-- Underlined column title, below the banner; returns the title and its rule.
 local function columnHeader(x, width)
     local title = inkText(titleFont)
     title:SetPoint("TOPLEFT", coverHolder, "BOTTOMLEFT", x, -16)
@@ -820,7 +820,7 @@ local function columnHeader(x, width)
     return title, line
 end
 
--- Colonne gauche : les informations de capture, une par ligne.
+-- Left column: capture information, one per line.
 local captureTitle, captureRule = columnHeader(6, 310)
 local factRows = {}
 for i = 1, 4 do
@@ -838,7 +838,7 @@ detail.body:SetWidth(310)
 detail.body:SetJustifyV("TOP")
 detail.body:SetSpacing(4)
 
--- Colonne droite : progression de la race, de la classe et du carnet.
+-- Right column: race, class and journal progress.
 local collectionTitle, collectionRule = columnHeader(350, 310)
 collectionTitle:SetText(L.DETAIL_COLLECTION)
 local progressRows = {}
@@ -857,7 +857,7 @@ local back = button(detail, L.BACK, 110, function()
 end)
 back:SetPoint("BOTTOMLEFT", 16, 12)
 
--- Suppression, avec confirmation : la carte redevient « à découvrir ».
+-- Deletion, with confirmation: the card goes back to "to discover".
 local remove = button(detail, L.DELETE_CARD, 150, function()
     local entry = detail.entry
     if not entry or not detail.slot then return end
@@ -928,7 +928,7 @@ local function showDetail(slot, perRace, filled)
     end
 end
 
--- Onglets ----------------------------------------------------------------------------
+-- Tabs ----------------------------------------------------------------------------
 
 local tabNames = { L.TAB_ALL, L.TAB_FILLED, L.TAB_EMPTY, L.TAB_BONUS, L.TAB_FAVORITES }
 local tabs, nativeTabs = {}, true
@@ -941,7 +941,7 @@ for i, name in ipairs(tabNames) do
     if i == 1 then
         tab:SetPoint("TOPLEFT", panel, "BOTTOMLEFT", 12, 2)
     else
-        -- Les onglets modernes se touchent presque ; les anciens se chevauchent.
+        -- Modern tabs nearly touch; old ones overlap.
         tab:SetPoint("LEFT", tabs[i - 1], "RIGHT", (not native or tab.LeftActive) and 3 or -15, 0)
     end
     tab:SetScript("OnClick", function(self)
@@ -955,7 +955,7 @@ end
 panel.Tabs = tabs
 if nativeTabs and PanelTemplates_SetNumTabs then PanelTemplates_SetNumTabs(panel, #tabs) end
 
--- Rendu --------------------------------------------------------------------------------
+-- Rendering --------------------------------------------------------------------------------
 
 local function updatePortraits(target)
     if not panel:IsShown() then return end
@@ -1008,7 +1008,7 @@ refresh = function()
         end
     end
 
-    -- Le fil d’Ariane ne nomme la race que si une seule est cochée.
+    -- The breadcrumb names the race only when a single one is checked.
     local firstRace = next(filters.races)
     if not firstRace or next(filters.races, firstRace) then raceName = nil end
 
@@ -1056,7 +1056,7 @@ local function selectSort(mode)
     refresh()
 end
 
--- Les options radio du menu Blizzard représentent un seul tri actif.
+-- The radio options of the Blizzard menu represent a single active sort.
 sortButton:SetupMenu(function(_, menu)
     for mode, name in ipairs(sortNames) do
         menu:CreateRadio(name, isSortSelected, selectSort, mode)
@@ -1073,13 +1073,13 @@ panel:HookScript("OnShow", function()
 end)
 panel:HookScript("OnHide", function() Art.Sound("IG_SPELLBOOK_CLOSE") end)
 
--- Capture depuis le portrait de la cible -------------------------------------------------
+-- Capture from the target portrait -------------------------------------------------
 
 local capturePortrait
 
--- Cadre de cible affiché et région où poser la balle. ElvUI crée le sien après le
--- chargement de l’addon et rattache celui de Blizzard à un parent masqué : le choix
--- se refait donc à chaque mise à jour. Sans portrait ElvUI, on vise le cadre entier.
+-- Displayed target frame and region where the ball sits. ElvUI creates its own after
+-- the addon loads and reparents Blizzard's to a hidden parent, so the choice is
+-- made again on every update. Without an ElvUI portrait, we aim at the whole frame.
 local function targetAnchor()
     local elvFrame, blizzard = _G.ElvUF_Target, TargetFrame
     if elvFrame and not (blizzard and blizzard:GetParent() == UIParent) then
@@ -1088,7 +1088,7 @@ local function targetAnchor()
     end
     if not blizzard then return end
     local container = blizzard.TargetFrameContainer
-    -- Forever utilise le conteneur moderne. Certains cadres exposent encore l’ancien portrait.
+    -- Forever uses the modern container. Some frames still expose the old portrait.
     local portrait = (container and container.Portrait) or TargetFramePortrait
     if portrait then return blizzard, portrait end
 end
@@ -1099,13 +1099,13 @@ local function createPortraitCapture()
     badge:SetScript("OnClick", Collection.Capture)
     badge:Hide()
     local badgeBall = ns.CaptureVisuals.DrawBadge(badge)
-    -- Balle grise et cochée : la combinaison est déjà prise, un clic la remplacerait.
+    -- Gray checked ball: the combination is already taken, a click would replace it.
     local badgeCheck = badge:CreateTexture(nil, "OVERLAY")
     badgeCheck:SetSize(14, 14)
     badgeCheck:SetPoint("BOTTOMRIGHT", 4, -3)
     badgeCheck:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
     badgeCheck:Hide()
-    -- La balle respire doucement pour signaler un nom à capturer.
+    -- The ball breathes gently to signal a name to capture.
     local pulse = badge:CreateAnimationGroup()
     pulse:SetLooping("BOUNCE")
     local grow = pulse:CreateAnimation("Scale")
@@ -1117,7 +1117,7 @@ local function createPortraitCapture()
     end
     grow:SetDuration(0.6)
     grow:SetSmoothing("IN_OUT")
-    -- Seule une carte à découvrir fait respirer la balle.
+    -- Only a card still to discover makes the ball breathe.
     function badge:SetHolder(holder)
         self.holder = holder
         badgeBall:SetDesaturated(holder ~= nil)
@@ -1145,8 +1145,8 @@ local function createPortraitCapture()
     end)
     badge:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    -- Petite orbe cochée : ce joueur est déjà dans la collection. Elle est grise
-    -- quand c’est un autre joueur qui occupe la carte de cette combinaison.
+    -- Small checked orb: this player is already in the collection. It is gray
+    -- when another player holds the card for this combination.
     local owned = CreateFrame("Frame", nil, UIParent)
     owned:SetSize(18, 18)
     owned:EnableMouse(true)
@@ -1176,7 +1176,7 @@ local capture, owned = createPortraitCapture()
 capture:Hide()
 owned:Hide()
 
--- Rattache la balle et l’orbe au cadre de cible actuel ; renvoie faux s’il n’y en a pas.
+-- Attaches the ball and orb to the current target frame; returns false if there is none.
 local attachedHost, attachedRegion
 local function attachCapture()
     local host, region = targetAnchor()
@@ -1188,7 +1188,7 @@ local function attachCapture()
         marker:SetParent(host)
         marker:ClearAllPoints()
         marker:SetPoint("CENTER", region, "TOPRIGHT", -6, -6)
-        -- Marge large : ElvUI place ses textes sur des calques surélevés.
+        -- Wide margin: ElvUI puts its text on raised layers.
         marker:SetFrameLevel(host:GetFrameLevel() + 120)
     end
     return true
@@ -1200,11 +1200,11 @@ updateTarget = function()
     updatePortraits(entry)
     local current = entry and ForeverDexDB.cards[entry.key]
     local alreadySaved = current and current.id == entry.id
-    -- La carte de cette combinaison est occupée par un autre joueur.
+    -- The card for this combination is held by another player.
     local holder = current and not alreadySaved and current or nil
     local showCapture = false
     if capture then
-        -- Paramètre : toujours (nouvelle carte ou remplacement), carte vide seulement, ou jamais.
+        -- Setting: always (new card or replacement), empty card only, or never.
         local mode = ns.Settings.Get("portraitButton")
         showCapture = anchored and entry ~= nil and not alreadySaved
         if mode == "missing" then showCapture = anchored and entry ~= nil and current == nil end
@@ -1213,7 +1213,7 @@ updateTarget = function()
         capture:SetShown(showCapture)
     end
     if owned then
-        -- Sans balle cliquable, l’orbe indique tout de même que la combinaison est prise.
+        -- Without a clickable ball, the orb still shows that the combination is taken.
         owned:SetHolder(holder)
         owned:SetShown(anchored and current ~= nil and not showCapture and ns.Settings.Get("ownedMarker") or false)
     end
@@ -1246,11 +1246,11 @@ end
 ns.UI = {
     Refresh = function(entry, isNew, noThrow)
         local Visuals = ns.CaptureVisuals
-        -- Le point de départ se lit avant le rafraîchissement, qui masque la balle.
+        -- The starting point is read before the refresh, which hides the ball.
         local origin = not noThrow and ((capture and capture:IsVisible() and capture) or (panelCapture:IsVisible() and panelCapture))
         local x1, y1 = Visuals.Center(origin)
-        -- Un cadre accroché à un cadre sécurisé (ElvUI) peut cacher sa position :
-        -- la balle part alors du curseur, qui vient justement de cliquer dessus.
+        -- A frame attached to a secure frame (ElvUI) can hide its position:
+        -- the ball then starts from the cursor, which has just clicked on it.
         if origin and not x1 then
             local cursorX, cursorY = GetCursorPosition()
             local uiScale = UIParent:GetEffectiveScale()
@@ -1261,8 +1261,8 @@ ns.UI = {
         updateTarget()
         if not isNew then return end
         local card = visibleCard(entry.key)
-        -- La balle se pose sur le portrait de la cible, à sa taille. Sans cadre de
-        -- cible visible, elle retombe sur la carte ou sous le bouton.
+        -- The ball lands on the target portrait, at its size. Without a visible
+        -- target frame, it falls back onto the card or below the button.
         local landing = (capturePortrait and capturePortrait:IsVisible() and capturePortrait) or card
         local x2, y2, size = Visuals.Center(landing)
         if not x2 then x2, y2, size = Visuals.Center(attachedHost) end

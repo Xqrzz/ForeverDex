@@ -3,7 +3,7 @@ local L, Art = ns.L, ns.Art
 local Settings = {}
 ns.Settings = Settings
 
--- Valeurs par défaut. Les choix multiples sont des chaînes, les cases des booléens.
+-- Default values. Multiple choices are strings, checkboxes are booleans.
 local DEFAULTS = {
     animation = "full",       -- full, quick, off
     chatMessage = true,
@@ -46,7 +46,7 @@ function Settings.Set(key, value)
     for _, listener in ipairs(listeners) do listener(key, Settings.Get(key)) end
 end
 
--- Prévient un module quand une option change (et une fois au chargement, key = nil).
+-- Notifies a module when an option changes (and once on load, key = nil).
 function Settings.OnChange(listener)
     listeners[#listeners + 1] = listener
 end
@@ -61,7 +61,7 @@ function Settings.ResetAll()
     if Settings.RefreshPanel then Settings.RefreshPanel() end
 end
 
--- Panneau d’options -------------------------------------------------------------------
+-- Options panel -------------------------------------------------------------------
 
 local panel = CreateFrame("Frame", "ForeverDexSettingsPanel")
 panel.name = "ForeverDex"
@@ -74,7 +74,7 @@ local function create(frameType, parent, template)
     return CreateFrame(frameType, nil, parent), false
 end
 
--- En-tête : orbe de l’addon, titre et sous-titre sur un dégradé doré.
+-- Header: addon orb, title and subtitle on a gold gradient.
 local header = panel:CreateTexture(nil, "BACKGROUND")
 header:SetPoint("TOPLEFT", 0, 0)
 header:SetPoint("TOPRIGHT", 0, 0)
@@ -105,7 +105,7 @@ local function place(column, frame, height, indent)
     spot.y = spot.y - height
 end
 
--- Titre de section doré souligné d’un filet, comme dans les options du jeu.
+-- Gold section title underlined with a rule, like in the game's options.
 local function section(column, label)
     local spot = columns[column]
     if spot.y < -84 then spot.y = spot.y - 10 end
@@ -147,7 +147,7 @@ local function checkbox(column, key, label, description)
     return box
 end
 
--- Choix multiple : libellé, puis menu déroulant du jeu (boutons radio).
+-- Multiple choice: label, then the game's dropdown menu (radio buttons).
 local function choice(column, key, label, options, description)
     local text = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     text:SetJustifyH("LEFT")
@@ -173,7 +173,7 @@ local function choice(column, key, label, options, description)
             end
         end
     else
-        -- Client sans menus modernes : un bouton qui fait défiler les choix.
+        -- Client without modern menus: a button that cycles through the choices.
         local cycle = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
         cycle:SetAllPoints(menu)
         local function current()
@@ -205,7 +205,7 @@ local function action(column, label, width, onClick, description)
     return control
 end
 
--- Colonne gauche : capture et comparaison.
+-- Left column: capture and comparison.
 section(1, L.SETTINGS_CAPTURE)
 choice(1, "animation", L.SETTINGS_ANIMATION, {
     { "full", L.SETTINGS_ANIMATION_FULL },
@@ -227,7 +227,7 @@ checkbox(1, "duelAnimation", L.SETTINGS_DUEL_ANIMATION, L.SETTINGS_DUEL_ANIMATIO
 checkbox(1, "duelVsBurst", L.SETTINGS_DUEL_BURST, L.SETTINGS_DUEL_BURST_TIP)
 checkbox(1, "duelSounds", L.SETTINGS_DUEL_SOUNDS, L.SETTINGS_DUEL_SOUNDS_TIP)
 
--- Colonne droite : interface et données.
+-- Right column: interface and data.
 section(2, L.SETTINGS_INTERFACE)
 checkbox(2, "minimapShow", L.SETTINGS_MINIMAP_SHOW, L.SETTINGS_MINIMAP_SHOW_TIP)
 checkbox(2, "minimapLock", L.SETTINGS_MINIMAP_LOCK, L.SETTINGS_MINIMAP_LOCK_TIP)
@@ -258,12 +258,12 @@ function Settings.RefreshPanel()
     for _, refresh in ipairs(controls) do refresh() end
 end
 panel:SetScript("OnShow", Settings.RefreshPanel)
--- Rappels attendus par le panneau d’options du jeu.
+-- Callbacks expected by the game's options panel.
 panel.OnCommit = function() end
 panel.OnRefresh = Settings.RefreshPanel
 panel.OnDefault = Settings.ResetAll
 
--- Réinitialisation de la collection : deux confirmations successives.
+-- Collection reset: two successive confirmations.
 StaticPopupDialogs["FOREVERDEX_RESET"] = {
     text = L.RESET_PROMPT,
     button1 = L.SETTINGS_RESET,
@@ -273,7 +273,7 @@ StaticPopupDialogs["FOREVERDEX_RESET"] = {
     hideOnEscape = true,
     showAlert = true,
     OnAccept = function()
-        -- La première boîte doit être fermée avant d’ouvrir la seconde.
+        -- The first dialog must be closed before opening the second.
         C_Timer.After(0, function() StaticPopup_Show("FOREVERDEX_RESET_CONFIRM") end)
     end,
 }
@@ -288,7 +288,7 @@ StaticPopupDialogs["FOREVERDEX_RESET_CONFIRM"] = {
     OnAccept = function() ns.Collection.Reset() end,
 }
 
--- Inscription dans Options → AddOns (API moderne, sinon l’ancienne liste).
+-- Registration in Options → AddOns (modern API, otherwise the old list).
 local category
 if _G.Settings and _G.Settings.RegisterCanvasLayoutCategory then
     category = _G.Settings.RegisterCanvasLayoutCategory(panel, "ForeverDex")

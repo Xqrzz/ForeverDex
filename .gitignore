@@ -1,8 +1,8 @@
-# Archives de release
+# Release archives
 *.zip
 .release/
 
-# Systeme et editeurs
+# OS and editors
 Thumbs.db
 desktop.ini
 .DS_Store

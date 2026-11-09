@@ -3,7 +3,7 @@ local L = ns.L
 local Catalog = {}
 ns.Catalog = Catalog
 
--- L’ordre des combinaisons fixe les numéros affichés. Les clés sauvegardées utilisent les ID du jeu.
+-- The order of combinations sets the displayed numbers. Saved keys use the game IDs.
 local races = {
     { 1, 1, 2, 3, 4, 5, 8, 9 },
     { 3, 1, 2, 3, 4, 5, 7 },
@@ -17,10 +17,10 @@ local races = {
     { 96, 1, 3, 4, 7, 11 },
 }
 
--- 1 icône de race, 2 carte du Journal, 3-5 couleur de fond,
--- 6 décor de la cabine d’essayage, 7 icône de secours,
--- 8 écran de chargement des cartes et de la fiche, choisi en jeu pour l’ambiance de
--- chaque race. Sans écran adapté, le décor de la cabine d’essayage le remplace.
+-- 1 race icon, 2 Adventure Guide map, 3-5 background color,
+-- 6 dressing room backdrop, 7 fallback icon,
+-- 8 loading screen for the cards and detail page, picked in game for the mood of
+-- each race. Without a suitable screen, the dressing room backdrop replaces it.
 local raceThemes = {
     [1] = { "human", 291, 0.32, 0.24, 0.15, "Human", nil, "LoadScreenScarletMonastery2" },
     [2] = { "orc", 213, 0.34, 0.16, 0.09, "Orc", nil, "LoadScreenRagefireChasm" },
@@ -34,8 +34,8 @@ local raceThemes = {
     [96] = { "elf", 221, 0.23, 0.18, 0.31, "BloodElf", "Interface\\Icons\\INV_BannerPVP_01", 7963777 },
 }
 
--- Les Skyborne n’ont pas toujours leur propre icône : on essaie celle de l’elfe
--- dont ils empruntent le décor.
+-- Skyborne do not always have their own icon: we try the one of the elf
+-- whose backdrop they borrow.
 local function raceIcon(theme, sex)
     local suffix = sex == 3 and "female" or "male"
     local own = ("raceicon-%s-%s"):format(theme[1], suffix)
@@ -97,7 +97,7 @@ Catalog.races = raceList
 table.sort(classList, function(a, b) return a.name < b.name end)
 Catalog.classes = classList
 
--- Un bonus rempli emprunte la combinaison du personnage capturé.
+-- A filled bonus borrows the combination of the captured character.
 function Catalog.Describe(slot, entry)
     local details = slot.sex and slot or (entry and byKey[entry.combination])
     local description = details and (details.race .. " · " .. details.class .. " · " .. details.sex)
@@ -105,7 +105,7 @@ function Catalog.Describe(slot, entry)
     return details, description
 end
 
--- Cartes classiques remplies pour chaque race (les bonus ne comptent pas).
+-- Standard cards filled for each race (bonuses do not count).
 function Catalog.RaceProgress(entries)
     local counts = {}
     for _, slot in ipairs(slots) do
@@ -116,7 +116,7 @@ function Catalog.RaceProgress(entries)
     return counts
 end
 
--- Carte correspondant aux noms de fichier renvoyés par GetPlayerInfoByGUID.
+-- Card matching the file names returned by GetPlayerInfoByGUID.
 local raceIDByFile
 function Catalog.SlotForFiles(raceFile, classToken, sex)
     if not raceIDByFile then
@@ -132,7 +132,7 @@ function Catalog.SlotForFiles(raceFile, classToken, sex)
     end
 end
 
--- Cartes classiques remplies et disponibles pour une classe.
+-- Standard cards filled and available for a class.
 function Catalog.ClassProgress(entries, token)
     local have, total = 0, 0
     for _, slot in ipairs(slots) do
@@ -152,13 +152,13 @@ local accents = {
     ["Ë"] = "e", ["Î"] = "i", ["Ï"] = "i", ["Ô"] = "o", ["Ù"] = "u", ["Û"] = "u",
 }
 local function normalize(value)
-    -- Recherche littérale insensible à la casse et aux accents français courants.
+    -- Literal search, insensitive to case and common French accents.
     return value:lower():gsub("[\194-\244][\128-\191]+", accents)
 end
--- Produit la vue filtrée sans modifier la collection.
--- filters contient trois ensembles cochés : races, classes et sexes. Dans une catégorie,
--- une seule case suffit ; entre catégories, toutes doivent correspondre (Orc ET Chaman).
--- Les bonus vides n’ont pas de combinaison : filtrés, ils ne restent que dans l’onglet Bonus.
+-- Produces the filtered view without changing the collection.
+-- filters holds three checked sets: races, classes and sexes. Within a category,
+-- one box is enough; across categories, all must match (Orc AND Shaman).
+-- Empty bonuses have no combination: when filtering, they only remain in the Bonus tab.
 local function allowed(set, value)
     return next(set) == nil or set[value]
 end
@@ -195,8 +195,8 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
     end
     table.sort(rows, function(a, b)
         if sortMode == 1 then
-            -- Les bonus restent en fin de catalogue. À classe égale, l’index
-            -- conserve l’ordre masculin puis féminin défini à la création.
+            -- Bonuses stay at the end of the catalog. For the same class, the index
+            -- keeps the male then female order set at creation.
             local aBonus, bBonus = not a.slot.sex, not b.slot.sex
             if aBonus ~= bBonus then return not aBonus end
             if not aBonus then
@@ -211,7 +211,7 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
         end
         if sortMode == 4 and a.race ~= b.race then return a.race < b.race end
         if sortMode == 5 and a.class ~= b.class then return a.class < b.class end
-        -- Les cartes sans date ou sans niveau passent après les autres.
+        -- Cards without a date or level come after the others.
         if sortMode == 6 then
             local first, second = a.entry and a.entry.capturedAt or 0, b.entry and b.entry.capturedAt or 0
             if first ~= second then return first > second end

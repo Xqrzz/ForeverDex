@@ -1,7 +1,7 @@
 local addon, ns = ...
 local L = ns.L
 
--- Les sauvegardes sont disponibles après ADDON_LOADED.
+-- Saved data is available after ADDON_LOADED.
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:SetScript("OnEvent", function(self, event, name)
@@ -18,22 +18,22 @@ events:SetScript("OnEvent", function(self, event, name)
         self:RegisterEvent("PLAYER_REGEN_ENABLED")
         self:RegisterEvent("PLAYER_REGEN_DISABLED")
     elseif event == "PLAYER_ENTERING_WORLD" and not self.greeted then
-        -- Message d’accueil, une seule fois par session (pas à chaque écran de chargement).
+        -- Welcome message, once per session (not on every loading screen).
         self.greeted = true
         local getMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
         local version = getMetadata and getMetadata(addon, "Version")
         print(("|cff63ded1ForeverDex|r%s · by |cffffd100Xqrz|r"):format(version and (" v" .. version) or ""))
         ns.UI.UpdateTarget()
-    -- Les événements d’unité concernent aussi le groupe et les PNJ. Seule la cible
-    -- peut modifier le bouton de capture ou le portrait affiché dans la galerie.
+    -- Unit events also cover the party and NPCs. Only the target can
+    -- change the capture button or the portrait shown in the gallery.
     elseif (event ~= "UNIT_NAME_UPDATE" and event ~= "UNIT_PORTRAIT_UPDATE") or name == "target" then
         ns.UI.UpdateTarget()
     end
 end)
 
 SLASH_FOREVERDEX1 = "/foreverdex"
--- « /foreverdex textures » liste les atlas absents de ce client.
--- « /foreverdex comparer » propose la comparaison à la cible (utilisable en macro).
+-- "/foreverdex textures" lists the atlases missing from this client.
+-- "/foreverdex compare" offers the comparison to the target (usable in a macro).
 SlashCmdList.FOREVERDEX = function(message)
     if message and message:lower():match("^%s*textures") then
         ns.Art.Report()
@@ -48,8 +48,8 @@ SlashCmdList.FOREVERDEX = function(message)
     end
 end
 
--- Bouton de la mini-carte : même gabarit que les boutons d’addons habituels
--- (fond sombre, icône, anneau doré). Il se déplace en le glissant autour de la carte.
+-- Minimap button: same template as the usual addon buttons
+-- (dark background, icon, gold ring). Drag it to move it around the map.
 local minimapButton = CreateFrame("Button", "ForeverDexMinimapButton", Minimap)
 minimapButton:SetSize(31, 31)
 minimapButton:SetFrameStrata("MEDIUM")
@@ -61,7 +61,7 @@ background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
 background:SetSize(20, 20)
 background:SetPoint("TOPLEFT", 7, -5)
 local icon = minimapButton:CreateTexture(nil, "ARTWORK")
--- L’orbe de ForeverDex, un peu plus grande qu’une icône carrée : elle est ronde.
+-- The ForeverDex orb, slightly larger than a square icon since it is round.
 icon:SetTexture("Interface\\AddOns\\ForeverDex\\Media\\Icon")
 icon:SetSize(21, 21)
 icon:SetPoint("TOPLEFT", 5, -5)
@@ -71,7 +71,7 @@ border:SetSize(53, 53)
 border:SetPoint("TOPLEFT")
 minimapButton:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
 
--- Angle autour de la mini-carte, en degrés (0 = à droite, 90 = en haut).
+-- Angle around the minimap, in degrees (0 = right, 90 = top).
 local DEFAULT_ANGLE = 225
 local function place(angle)
     local radians = math.rad(angle)
@@ -113,7 +113,7 @@ minimapButton:SetScript("OnEnter", function(self)
 end)
 minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
--- Éclat à l’arrivée de la balle de capture : étoile dorée et petit rebond de l’icône.
+-- Burst when the capture ball arrives: gold star and a small bounce of the icon.
 local glow = minimapButton:CreateTexture(nil, "OVERLAY", nil, 1)
 glow:SetTexture("Interface\\Cooldown\\star4")
 glow:SetBlendMode("ADD")

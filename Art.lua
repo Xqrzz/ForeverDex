@@ -3,9 +3,9 @@ local L = ns.L
 local Art = {}
 ns.Art = Art
 
--- Toutes les ressources viennent du client WoW. Chaque élément essaie d’abord
--- l’atlas moderne, puis une texture plus ancienne, puis une couleur unie :
--- un atlas absent du client Forever ne s’affiche donc jamais en carré vert.
+-- Every resource comes from the WoW client. Each element first tries the
+-- modern atlas, then an older texture, then a solid color, so an atlas
+-- missing from the Forever client never shows up as a green square.
 local registered, missing = {}, {}
 
 local function hasAtlas(name)
@@ -45,21 +45,21 @@ function Art.Apply(texture, specs)
     return false
 end
 
--- Fond peint de l’écran de sélection du Journal des donjons (époque classique).
+-- Painted background of the Adventure Guide selection screen (classic era).
 Art.JOURNAL_BG = register {
     { atlas = "UI-EJ-Classic" },
     { file = "Interface\\EncounterJournal\\UI-EJ-Classic" },
 }
--- Cadre doré et surbrillance des boutons d’instance du Journal.
+-- Gold frame and highlight of the Adventure Guide instance buttons.
 Art.CARD_FRAME = register {
     { atlas = "UI-EJ-DungeonButton-Up" },
 }
 Art.CARD_HIGHLIGHT = register {
     { atlas = "UI-EJ-DungeonButton-Highlight", blend = "ADD" },
-    -- Voile doré discret : la surbrillance de quête étirée sur toute la carte était trop jaune.
+    -- Subtle gold veil: the quest highlight stretched across the whole card was too yellow.
     { color = { 1, 0.82, 0.45, 0.12 }, blend = "ADD" },
 }
--- Lignes de la liste des races, reprises du Journal des mascottes et montures.
+-- Race list rows, borrowed from the Pet and Mount Journal.
 Art.ROW_BG = register {
     { atlas = "PetList-ButtonBackground" },
     { color = { 0, 0, 0, 0.25 } },
@@ -72,14 +72,14 @@ Art.ROW_SELECTED = register {
     { atlas = "PetList-ButtonSelect" },
     { file = "Interface\\QuestFrame\\UI-QuestTitleHighlight", blend = "ADD", vertex = { 1, 0.82, 0.2, 1 } },
 }
--- Parchemin de la fiche détaillée.
+-- Parchment of the detail page.
 Art.PARCHMENT = register {
     { atlas = "UI-EJ-JournalBG" },
     { atlas = "QuestBG-Parchment" },
     { file = "Interface\\AchievementFrame\\UI-Achievement-Parchment-Horizontal" },
 }
 
--- Dégradé vertical (du bas vers le haut) par défaut, ou "HORIZONTAL" (de gauche à droite).
+-- Vertical gradient (bottom to top) by default, or "HORIZONTAL" (left to right).
 function Art.Gradient(texture, r, g, b, startAlpha, endAlpha, orientation)
     orientation = orientation or "VERTICAL"
     texture:SetColorTexture(1, 1, 1, 1)
@@ -112,7 +112,7 @@ function Art.ClassIcon(texture, token)
     end
 end
 
--- Médaillon rond façon bouton de mini-carte : fond sombre, icône masquée, anneau doré.
+-- Round medallion in the style of a minimap button: dark background, masked icon, gold ring.
 function Art.Medallion(parent, size)
     local medallion = CreateFrame("Frame", nil, parent)
     medallion:SetSize(31, 31)
@@ -136,7 +136,7 @@ function Art.Medallion(parent, size)
     return medallion
 end
 
--- Barre de progression des hauts faits : bordure en trois morceaux et étincelle.
+-- Achievement progress bar: three-piece border and spark.
 function Art.ProgressBar(parent, width, height, bordered)
     local bar = CreateFrame("StatusBar", nil, parent)
     bar:SetSize(width, height)
@@ -180,8 +180,8 @@ function Art.ProgressBar(parent, width, height, bordered)
     return bar
 end
 
--- Recadre une image pour remplir une boîte sans la déformer.
--- Le cadrage vertical reste un peu au-dessus du centre, là où se trouve le décor.
+-- Crops an image to fill a box without distorting it.
+-- The vertical crop stays slightly above center, where the scenery is.
 local function crop(texture, left, right, top, bottom, sourceWidth, sourceHeight, boxWidth, boxHeight)
     local source, box = sourceWidth / sourceHeight, boxWidth / boxHeight
     if source > box then
@@ -197,8 +197,8 @@ local function crop(texture, left, right, top, bottom, sourceWidth, sourceHeight
     end
 end
 
--- Décor de race de la cabine d’essayage : atlas moderne, sinon la tuile principale
--- de l’ancienne cabine (256 × 255).
+-- Race backdrop from the dressing room: modern atlas, otherwise the main tile
+-- of the old dressing room (256 × 255).
 function Art.Scenery(texture, theme, boxWidth, boxHeight)
     if not theme or not theme[6] then return false end
     local atlas = "dressingroom-background-" .. theme[6]:lower()
@@ -216,11 +216,11 @@ function Art.Scenery(texture, theme, boxWidth, boxHeight)
     return true
 end
 
--- Écran de chargement d’un donjon, recadré dans la zone sans bandes noires
--- (même zone que ForeverDungeonJournal : 0,02–0,98 × 0,24–0,82).
+-- Dungeon loading screen, cropped to the area without black bars
+-- (same area as ForeverDungeonJournal: 0.02–0.98 × 0.24–0.82).
 function Art.LoadingScreen(texture, theme, boxWidth, boxHeight)
     if not theme or not theme[8] then return false end
-    -- Un nom désigne un écran de Glues\LoadingScreens, un nombre un numéro de fichier.
+    -- A name refers to a screen in Glues\LoadingScreens, a number to a file ID.
     local file = theme[8]
     if type(file) == "string" then file = "Interface\\Glues\\LoadingScreens\\" .. file end
     texture:SetTexture(file)
@@ -228,8 +228,8 @@ function Art.LoadingScreen(texture, theme, boxWidth, boxHeight)
     return true
 end
 
--- Image de grande taille affichée en petit : le filtre TRILINEAR la garde lisse.
--- ElvUI désactive le calage sur les pixels de toute texture ; on rétablit ses réglages.
+-- Large image displayed small: the TRILINEAR filter keeps it smooth.
+-- ElvUI disables pixel snapping on every texture; we restore its settings.
 function Art.SmoothTexture(texture, file)
     local readable = texture.IsSnappingToPixelGrid and texture.GetTexelSnappingBias
     local snap, bias = readable and texture:IsSnappingToPixelGrid(), readable and texture:GetTexelSnappingBias()
@@ -240,7 +240,7 @@ function Art.SmoothTexture(texture, file)
     end
 end
 
--- Agrandit une police du jeu en gardant son fichier (Friz Quadrata sur ce client).
+-- Enlarges a game font while keeping its file (Friz Quadrata on this client).
 function Art.Font(fontString, size, flags)
     local path = fontString:GetFont()
     if path then fontString:SetFont(path, size, flags or "") end
@@ -258,7 +258,7 @@ function Art.Sound(...)
     end
 end
 
--- /foreverdex textures : liste les atlas que ce client ne possède pas.
+-- /foreverdex textures: lists the atlases this client does not have.
 function Art.Report()
     local catalog = ns.Catalog
     for _, specs in ipairs(registered) do

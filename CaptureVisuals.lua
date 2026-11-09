@@ -3,8 +3,8 @@ local L, Art = ns.L, ns.Art
 local CaptureVisuals = {}
 ns.CaptureVisuals = CaptureVisuals
 
--- La balle est une seule texture de l’addon : contrairement à un dessin en
--- plusieurs morceaux, elle peut pivoter pendant le lancer et les secousses.
+-- The ball is a single addon texture: unlike a drawing made of several
+-- pieces, it can rotate during the throw and the shakes.
 local BALL = "Interface\\AddOns\\ForeverDex\\Media\\Ball"
 local DISC = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 CaptureVisuals.BALL = BALL
@@ -21,9 +21,9 @@ function CaptureVisuals.DrawBadge(badge)
     return ball
 end
 
--- Centre et diamètre d’un cadre ou d’une texture, dans l’échelle d’UIParent.
--- Une position peut être « secrète » (cadre sécurisé d’ElvUI, par exemple) : le client
--- interdit tout calcul dessus, on répond donc comme si elle était inconnue.
+-- Center and diameter of a frame or texture, in UIParent scale.
+-- A position can be "secret" (an ElvUI secure frame, for example): the client
+-- forbids any computation on it, so we answer as if it were unknown.
 local function isSecret(value)
     return issecretvalue ~= nil and issecretvalue(value)
 end
@@ -39,8 +39,8 @@ function CaptureVisuals.Center(region)
     return x * scale, y * scale, width * scale
 end
 
--- Animations natives de la notification. Toutes les animations d’un groupe sont au
--- même ordre et placées par leur délai : la chronologie se lit en secondes.
+-- Native notification animations. All animations in a group share the same
+-- order and are placed by their delay, so the timeline reads in seconds.
 local function animation(group, kind, start, duration, smoothing)
     local anim = group:CreateAnimation(kind)
     anim:SetOrder(1)
@@ -56,19 +56,19 @@ local function fade(anim, from, to)
     return anim
 end
 
--- Chronologie, calquée sur une capture classique : lancer, absorption, rebonds,
--- trois secousses espacées d’une seconde, déclic, puis retour au carnet.
+-- Timeline, modeled on a classic capture: throw, absorption, bounces,
+-- three shakes one second apart, click, then back to the journal.
 local THROW = 0.55
 local ABSORB = 0.55
 local DROP = 0.9
 local WOBBLES = { 1.8, 2.8, 3.8 }
 local CLICK = 4.5
 local FLY = 5.2
--- Version rapide : pas de secousses, le déclic suit directement les rebonds.
+-- Quick version: no shakes, the click directly follows the bounces.
 local QUICK_SHIFT = CLICK - 1.5
 
--- Toute la capture est calculée à chaque image en coordonnées d’écran : sur ce
--- client, les translations et agrandissements natifs déviaient la balle.
+-- The whole capture is computed every frame in screen coordinates: on this
+-- client, native translations and scales knocked the ball off course.
 local effect = CreateFrame("Frame", nil, UIParent)
 effect:SetAllPoints(UIParent)
 effect:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -91,7 +91,7 @@ local flash = effect:CreateTexture(nil, "OVERLAY")
 flash:SetTexture(DISC)
 flash:SetBlendMode("ADD")
 
--- Trois étoiles jaillissent du sommet au déclic.
+-- Three stars burst from the top on the click.
 local STAR_LIFE = 0.65
 local stars = {}
 for i, direction in ipairs({ { -34, 26 }, { 0, 40 }, { 34, 26 } }) do
@@ -102,8 +102,8 @@ for i, direction in ipairs({ { -34, 26 }, { 0, 40 }, { 34, 26 } }) do
     stars[i] = { texture = star, x = direction[1], y = direction[2], turn = i == 2 and 0 or (i == 1 and math.pi / 2 or -math.pi / 2) }
 end
 
--- La balle retombe sur le portrait et rebondit deux fois en s’amortissant.
--- Le total des rebonds la laisse exactement au centre du portrait.
+-- The ball falls back onto the portrait and bounces twice, damped.
+-- The sum of the bounces leaves it exactly at the center of the portrait.
 local BOUNCES = { { -12, 0.12, true }, { 7, 0.10 }, { -7, 0.10, true }, { 3, 0.06 }, { -3, 0.06, true } }
 local LANDING_LIFT, THROW_ARC = 12, 70
 
@@ -120,7 +120,7 @@ local function bounceOffset(elapsed)
     return offset
 end
 
--- Secousses : la balle bascule à gauche, à droite, puis à gauche.
+-- Shakes: the ball tilts left, right, then left.
 local TILT_ANGLE, TILT_TIME, TILT_BACK = math.rad(24), 0.14, 0.24
 
 local function tiltAt(now, starts)
@@ -151,14 +151,14 @@ effect:SetScript("OnUpdate", function(_, delta)
         if now > DROP then y = y + bounceOffset(now - DROP) end
         angle = tiltAt(now, seq.wobbles)
     end
-    -- En basculant, le centre suit un arc autour de la base, qui reste immobile.
+    -- While tilting, the center follows an arc around the base, which stays still.
     local radius = size / 2
     local ballX, ballY = x - radius * math.sin(angle), y + radius * (math.cos(angle) - 1)
     if now < THROW then ballX, ballY = x, y end
     put(ball, ballX, ballY, size)
     ball:SetRotation(angle)
 
-    -- Éclair blanc : le personnage est aspiré dans la balle.
+    -- White flash: the character is drawn into the ball.
     local sinceAbsorb = now - ABSORB
     local flashing = sinceAbsorb >= 0 and sinceAbsorb < 0.35
     flash:SetShown(flashing)
@@ -168,7 +168,7 @@ effect:SetScript("OnUpdate", function(_, delta)
         flash:SetAlpha(sinceAbsorb < 0.1 and sinceAbsorb / 0.1 or 1 - (sinceAbsorb - 0.1) / 0.25)
     end
 
-    -- La balle s’assombrit légèrement une fois la capture réussie.
+    -- The ball darkens slightly once the capture succeeds.
     local sinceClick = now - seq.click
     put(dim, ballX, ballY, size)
     dim:SetAlpha(0.3 * math.max(0, math.min(1, sinceClick / 0.2)))
@@ -186,9 +186,9 @@ effect:SetScript("OnUpdate", function(_, delta)
     end
 end)
 
--- Retour au carnet : la balle quitte le portrait, vole en arc jusqu’à l’icône de la
--- mini-carte en laissant une traînée dorée, puis s’y range dans un éclat. Le trajet
--- est calculé à chaque image en coordonnées d’écran, pour arriver pile sur l’icône.
+-- Back to the journal: the ball leaves the portrait, flies in an arc to the minimap
+-- icon leaving a golden trail, then tucks in with a burst. The path is computed
+-- every frame in screen coordinates, to land exactly on the icon.
 local RISE, SETTLE = 0.2, 0.3
 local RISE_HEIGHT = 16
 local TRAIL_COUNT, TRAIL_EVERY, TRAIL_LIFE = 12, 0.035, 0.38
@@ -300,14 +300,14 @@ homing:SetScript("OnUpdate", function(_, delta)
     updateTrail(now)
 end)
 
--- Départ (x1, y1) : la balle posée sur le portrait. Sans icône visible, elle se
--- range sur place. onArrive sert au son et à l’icône, onDone à la notification.
+-- Start (x1, y1): the ball resting on the portrait. With no visible icon, it
+-- tucks away on the spot. onArrive handles the sound and icon, onDone the notification.
 local function launchHoming(x1, y1, size, homeX, homeY, homeSize, onArrive, onDone)
     stopHoming()
     local startY = y1 + RISE_HEIGHT
     local x2, y2 = homeX or x1, homeY or startY
     local distance = math.sqrt((x2 - x1) ^ 2 + (y2 - startY) ^ 2)
-    -- L’arc passe au-dessus du trajet sans sortir du haut de l’écran.
+    -- The arc goes above the path without leaving the top of the screen.
     local middleY = (startY + y2) / 2
     local arcY = math.max(middleY, math.min(middleY + distance * 0.35, UIParent:GetHeight() - 30))
     run = {
@@ -321,15 +321,15 @@ local function launchHoming(x1, y1, size, homeX, homeY, homeSize, onArrive, onDo
     homing:Show()
 end
 
--- Notification : monte depuis le bas de l’écran, au-dessus des barres d’action,
--- comme les alertes du jeu --------------------------------------------------------------
+-- Notification: rises from the bottom of the screen, above the action bars,
+-- like the game's alerts --------------------------------------------------------------
 
 local ACHIEVEMENT = "Interface\\AchievementFrame\\"
--- Cadre dessiné pour la notification : bordure dorée des boîtes de dialogue et
--- fond sombre du jeu. Contrairement au fond des hauts faits, il n’impose ni
--- bandeau ni emplacement réservé : tout le contenu suit la même grille.
---   portrait à gauche (centre à 40 px du bord) ;
---   colonne de texte à 80 px : titre, pseudo, combinaison, barre + compteur.
+-- Frame drawn for the notification: gold dialog box border and the game's dark
+-- background. Unlike the achievement background, it forces neither a banner
+-- nor a reserved slot: all the content follows the same grid.
+--   portrait on the left (center 40 px from the edge);
+--   text column at 80 px: title, name, combination, bar + counter.
 local TOAST_W, TOAST_H, TEXT_LEFT = 320, 84, 80
 local toast = CreateFrame("Button", "ForeverDexToast", UIParent, "BackdropTemplate")
 toast:SetSize(TOAST_W, TOAST_H)
@@ -344,7 +344,7 @@ toast:SetBackdrop({
 toast:SetBackdropColor(0.09, 0.06, 0.04, 0.96)
 toast:Hide()
 
--- Léger dégradé doré en haut, pour donner du relief au fond uni.
+-- Slight gold gradient at the top, to give the flat background some depth.
 local toastSheen = toast:CreateTexture(nil, "BORDER")
 toastSheen:SetPoint("TOPLEFT", 5, -5)
 toastSheen:SetPoint("TOPRIGHT", -5, -5)
@@ -377,7 +377,7 @@ toastIconFrame:SetTexture(ACHIEVEMENT .. "UI-Achievement-IconFrame")
 toastIconFrame:SetTexCoord(0, 0.5625, 0, 0.5625)
 
 local toastTitle = toast:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
--- Les quatre lignes font environ 53 px : 15 px de marge en haut les centrent.
+-- The four lines take about 53 px: a 15 px top margin centers them.
 toastTitle:SetPoint("TOPLEFT", TEXT_LEFT, -15)
 toastTitle:SetText(L.NEW_CARD)
 toastTitle:SetTextColor(1, 0.82, 0)
@@ -401,7 +401,7 @@ toastBarBorder:SetColorTexture(0.75, 0.6, 0.3, 0.8)
 local toastCount = toast:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 toastCount:SetPoint("LEFT", toastBar, "RIGHT", 8, 0)
 
--- Entrée par le bas : décalée de 50 pixels puis remontée, avec un fondu.
+-- Enters from the bottom: offset by 50 pixels then raised, with a fade.
 local toastAnimation = toast:CreateAnimationGroup()
 toastAnimation:SetToFinalAlpha(true)
 animation(toastAnimation, "Translation", 0, 0.001):SetOffset(0, -50)
@@ -419,7 +419,7 @@ fade(animation(shineAnimation, "Alpha", 0.5, 0.1), 0, 1)
 animation(shineAnimation, "Translation", 0.5, 0.85):SetOffset(TOAST_W - 70, 0)
 fade(animation(shineAnimation, "Alpha", 1.1, 0.25), 1, 0)
 
--- La barre se remplit pendant que la notification s’affiche.
+-- The bar fills while the notification is showing.
 local fillFrom, fillTo, fillElapsed = 0, 0, 0
 toast:SetScript("OnUpdate", function(_, delta)
     fillElapsed = fillElapsed + delta
@@ -473,10 +473,10 @@ local function showToast(entry)
     shineAnimation:Play()
 end
 
--- Lecture --------------------------------------------------------------------------------
+-- Playback --------------------------------------------------------------------------------
 
--- Chaque lecture reçoit un numéro : une nouvelle capture annule les sons et
--- les étapes programmés par la précédente.
+-- Each playback gets a number: a new capture cancels the sounds and
+-- steps scheduled by the previous one.
 local playback = 0
 local function at(delay, token, action)
     C_Timer.After(delay, function()
@@ -484,18 +484,18 @@ local function at(delay, token, action)
     end)
 end
 
--- options : from (x, y), to (x, y, taille de la balle), home (x, y, taille de
--- l’icône de la mini-carte), entry, onReveal, onHome.
+-- options: from (x, y), to (x, y, ball size), home (x, y, minimap
+-- icon size), entry, onReveal, onHome.
 function CaptureVisuals.Play(options)
     playback = playback + 1
     local token = playback
-    -- Une capture peut en interrompre une autre, par exemple depuis le chat.
+    -- One capture can interrupt another, for example from chat.
     stopHoming()
     effect:Hide()
     local entry = options.entry
     local mode = ns.Settings.Get("animation")
     if not options.fromX or mode == "off" then
-        -- Sans animation (ou sans point de départ visible) : tout arrive d’un coup.
+        -- No animation (or no visible starting point): everything happens at once.
         if options.onReveal then options.onReveal() end
         ns.Collection.Announce(entry, true)
         if options.onHome then options.onHome() end
@@ -506,7 +506,7 @@ function CaptureVisuals.Play(options)
     local shift = quick and QUICK_SHIFT or 0
     local x1, y1 = options.fromX, options.fromY
     local x2, y2 = options.toX or (x1 - 20), options.toY or (y1 - 30)
-    -- Bornée : la cible peut être un cadre ElvUI sans portrait, large comme une barre.
+    -- Clamped: the target can be a portrait-less ElvUI frame as wide as a bar.
     local size = math.min(72, math.max(36, options.size or 0))
 
     seq = {

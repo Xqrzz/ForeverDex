@@ -1,6 +1,6 @@
 local _, ns = ...
 
--- Les autres langues utilisent les libellés anglais.
+-- Other languages use the English strings.
 local fr = {
     MINIMAP_OPTIONS = "Clic droit : paramètres.",
     DUEL_AUTO_REFUSED = "Demande de comparaison de %s refusée automatiquement (voir les paramètres).",

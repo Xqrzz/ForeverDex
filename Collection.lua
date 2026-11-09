@@ -5,8 +5,8 @@ ns.Collection = Collection
 local onChanged
 
 local function readable(value)
-    -- Le client peut marquer une valeur comme secrète, notamment en combat.
-    -- Il faut le vérifier avant toute comparaison ou concaténation.
+    -- The client can mark a value as secret, notably in combat.
+    -- This must be checked before any comparison or concatenation.
     return (not issecretvalue or not issecretvalue(value)) and value ~= nil
 end
 
@@ -17,14 +17,14 @@ local function setCharacterName(entry, firstName, surname)
     entry.id = entry.name
 end
 
--- Lit la cible, ou l’unité indiquée (membre du groupe, portrait cliqué…).
+-- Reads the target, or the given unit (party member, clicked portrait…).
 function Collection.ReadTarget(unit)
     unit = unit or "target"
     local player = UnitIsPlayer(unit)
     if not readable(player) or not player then return end
     local selfTarget = UnitIsUnit(unit, "player")
     if not readable(selfTarget) or selfTarget then return end
-    -- Dans Forever, UnitFullName renvoie séparément le prénom et le nom de famille.
+    -- In Forever, UnitFullName returns the first and last name separately.
     local firstName, surname = UnitFullName(unit)
     local _, _, race = UnitRace(unit)
     local _, _, class = UnitClass(unit)
@@ -37,7 +37,7 @@ function Collection.ReadTarget(unit)
     if not slot then return end
     local entry = { key = slot.key }
     setCharacterName(entry, firstName, surname)
-    -- Détails facultatifs pour la fiche : ils ne servent jamais à identifier le personnage.
+    -- Optional details for the detail page: they are never used to identify the character.
     local level = UnitLevel(unit)
     if readable(level) and level > 0 then entry.level = level end
     local guild = GetGuildInfo(unit)
@@ -45,12 +45,12 @@ function Collection.ReadTarget(unit)
     return entry
 end
 
--- Conversions de la sauvegarde. migrations[n] fait passer les données de la version
--- n - 1 à la version n. Pour changer le format : augmenter DB_VERSION et ajouter
--- une conversion, sans jamais modifier celles qui sont déjà publiées.
+-- Saved data conversions. migrations[n] moves the data from version n - 1
+-- to version n. To change the format: increase DB_VERSION and add a
+-- conversion, without ever changing the ones already released.
 local DB_VERSION = 1
 local migrations = {
-    -- Les anciennes versions stockaient le nom de famille dans le champ realm.
+    -- Older versions stored the last name in the realm field.
     [1] = function(db)
         local fallbackRealm = GetNormalizedRealmName()
         for _, entry in pairs(db.cards) do
@@ -67,28 +67,28 @@ local migrations = {
 function Collection.Initialize(onCollectionChanged)
     ForeverDexDB = ForeverDexDB or { cards = {} }
     onChanged = onCollectionChanged
-    -- Les sauvegardes antérieures au numéro de version valent 0. Une sauvegarde plus
-    -- récente que l’addon reste intacte. La version avance après chaque conversion réussie.
+    -- Saved data older than the version number counts as 0. Saved data newer than
+    -- the addon is left untouched. The version advances after each successful conversion.
     for version = (ForeverDexDB.version or 0) + 1, DB_VERSION do
         migrations[version](ForeverDexDB)
         ForeverDexDB.version = version
     end
 end
 
--- noThrow : la capture ne vient d’aucun portrait, donc pas de lancer de balle.
+-- noThrow: the capture does not come from a portrait, so no ball throw.
 local function save(entry, noThrow)
     local isNew = ForeverDexDB.cards[entry.key] == nil
     entry.capturedAt = time()
     local zone = GetRealZoneText and GetRealZoneText()
     if readable(zone) and zone ~= "" then entry.zone = zone end
     ForeverDexDB.cards[entry.key] = entry
-    -- Une nouvelle carte s'annonce au « clic » de la balle ; un remplacement tout de suite.
+    -- A new card is announced on the ball's "click"; a replacement right away.
     if not isNew then Collection.Announce(entry, false) end
     onChanged(entry, isNew, noThrow)
 end
 
--- Message de capture façon Pokémon, visible seulement dans le chat du joueur.
--- Le pseudo prend la couleur de sa classe ; la phrase est tirée au hasard.
+-- Pokémon-style capture message, visible only in the player's own chat.
+-- The name takes its class color; the sentence is picked at random.
 local lastLine
 function Collection.Announce(entry, isNew)
     if not ns.Settings.Get("chatMessage") then return end
@@ -106,18 +106,18 @@ end
 StaticPopupDialogs["FOREVERDEX_REPLACE"] = {
     text = L.REPLACE_PROMPT,
     button1 = L.REPLACE,
-    -- Annuler reste le bouton 2 : la touche Échap déclenche ce bouton.
+    -- Cancel stays button 2: the Escape key triggers this button.
     button2 = CANCEL,
     button3 = L.ADD_BONUS,
     timeout = 0,
     whileDead = true,
     hideOnEscape = true,
-    -- La boîte reçoit la capture initiale, car la cible peut changer entre-temps.
+    -- The dialog receives the initial capture, since the target may change in the meantime.
     OnAccept = function(_, data) save(data.entry, data.noThrow) end,
     OnAlt = function(_, data) Collection.SaveAsBonus(data.entry, data.noThrow) end,
 }
 
--- Retire une carte de la collection : elle redevient « à découvrir ».
+-- Removes a card from the collection: it goes back to "to discover".
 function Collection.Delete(key)
     local entry = ForeverDexDB.cards[key]
     if not entry then return end
@@ -126,7 +126,7 @@ function Collection.Delete(key)
     onChanged(entry, false)
 end
 
--- Vide toute la collection (paramètres → Données), après double confirmation.
+-- Empties the whole collection (settings → Data), after double confirmation.
 function Collection.Reset()
     local count = 0
     for _ in pairs(ForeverDexDB.cards) do count = count + 1 end
@@ -162,7 +162,7 @@ function Collection.Capture()
     if entry then place(entry) end
 end
 
--- Capture depuis le chat ------------------------------------------------------------
+-- Capture from chat ------------------------------------------------------------
 
 local function chatSenderGUID(context)
     if not context or not context.lineID or not C_ChatInfo or not C_ChatInfo.GetChatLineSenderGUID then return end
@@ -175,8 +175,8 @@ end
 
 Collection.ChatSenderGUID = chatSenderGUID
 
--- Forever range le nom de famille dans le champ du royaume : on écarte seulement
--- une valeur vide ou le vrai nom du royaume.
+-- Forever stores the last name in the realm field: we only discard an
+-- empty value or the actual realm name.
 local function cleanSurname(value)
     if not readable(value) or value == "" then return end
     local realm = GetNormalizedRealmName and GetNormalizedRealmName()
@@ -190,7 +190,7 @@ local function splitName(value)
     return first or value, cleanSurname(surname)
 end
 
--- Le prénom et le nom peuvent venir du GUID ou du pseudo affiché dans le chat.
+-- The first and last name can come from the GUID or the name shown in chat.
 local function readChatName(name, realm, context)
     local first, surname = splitName(name)
     surname = surname or cleanSurname(realm) or cleanSurname(context.server)
@@ -200,7 +200,7 @@ local function readChatName(name, realm, context)
     return first or chatFirst, chatSurname
 end
 
--- Le chat ne fournit ni le niveau ni la guilde : ces champs restent vides sur la carte.
+-- Chat provides neither level nor guild: those fields stay empty on the card.
 local function readChatSender(guid, context)
     local _, class, _, race, sex, name, realm = GetPlayerInfoByGUID(guid)
     local slot
@@ -242,7 +242,7 @@ end
 
 function Collection.FindBonusSlot(entry)
     local available
-    -- On poursuit après le premier emplacement libre pour détecter un doublon plus loin.
+    -- We keep going after the first free slot to detect a duplicate further on.
     for _, slot in ipairs(Catalog.bonusSlots) do
         local current = ForeverDexDB.cards[slot.key]
         if current and current.id == entry.id then return nil, L.BONUS_DUPLICATE end
@@ -257,7 +257,7 @@ function Collection.SaveAsBonus(entry, noThrow)
         print(L.CHAT_PREFIX .. label)
         return
     end
-    -- Le bonus a sa propre clé, mais garde la combinaison pour le décor et le portrait.
+    -- The bonus has its own key, but keeps the combination for the backdrop and portrait.
     entry.combination = entry.key
     entry.key = slot.key
     save(entry, noThrow)
@@ -268,7 +268,7 @@ function Collection.CaptureBonus()
     if entry then Collection.SaveAsBonus(entry) end
 end
 
--- Déplace une carte classique vers un bonus libre, avec sa date et ses détails.
+-- Moves a standard card to a free bonus slot, with its date and details.
 function Collection.MoveToBonus(key)
     local entry = ForeverDexDB.cards[key]
     if not entry or entry.combination then return end

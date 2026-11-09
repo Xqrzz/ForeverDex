@@ -3,19 +3,19 @@ local L, Catalog, Collection, Art = ns.L, ns.Catalog, ns.Collection, ns.Art
 local Duel = {}
 ns.Duel = Duel
 
--- Échange de collections ---------------------------------------------------------
+-- Collection exchange ---------------------------------------------------------
 --
--- Les deux joueurs doivent avoir ForeverDex. Tout passe par des messages d’addon
--- chuchotés (invisibles dans le chat) :
---   Q<clé>=<nom>  demande de comparaison, avec la combinaison et le nom du demandeur
---   A<clé>=<nom>  demande acceptée : chacun envoie alors sa collection
---   N             demande refusée
---   D<i>/<n>#...  morceau i sur n de la collection (255 octets au plus par message)
--- Une collection reçue sans demande acceptée est ignorée.
+-- Both players need ForeverDex. Everything goes through whispered addon
+-- messages (invisible in chat):
+--   Q<key>=<name>  comparison request, with the requester's combination and name
+--   A<key>=<name>  request accepted: each side then sends its collection
+--   N              request declined
+--   D<i>/<n>#...   chunk i of n of the collection (255 bytes at most per message)
+-- A collection received without an accepted request is ignored.
 --
--- Compatibilité entre versions : ces quatre messages ne changent jamais de forme.
--- Une nouveauté passe soit par un nouveau type de message (les types inconnus sont
--- ignorés), soit par des champs ajoutés après une tabulation, que les lectures ignorent.
+-- Cross-version compatibility: these four messages never change shape.
+-- Anything new goes through either a new message type (unknown types are
+-- ignored) or fields added after a tab, which readers ignore.
 
 local PREFIX, CHUNK, TIMEOUT = "ForeverDex", 220, 25
 
@@ -29,17 +29,17 @@ elseif RegisterAddonMessagePrefix then
     RegisterAddonMessagePrefix(PREFIX)
 end
 
--- /foreverdex duel : affiche les messages envoyés et reçus, pour diagnostiquer.
+-- /foreverdex duel: shows sent and received messages, for diagnostics.
 local tracing = false
 local function trace(direction, who, message)
     if not tracing then return end
-    DEFAULT_CHAT_FRAME:AddMessage(("|cff63ded1ForeverDex|r · duel %s %s : %s"):format(direction,
+    DEFAULT_CHAT_FRAME:AddMessage(("|cff63ded1ForeverDex|r · duel %s %s: %s"):format(direction,
         readable(who) and tostring(who) or "(secret)", readable(message) and tostring(message):sub(1, 40) or "(secret)"))
 end
 
 function Duel.ToggleTrace()
     tracing = not tracing
-    DEFAULT_CHAT_FRAME:AddMessage("|cff63ded1ForeverDex|r · trace du duel : " .. (tracing and "activée" or "désactivée"))
+    DEFAULT_CHAT_FRAME:AddMessage("|cff63ded1ForeverDex|r · duel trace: " .. (tracing and "on" or "off"))
 end
 
 local function send(message, target)
@@ -49,16 +49,16 @@ local function send(message, target)
     elseif SendAddonMessage then
         result = SendAddonMessage(PREFIX, message, "WHISPER", target)
     end
-    trace("envoi vers", target, ("%s (résultat %s)"):format(message:sub(1, 20), tostring(result)))
+    trace("sent to", target, ("%s (result %s)"):format(message:sub(1, 20), tostring(result)))
 end
 
--- Le prénom seul : sur Forever, le jeu n’écrit pas toujours la suite du nom de la même
--- façon. Il sert à reconnaître un joueur ; les réponses partent à l’adresse reçue.
+-- First name only: on Forever, the game does not always write the rest of the name the
+-- same way. It is used to recognize a player; replies go to the address received.
 local function shortName(name)
     return name:match("^[^%-%s]+") or name
 end
 
--- Combinaison et nom complet du joueur, envoyés avec chaque demande.
+-- The player's combination and full name, sent with each request.
 local function identity()
     local _, _, race = UnitRace("player")
     local _, _, class = UnitClass("player")
@@ -85,7 +85,7 @@ local function serialize()
     return table.concat(parts, "~")
 end
 
--- Les données reçues sont filtrées : clés connues du catalogue, noms courts.
+-- Received data is filtered: keys known to the catalog, short names.
 local function parse(payload)
     local cards = {}
     for item in payload:gmatch("[^~]+") do
@@ -105,18 +105,18 @@ local function sendCollection(target)
     local total = math.max(1, math.ceil(#payload / CHUNK))
     for i = 1, total do
         local piece = payload:sub((i - 1) * CHUNK + 1, i * CHUNK)
-        -- Envoi espacé pour rester sous la limite de débit des messages d’addon.
+        -- Spaced sending to stay under the addon message rate limit.
         C_Timer.After((i - 1) * 0.15, function()
             send(("D%d/%d#%s"):format(i, total, piece), target)
         end)
     end
 end
 
-local outgoing -- demande envoyée : { target, display, combination, accepted }
-local partners = {} -- [nom court] = { expected, chunks, display, combination }
--- Anti-spam : après un refus, les demandes du même joueur sont écartées une minute.
+local outgoing -- sent request: { target, display, combination, accepted }
+local partners = {} -- [short name] = { expected, chunks, display, combination }
+-- Anti-spam: after a refusal, requests from the same player are dropped for a minute.
 local BLOCK_TIME = 60
-local blocked = {} -- [nom court] = instant de fin du blocage
+local blocked = {} -- [short name] = time the block ends
 
 local function print(message)
     DEFAULT_CHAT_FRAME:AddMessage("|cff63ded1ForeverDex|r · " .. message)
@@ -132,7 +132,7 @@ function Duel.CanRequest(unit)
 end
 
 local function startRequest(name, realm, display, combination)
-    -- Une seule demande à la fois : elle se libère à la réponse ou après le délai d’attente.
+    -- One request at a time: it clears on the reply or after the timeout.
     if outgoing and not outgoing.accepted then
         print(L.DUEL_PENDING)
         return
@@ -158,7 +158,7 @@ end
 function Duel.Request(unit)
     unit = unit or "target"
     if not Duel.CanRequest(unit) then return end
-    -- GetUnitName(unit, true) donne le nom au format attendu par les chuchotements.
+    -- GetUnitName(unit, true) gives the name in the format whispers expect.
     local name = GetUnitName and GetUnitName(unit, true)
     local realm
     if not readable(name) or not name or name == "" then name, realm = UnitName(unit) end
@@ -166,7 +166,7 @@ function Duel.Request(unit)
     startRequest(name, realm, player and player.name, player and Catalog.byKey[player.key])
 end
 
--- Depuis le chat, le joueur n’a pas d’unité : son nom vient de la ligne de message.
+-- From chat, the player has no unit: their name comes from the message line.
 local function requestFromChat(context)
     local guid = Collection.ChatSenderGUID(context)
     if not guid then return end
@@ -179,7 +179,7 @@ local function requestFromChat(context)
     startRequest(name, realm, nil, combination)
 end
 
--- Clic droit sur un portrait de joueur, un membre du groupe ou un pseudo du chat.
+-- Right-click on a player portrait, a party member or a name in chat.
 if Menu and Menu.ModifyMenu then
     for _, tag in ipairs({ "MENU_UNIT_PLAYER", "MENU_UNIT_PARTY", "MENU_UNIT_RAID_PLAYER" }) do
         Menu.ModifyMenu(tag, function(_, root, context)
@@ -189,7 +189,7 @@ if Menu and Menu.ModifyMenu then
             root:CreateButton(L.COMPARE_MENU, function() Duel.Request(unit) end)
         end)
     end
-    -- Dans le chat, l’option suit « Ajouter au ForeverDex », déjà précédée d’un séparateur.
+    -- In chat, the option follows "Add to ForeverDex", already preceded by a separator.
     Menu.ModifyMenu("MENU_UNIT_FRIEND", function(_, root, context)
         if not Collection.ChatSenderGUID(context) then return end
         root:CreateButton(L.COMPARE_MENU, function() requestFromChat(context) end)
@@ -222,21 +222,21 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("CHAT_MSG_ADDON")
 events:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
     if not readable(prefix) or prefix ~= PREFIX then return end
-    trace("reçu de", sender, text)
+    trace("received from", sender, text)
     if not ForeverDexDB or not readable(sender) or not readable(text) then return end
     local who = shortName(sender)
     local kind, body = text:sub(1, 1), text:sub(2)
 
     if kind == "Q" then
         local combination, display = parseIdentity(body)
-        -- « Tout ignorer » et le blocage après un refus ne montrent strictement rien ici ;
-        -- le demandeur reçoit simplement un refus, pour ne pas attendre.
+        -- "Ignore all" and the block after a refusal show strictly nothing here;
+        -- the requester simply gets a refusal, so they do not have to wait.
         local now = GetTime()
         if ns.Settings.Get("duelRequests") == "refuse" or now < (blocked[who] or 0) then
             send("N", sender)
             return
         end
-        -- Une fenêtre de demande est déjà ouverte : on ne la remplace pas.
+        -- A request window is already open: we do not replace it.
         if StaticPopup_Visible and StaticPopup_Visible("FOREVERDEX_DUEL") then return end
         local inCombat = (InCombatLockdown and InCombatLockdown())
             or (UnitAffectingCombat and UnitAffectingCombat("player"))
@@ -278,7 +278,7 @@ events:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
     end
 end)
 
--- Écran de duel ----------------------------------------------------------------------
+-- Duel screen ----------------------------------------------------------------------
 
 local ROWS, ROW_H = 11, 28
 local BLUE, RED = { 0.25, 0.55, 1 }, { 1, 0.3, 0.22 }
@@ -329,7 +329,7 @@ else
     close:SetPoint("TOPRIGHT", -4, -4)
 end
 
--- Arène : deux camps face à face, séparés au centre.
+-- Arena: two sides facing each other, split at the center.
 local arena, nativeArena = create("Frame", nil, window, "InsetFrameTemplate", "BackdropTemplate")
 if not nativeArena then
     arena:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8" })
@@ -354,7 +354,7 @@ redSide:SetPoint("TOPLEFT", backdrop, "TOP")
 redSide:SetPoint("BOTTOMRIGHT", backdrop)
 horizontal(redSide, RED[1], RED[2], RED[3], 0, 0.35)
 
--- Un camp : médaillon, pseudo, score et barre, en miroir à droite.
+-- One side: medallion, name, score and bar, mirrored on the right.
 local function buildSide(side)
     local left = side == "left"
     local frame = CreateFrame("Frame", nil, arena)
@@ -391,7 +391,7 @@ local function buildSide(side)
         frame.bar:SetReverseFill(true)
     end
 
-    -- Entrée en scène : chaque camp glisse depuis son bord.
+    -- Entrance: each side slides in from its edge.
     local intro = frame:CreateAnimationGroup()
     local away = intro:CreateAnimation("Translation")
     away:SetOffset(left and -320 or 320, 0)
@@ -412,7 +412,7 @@ local function buildSide(side)
 end
 local mine, theirs = buildSide("left"), buildSide("right")
 
--- Emblème « VS » : grande police dorée sur un halo fixe, désactivable.
+-- "VS" emblem: large gold font on a fixed halo, can be disabled.
 local vsFrame = CreateFrame("Frame", nil, arena)
 vsFrame:SetSize(120, 120)
 vsFrame:SetPoint("TOP", 0, -30)
@@ -452,7 +452,7 @@ local tally = arena:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 tally:SetPoint("TOP", vsFrame, "BOTTOM", 0, -2)
 tally:SetJustifyH("CENTER")
 
--- Liste des cartes : chaque ligne oppose les deux pseudos autour de la combinaison.
+-- Card list: each row sets the two names against each other around the combination.
 local list = CreateFrame("Frame", nil, arena)
 list:SetPoint("TOPLEFT", 10, -172)
 list:SetPoint("TOPRIGHT", -10, -172)
@@ -524,7 +524,7 @@ local function paintName(fontString, mark, wash, entry, color)
     end
 end
 
--- Filtres en bas : toutes, communes, toi seul, lui seul.
+-- Filters at the bottom: all, shared, you only, them only.
 local state = { page = 1, filter = 1, opponent = nil, cards = {} }
 local filterNames = { L.DUEL_FILTER_ALL, L.DUEL_FILTER_BOTH, L.DUEL_FILTER_MINE, L.DUEL_FILTER_THEIRS }
 local pageText = arena:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -635,7 +635,7 @@ local function paintSide(side, display, combination, unit, total)
     side.target = total
 end
 
--- Les scores montent de zéro pendant l’entrée en scène.
+-- Scores count up from zero during the entrance.
 local countElapsed = 0
 window:SetScript("OnUpdate", function(_, delta)
     countElapsed = countElapsed + delta
@@ -662,7 +662,7 @@ function Duel.Show(partner, cards)
     paintSide(theirs, partner.display or "?", partner.combination, targeted and "target" or nil, counts.theirsTotal)
 
     local animated = ns.Settings.Get("duelAnimation")
-    -- Sans animation, les scores s’affichent directement à leur valeur finale.
+    -- Without animation, scores show their final value directly.
     countElapsed = animated and 0 or 2
     window:Show()
     for _, group in ipairs({ mine.intro, theirs.intro, slam }) do
