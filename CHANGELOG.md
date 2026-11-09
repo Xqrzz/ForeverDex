@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.6.0
 
 - Right-click menu on every card: favorite, bonus, delete
 - Bonus cards can go back to their standard card when it is free
