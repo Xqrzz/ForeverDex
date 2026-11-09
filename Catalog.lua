@@ -1,4 +1,5 @@
 local _, ns = ...
+ns.Module(function()
 local L = ns.L
 local Catalog = {}
 ns.Catalog = Catalog
@@ -58,9 +59,10 @@ for _, race in ipairs(races) do
     raceList[#raceList + 1] = info
     for i = 2, #race do
         local class = C_CreatureInfo.GetClassInfo(race[i])
+        local className = L.CLASSES[class.classFile] or class.className
         if not seenClass[class.classFile] then
             seenClass[class.classFile] = true
-            classList[#classList + 1] = { token = class.classFile, name = class.className }
+            classList[#classList + 1] = { token = class.classFile, name = className }
         end
         for sex = 2, 3 do
             local slot = {
@@ -68,7 +70,7 @@ for _, race in ipairs(races) do
                 key = Catalog.SlotKey(raceID, race[i], sex),
                 raceID = raceID,
                 race = L.RACES[raceID],
-                class = class.className,
+                class = className,
                 token = class.classFile,
                 sex = sex == 2 and L.MALE or L.FEMALE,
                 sexID = sex,
@@ -100,7 +102,7 @@ Catalog.classes = classList
 -- A filled bonus borrows the combination of the captured character.
 function Catalog.Describe(slot, entry)
     local details = slot.sex and slot or (entry and byKey[entry.combination])
-    local description = details and (details.race .. " · " .. details.class .. " · " .. details.sex)
+    local description = details and (details.race .. L.SEPARATOR .. details.class .. L.SEPARATOR .. details.sex)
         or L.BONUS_DESCRIPTION
     return details, description
 end
@@ -150,9 +152,17 @@ local accents = {
     ["ù"] = "u", ["û"] = "u", ["ü"] = "u", ["ÿ"] = "y", ["œ"] = "oe",
     ["À"] = "a", ["Â"] = "a", ["Ç"] = "c", ["É"] = "e", ["È"] = "e", ["Ê"] = "e",
     ["Ë"] = "e", ["Î"] = "i", ["Ï"] = "i", ["Ô"] = "o", ["Ù"] = "u", ["Û"] = "u",
+    ["á"] = "a", ["ã"] = "a", ["í"] = "i", ["ì"] = "i", ["ñ"] = "n", ["ó"] = "o", ["ò"] = "o",
+    ["õ"] = "o", ["ú"] = "u", ["ß"] = "ss", ["Á"] = "a", ["Ã"] = "a", ["Ä"] = "a", ["Í"] = "i",
+    ["Ñ"] = "n", ["Ó"] = "o", ["Õ"] = "o", ["Ö"] = "o", ["Ú"] = "u", ["Ü"] = "u",
 }
+-- string.lower only knows ASCII: Cyrillic capitals are mapped by hand.
+for offset = 0, 15 do accents[string.char(0xD0, 0x90 + offset)] = string.char(0xD0, 0xB0 + offset) end
+for offset = 0, 15 do accents[string.char(0xD0, 0xA0 + offset)] = string.char(0xD1, 0x80 + offset) end
+accents["Ё"] = "е"
+accents["ё"] = "е"
 local function normalize(value)
-    -- Literal search, insensitive to case and common French accents.
+    -- Literal search, insensitive to case and common accents.
     return value:lower():gsub("[\194-\244][\128-\191]+", accents)
 end
 -- Produces the filtered view without changing the collection.
@@ -177,7 +187,8 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
             return
         end
         local name = entry and entry.name or ""
-        local haystack = normalize(slot.race .. " " .. description .. " " .. name)
+        local guild, zone = entry and entry.guild or "", entry and entry.zone or ""
+        local haystack = normalize(slot.race .. " " .. description .. " " .. name .. " " .. guild .. " " .. zone)
         if haystack:find(query, 1, true) then
             rows[#rows + 1] = {
                 slot = slot, entry = entry, details = details, description = description, name = normalize(name),
@@ -224,3 +235,4 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
     end)
     return rows, filled
 end
+end)

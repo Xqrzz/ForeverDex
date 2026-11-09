@@ -1,4 +1,5 @@
 local _, ns = ...
+ns.Module(function()
 local L = ns.L
 local Art = {}
 ns.Art = Art
@@ -88,11 +89,7 @@ function Art.Gradient(texture, r, g, b, startAlpha, endAlpha, orientation)
             CreateColor(r, g, b, startAlpha), CreateColor(r, g, b, endAlpha))
         if ok then return end
     end
-    if texture.SetGradientAlpha then
-        texture:SetGradientAlpha(orientation, r, g, b, startAlpha, r, g, b, endAlpha)
-    else
-        texture:SetColorTexture(r, g, b, (startAlpha + endAlpha) / 2)
-    end
+    texture:SetColorTexture(r, g, b, (startAlpha + endAlpha) / 2)
 end
 
 function Art.ClassIcon(texture, token)
@@ -246,6 +243,16 @@ function Art.Font(fontString, size, flags)
     if path then fontString:SetFont(path, size, flags or "") end
 end
 
+-- Shrinks a line that does not fit. SetTextScale keeps the font family, so
+-- letters from another alphabet still display, unlike SetFont.
+function Art.FitLine(line, value, maxWidth)
+    line:SetText(value)
+    if not line.SetTextScale then return end
+    line:SetTextScale(1)
+    local width = line.GetUnboundedStringWidth and line:GetUnboundedStringWidth() or line:GetStringWidth()
+    line:SetTextScale(width > maxWidth and math.max(0.7, maxWidth / width) or 1)
+end
+
 function Art.Sound(...)
     if not SOUNDKIT or not PlaySound then return end
     if ns.Settings and not ns.Settings.Get("sounds") then return end
@@ -277,6 +284,7 @@ function Art.Report()
         return
     end
     print(L.TEXTURES_MISSING:format(#names))
-    for _, name in ipairs(names) do print("   · " .. name) end
+    for _, name in ipairs(names) do print("   - " .. name) end
     print(L.TEXTURES_FALLBACK)
 end
+end)

@@ -1,4 +1,5 @@
 local _, ns = ...
+ns.Module(function()
 local L, Art = ns.L, ns.Art
 local Settings = {}
 ns.Settings = Settings
@@ -10,6 +11,7 @@ local DEFAULTS = {
     toast = true,
     sounds = true,
     confirmReplace = true,
+    language = "auto",
     minimapShow = true,
     minimapLock = false,
     portraitButton = "always", -- always, missing, off
@@ -87,10 +89,10 @@ Art.SmoothTexture(orb, "Interface\\AddOns\\ForeverDex\\Media\\Ball")
 local title = panel:CreateFontString(nil, "ARTWORK", _G.GameFontNormalHuge and "GameFontNormalHuge" or "GameFontNormalLarge")
 title:SetPoint("TOPLEFT", orb, "TOPRIGHT", 12, -4)
 title:SetText("ForeverDex")
-local version = (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata or function() end)("ForeverDex", "Version")
+local version = C_AddOns and C_AddOns.GetAddOnMetadata("ForeverDex", "Version")
 local subtitle = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-subtitle:SetText(version and (L.SETTINGS_SUBTITLE .. "   ·   v" .. version) or L.SETTINGS_SUBTITLE)
+subtitle:SetText(version and (L.SETTINGS_SUBTITLE .. L.SEPARATOR .. "v" .. version) or L.SETTINGS_SUBTITLE)
 subtitle:SetTextColor(0.75, 0.75, 0.75)
 
 local COLUMN_W = 300
@@ -229,6 +231,9 @@ checkbox(1, "duelSounds", L.SETTINGS_DUEL_SOUNDS, L.SETTINGS_DUEL_SOUNDS_TIP)
 
 -- Right column: interface and data.
 section(2, L.SETTINGS_INTERFACE)
+local languages = { { "auto", L.SETTINGS_LANGUAGE_AUTO } }
+for _, language in ipairs(ns.LANGUAGES) do languages[#languages + 1] = language end
+choice(2, "language", L.SETTINGS_LANGUAGE, languages, L.SETTINGS_LANGUAGE_TIP)
 checkbox(2, "minimapShow", L.SETTINGS_MINIMAP_SHOW, L.SETTINGS_MINIMAP_SHOW_TIP)
 checkbox(2, "minimapLock", L.SETTINGS_MINIMAP_LOCK, L.SETTINGS_MINIMAP_LOCK_TIP)
 choice(2, "portraitButton", L.SETTINGS_PORTRAIT, {
@@ -288,22 +293,32 @@ StaticPopupDialogs["FOREVERDEX_RESET_CONFIRM"] = {
     OnAccept = function() ns.Collection.Reset() end,
 }
 
--- Registration in Options → AddOns (modern API, otherwise the old list).
+-- The interface is built once per load, so a new language needs a reload.
+StaticPopupDialogs["FOREVERDEX_RELOAD"] = {
+    text = L.RELOAD_PROMPT,
+    button1 = L.RELOAD,
+    button2 = CANCEL,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    OnAccept = function() ReloadUI() end,
+}
+Settings.OnChange(function(key)
+    if key == "language" then StaticPopup_Show("FOREVERDEX_RELOAD") end
+end)
+
+-- Registration in Options → AddOns.
 local category
 if _G.Settings and _G.Settings.RegisterCanvasLayoutCategory then
     category = _G.Settings.RegisterCanvasLayoutCategory(panel, "ForeverDex")
     _G.Settings.RegisterAddOnCategory(category)
-elseif InterfaceOptions_AddCategory then
-    InterfaceOptions_AddCategory(panel)
 end
 
 function Settings.Open()
     if category and _G.Settings.OpenToCategory then
         _G.Settings.OpenToCategory(category.GetID and category:GetID() or category.ID)
-    elseif InterfaceOptionsFrame_OpenToCategory then
-        InterfaceOptionsFrame_OpenToCategory(panel)
-        InterfaceOptionsFrame_OpenToCategory(panel)
     end
 end
 
 Settings.Panel = panel
+end)

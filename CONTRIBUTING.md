@@ -6,7 +6,7 @@
 
 | File | Responsibility |
 | --- | --- |
-| `Locale.lua` | French and English strings. The `frFR` client uses French, all others use English. Class names come from the client. |
+| `Locale.lua`, `Locales/` | Strings for each language. A missing string falls back to English. Also holds `ns.Module`: the other files register their code with it and run at `ADDON_LOADED`, once the saved language is known. |
 | `Art.lua` | Client textures, atlases and sounds, with a fallback when an atlas is missing. `/foreverdex textures` lists missing atlases. |
 | `Settings.lua` | Settings panel and default values. |
 | `Catalog.lua` | Playable combinations, card themes, search, filters and sorting. |
@@ -23,6 +23,8 @@
 `ForeverDexDB.cards` maps each card to a stable key. A combination uses the game's numeric IDs (`race:class:sex`). A bonus uses `bonus:n` and keeps its original combination. Translated labels are never part of a key.
 
 `ForeverDexDB.version` is the saved data format. To change it, increase `DB_VERSION` in `Collection.lua` and add a conversion to `migrations`, without changing the ones already released. Test it on a copy of real saved data before releasing.
+
+`ForeverDexDB.view` keeps the sort, tab and filters between sessions. Its filter sets are the tables used by the window, so change them in place and never replace them.
 
 The custom portrait is rendered from the target. Saved data keeps the character's identity and combination. Once the player is no longer targeted, the medallion shows the generic race portrait.
 

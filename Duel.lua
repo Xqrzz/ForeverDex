@@ -1,4 +1,5 @@
 local _, ns = ...
+ns.Module(function()
 local L, Catalog, Collection, Art = ns.L, ns.Catalog, ns.Collection, ns.Art
 local Duel = {}
 ns.Duel = Duel
@@ -23,33 +24,25 @@ local function readable(value)
     return (not issecretvalue or not issecretvalue(value)) and value ~= nil
 end
 
-if C_ChatInfo and C_ChatInfo.RegisterAddonMessagePrefix then
-    C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
-elseif RegisterAddonMessagePrefix then
-    RegisterAddonMessagePrefix(PREFIX)
-end
+C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
 
 -- /foreverdex duel: shows sent and received messages, for diagnostics.
 local tracing = false
 local function trace(direction, who, message)
     if not tracing then return end
-    DEFAULT_CHAT_FRAME:AddMessage(("|cff63ded1ForeverDex|r · duel %s %s: %s"):format(direction,
+    DEFAULT_CHAT_FRAME:AddMessage(("|cff63ded1ForeverDex|r: duel %s %s: %s"):format(direction,
         readable(who) and tostring(who) or "(secret)", readable(message) and tostring(message):sub(1, 40) or "(secret)"))
 end
 
 function Duel.ToggleTrace()
     tracing = not tracing
-    DEFAULT_CHAT_FRAME:AddMessage("|cff63ded1ForeverDex|r · duel trace: " .. (tracing and "on" or "off"))
+    DEFAULT_CHAT_FRAME:AddMessage("|cff63ded1ForeverDex|r: duel trace: " .. (tracing and "on" or "off"))
 end
 
 local function send(message, target)
-    local result
-    if C_ChatInfo and C_ChatInfo.SendAddonMessage then
-        result = C_ChatInfo.SendAddonMessage(PREFIX, message, "WHISPER", target)
-    elseif SendAddonMessage then
-        result = SendAddonMessage(PREFIX, message, "WHISPER", target)
-    end
+    local result = C_ChatInfo.SendAddonMessage(PREFIX, message, "WHISPER", target)
     trace("sent to", target, ("%s (result %s)"):format(message:sub(1, 20), tostring(result)))
+    return result
 end
 
 -- First name only: on Forever, the game does not always write the rest of the name the
@@ -100,14 +93,25 @@ local function parse(payload)
     return cards
 end
 
+-- Whispers are only throttled inside instances: 10 messages, then 1 per second.
+-- A refused piece is sent again once the allowance has recovered.
+local THROTTLED = Enum and Enum.SendAddonMessageResult and Enum.SendAddonMessageResult.AddonMessageThrottle
+local RETRY_DELAY, RETRY_COUNT = 1.1, 60
+
+local function sendPiece(message, target, retries)
+    local result = send(message, target)
+    if THROTTLED and result == THROTTLED and retries > 0 then
+        C_Timer.After(RETRY_DELAY, function() sendPiece(message, target, retries - 1) end)
+    end
+end
+
 local function sendCollection(target)
     local payload = serialize()
     local total = math.max(1, math.ceil(#payload / CHUNK))
     for i = 1, total do
         local piece = payload:sub((i - 1) * CHUNK + 1, i * CHUNK)
-        -- Spaced sending to stay under the addon message rate limit.
         C_Timer.After((i - 1) * 0.15, function()
-            send(("D%d/%d#%s"):format(i, total, piece), target)
+            sendPiece(("D%d/%d#%s"):format(i, total, piece), target, RETRY_COUNT)
         end)
     end
 end
@@ -119,7 +123,7 @@ local BLOCK_TIME = 60
 local blocked = {} -- [short name] = time the block ends
 
 local function print(message)
-    DEFAULT_CHAT_FRAME:AddMessage("|cff63ded1ForeverDex|r · " .. message)
+    DEFAULT_CHAT_FRAME:AddMessage(L.CHAT_PREFIX .. message)
 end
 
 function Duel.CanRequest(unit)
@@ -295,11 +299,7 @@ local function horizontal(texture, r, g, b, leftAlpha, rightAlpha)
         CreateColor(r, g, b, leftAlpha), CreateColor(r, g, b, rightAlpha)) then
         return
     end
-    if texture.SetGradientAlpha then
-        texture:SetGradientAlpha("HORIZONTAL", r, g, b, leftAlpha, r, g, b, rightAlpha)
-    else
-        texture:SetColorTexture(r, g, b, (leftAlpha + rightAlpha) / 2)
-    end
+    texture:SetColorTexture(r, g, b, (leftAlpha + rightAlpha) / 2)
 end
 
 local window, native = create("Frame", "ForeverDexDuel", UIParent, "PortraitFrameTemplate", "BackdropTemplate")
@@ -618,7 +618,7 @@ end
 
 local function paintSide(side, display, combination, unit, total)
     side.name:SetText(display)
-    side.combo:SetText(combination and (combination.race .. " · " .. combination.class) or "")
+    side.combo:SetText(combination and (combination.race .. L.SEPARATOR .. combination.class) or "")
     local color = combination and RAID_CLASS_COLORS[combination.token]
     if color then side.combo:SetTextColor(color.r, color.g, color.b) else side.combo:SetTextColor(0.8, 0.8, 0.8) end
     local icon = side.medallion.icon
@@ -636,12 +636,15 @@ local function paintSide(side, display, combination, unit, total)
 end
 
 -- Scores count up from zero during the entrance.
-local countElapsed = 0
+local countElapsed, counting = 0, true
+local sides = { mine, theirs }
 window:SetScript("OnUpdate", function(_, delta)
+    if not counting then return end
     countElapsed = countElapsed + delta
     local fraction = math.max(0, math.min(1, (countElapsed - 0.5) / 0.9))
+    counting = fraction < 1
     fraction = 1 - (1 - fraction) ^ 3
-    for _, side in ipairs({ mine, theirs }) do
+    for _, side in ipairs(sides) do
         local value = math.floor((side.target or 0) * fraction + 0.5)
         side.score:SetText(value)
         side.bar:SetValue(value)
@@ -663,7 +666,7 @@ function Duel.Show(partner, cards)
 
     local animated = ns.Settings.Get("duelAnimation")
     -- Without animation, scores show their final value directly.
-    countElapsed = animated and 0 or 2
+    countElapsed, counting = animated and 0 or 2, true
     window:Show()
     for _, group in ipairs({ mine.intro, theirs.intro, slam }) do
         group:Stop()
@@ -672,3 +675,4 @@ function Duel.Show(partner, cards)
     duelSound("RAID_WARNING", "READY_CHECK")
     C_Timer.After(0.65, function() duelSound("IG_QUEST_LIST_COMPLETE") end)
 end
+end)

@@ -1,4 +1,5 @@
 local _, ns = ...
+ns.Module(function()
 local L, Art = ns.L, ns.Art
 local CaptureVisuals = {}
 ns.CaptureVisuals = CaptureVisuals
@@ -9,13 +10,23 @@ local BALL = "Interface\\AddOns\\ForeverDex\\Media\\Ball"
 local DISC = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 CaptureVisuals.BALL = BALL
 
+-- The badge only grows by 3 pixels: snapped to the pixel grid, it would step
+-- through 4 sizes instead of growing smoothly. A bias above 0 implies snapping.
+local function allowSubpixel(texture)
+    if not texture.SetSnapToPixelGrid then return end
+    texture:SetSnapToPixelGrid(false)
+    texture:SetTexelSnappingBias(0)
+end
+
 function CaptureVisuals.DrawBadge(badge)
     local ball = badge:CreateTexture(nil, "ARTWORK")
     ball:SetAllPoints()
     Art.SmoothTexture(ball, BALL)
+    allowSubpixel(ball)
     local highlight = badge:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints()
     Art.SmoothTexture(highlight, BALL)
+    allowSubpixel(highlight)
     highlight:SetBlendMode("ADD")
     highlight:SetAlpha(0.35)
     return ball
@@ -439,7 +450,7 @@ local function showToast(entry)
     local slot = catalog.slotByKey[entry.key]
     local _, description = catalog.Describe(slot or {}, entry)
     toastName:SetText(entry.name)
-    toastCombo:SetText(slot and ("#%03d · %s"):format(slot.index, description) or description)
+    toastCombo:SetText(slot and ("#%03d%s%s"):format(slot.index, L.SEPARATOR, description) or description)
     local color = combination and RAID_CLASS_COLORS[combination.token]
     if color then toastCombo:SetTextColor(color.r, color.g, color.b) else toastCombo:SetTextColor(0.8, 0.8, 0.8) end
 
@@ -536,3 +547,4 @@ function CaptureVisuals.Play(options)
         end, function() showToast(entry) end)
     end)
 end
+end)

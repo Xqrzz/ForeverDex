@@ -7,6 +7,11 @@
 ## SavedVariables: ForeverDexDB
 
 Locale.lua
+Locales\deDE.lua
+Locales\esES.lua
+Locales\itIT.lua
+Locales\ptBR.lua
+Locales\ruRU.lua
 Art.lua
 Settings.lua
 Catalog.lua

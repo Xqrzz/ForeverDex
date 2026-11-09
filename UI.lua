@@ -1,4 +1,5 @@
 local _, ns = ...
+ns.Module(function()
 local L, Catalog, Collection, Art = ns.L, ns.Catalog, ns.Collection, ns.Art
 
 -- Layout inspired by the Adventure Guide: portrait frame, race list on
@@ -283,7 +284,7 @@ for i, filter in ipairs(raceRows) do
     row.name:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 7, -1)
     row.name:SetWidth(96)
     row.name:SetWordWrap(false)
-    row.name:SetText(filter.name)
+    Art.FitLine(row.name, filter.name, 96)
     row.count = text(row, "GameFontHighlightSmall")
     row.count:SetPoint("TOPRIGHT", -6, -7)
     row.count:SetJustifyH("RIGHT")
@@ -506,14 +507,30 @@ end
 
 local function openCardMenu(card)
     local row = card.row
-    if not row or not row.entry or not row.slot.sex or row.slot.key == pendingReveal then return end
+    if not row or not row.entry or row.slot.key == pendingReveal then return end
     if not MenuUtil or not MenuUtil.CreateContextMenu then return end
+    local entry, key = row.entry, row.slot.key
     MenuUtil.CreateContextMenu(card, function(_, root)
-        local free, label = Collection.FindBonusSlot(row.entry)
-        local item = root:CreateButton(free and L.SEND_TO_BONUS or label, function()
-            Collection.MoveToBonus(row.slot.key)
+        root:CreateButton(entry.favorite and L.FAVORITE_REMOVE or L.FAVORITE_ADD, function()
+            Collection.ToggleFavorite(entry)
         end)
-        item:SetEnabled(free ~= nil)
+        if row.slot.sex then
+            local free, label = Collection.FindBonusSlot(entry)
+            local item = root:CreateButton(free and L.SEND_TO_BONUS or label, function()
+                Collection.MoveToBonus(key)
+            end)
+            item:SetEnabled(free ~= nil)
+        elseif entry.combination then
+            local free = Collection.StandardCardFree(entry)
+            local item = root:CreateButton(free and L.RESTORE_CARD or L.RESTORE_TAKEN, function()
+                Collection.MoveToStandard(key)
+            end)
+            item:SetEnabled(free)
+        end
+        root:CreateDivider()
+        root:CreateButton(L.DELETE_CARD, function()
+            StaticPopup_Show("FOREVERDEX_DELETE", entry.name, nil, key)
+        end)
     end)
 end
 
@@ -601,7 +618,7 @@ for i = 1, PAGE_SIZE do
         end
         if self.targeted:IsShown() then GameTooltip:AddLine(L.LIVE_TOOLTIP, 1, 0.82, 0.36) end
         GameTooltip:AddLine(L.CLICK_DETAIL, 0.6, 0.6, 0.6)
-        if row.entry and row.slot.sex and not hidden then GameTooltip:AddLine(L.RIGHT_CLICK_BONUS, 0.6, 0.6, 0.6) end
+        if row.entry and not hidden then GameTooltip:AddLine(L.RIGHT_CLICK_MENU, 0.6, 0.6, 0.6) end
         GameTooltip:Show()
     end)
     card:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -648,7 +665,7 @@ local function paintCard(card, row)
     -- The gradient stops just above the text to keep the image visible.
     card.plate.shade:SetHeight(guild and 74 or 60)
     paintStar(card.star, entry)
-    card.details:SetText(row.description)
+    Art.FitLine(card.details, row.description, CARD_W - 41)
     local color = row.details and RAID_CLASS_COLORS[row.details.token]
     if entry and color then
         card.details:SetTextColor(color.r, color.g, color.b)
@@ -979,12 +996,14 @@ end
 refresh = function()
     if not ForeverDexDB then return end
     local entries = ForeverDexDB.cards
+    local view = ForeverDexDB.view
+    if view then view.sort, view.tab = sortMode, viewMode end
     updateFilterPanel()
     local rows, filled = Catalog.Query(entries, search:GetText(), viewMode, sortMode, filters)
     local pages = math.max(1, math.ceil(#rows / PAGE_SIZE))
     page = math.max(1, math.min(page, pages))
     local total = #Catalog.slots
-    counts:SetText(L.PROGRESS:format(filled, total, filled == total and L.COMPLETE or ""))
+    Art.FitLine(counts, L.PROGRESS:format(filled, total, filled == total and L.COMPLETE or ""), 225)
     percent:SetText(L.PERCENT:format(math.floor(filled / total * 100 + 0.5)))
     progress:SetValue(filled)
 
@@ -1243,7 +1262,28 @@ local function visibleCard(key)
     end
 end
 
+-- Sort, tab and filters are kept between sessions. The saved filter sets are the
+-- live tables: they are only ever changed in place, so the checkboxes stay bound.
+local function restoreView()
+    local view = ForeverDexDB.view or {}
+    ForeverDexDB.view = view
+    if sortNames[view.sort] then sortMode = view.sort end
+    if tabNames[view.tab] then viewMode = view.tab end
+    for name, set in pairs(filters) do
+        local saved = view[name]
+        if saved then
+            for _, check in ipairs(filterChecks) do
+                if check.set == set and saved[check.value] then set[check.value] = true end
+            end
+        end
+        view[name] = set
+    end
+    sortButton:SetDefaultText(sortNames[sortMode])
+    if sortButton.GenerateMenu then sortButton:GenerateMenu() end
+end
+
 ns.UI = {
+    RestoreView = restoreView,
     Refresh = function(entry, isNew, noThrow)
         local Visuals = ns.CaptureVisuals
         -- The starting point is read before the refresh, which hides the ball.
@@ -1288,3 +1328,4 @@ ns.UI = {
     UpdateTarget = updateTarget,
     Toggle = function() panel:SetShown(not panel:IsShown()) end,
 }
+end)

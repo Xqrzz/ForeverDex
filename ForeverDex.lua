@@ -1,5 +1,4 @@
 local addon, ns = ...
-local L = ns.L
 
 -- Saved data is available after ADDON_LOADED.
 local events = CreateFrame("Frame")
@@ -7,7 +6,11 @@ events:RegisterEvent("ADDON_LOADED")
 events:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" then
         if name ~= addon then return end
+        local saved = ForeverDexDB and ForeverDexDB.settings
+        ns.ApplyLanguage(saved and saved.language)
+        for _, load in ipairs(ns.Modules) do load() end
         ns.Collection.Initialize(ns.UI.Refresh)
+        ns.UI.RestoreView()
         ns.PlaceMinimapButton()
         ns.Settings.ApplyAll()
         self:UnregisterEvent("ADDON_LOADED")
@@ -20,9 +23,8 @@ events:SetScript("OnEvent", function(self, event, name)
     elseif event == "PLAYER_ENTERING_WORLD" and not self.greeted then
         -- Welcome message, once per session (not on every loading screen).
         self.greeted = true
-        local getMetadata = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
-        local version = getMetadata and getMetadata(addon, "Version")
-        print(("|cff63ded1ForeverDex|r%s · by |cffffd100Xqrz|r"):format(version and (" v" .. version) or ""))
+        local version = C_AddOns and C_AddOns.GetAddOnMetadata(addon, "Version")
+        print(("|cff63ded1ForeverDex|r%s%sby |cffffd100Xqrz|r"):format(version and (" v" .. version) or "", ns.L.SEPARATOR))
         ns.UI.UpdateTarget()
     -- Unit events also cover the party and NPCs. Only the target can
     -- change the capture button or the portrait shown in the gallery.
@@ -31,7 +33,11 @@ events:SetScript("OnEvent", function(self, event, name)
     end
 end)
 
+ns.Module(function()
+local L = ns.L
+
 SLASH_FOREVERDEX1 = "/foreverdex"
+SLASH_FOREVERDEX2 = "/fdex"
 -- "/foreverdex textures" lists the atlases missing from this client.
 -- "/foreverdex compare" offers the comparison to the target (usable in a macro).
 SlashCmdList.FOREVERDEX = function(message)
@@ -172,3 +178,4 @@ end)
 ns.PlaceMinimapButton = function()
     place(ForeverDexDB and ForeverDexDB.minimapAngle or DEFAULT_ANGLE)
 end
+end)

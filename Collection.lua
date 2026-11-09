@@ -1,4 +1,5 @@
 local _, ns = ...
+ns.Module(function()
 local L, Catalog = ns.L, ns.Catalog
 local Collection = {}
 ns.Collection = Collection
@@ -29,7 +30,9 @@ function Collection.ReadTarget(unit)
     local _, _, race = UnitRace(unit)
     local _, _, class = UnitClass(unit)
     local sex = UnitSex(unit)
-    if not readable(firstName) or firstName == "" or not readable(surname) or surname == ""
+    -- The client answers UNKNOWNOBJECT until the unit has fully loaded.
+    if not readable(firstName) or firstName == "" or firstName == UNKNOWNOBJECT
+        or not readable(surname) or surname == ""
         or not readable(race) or not readable(class) or not readable(sex) then
         return
     end
@@ -211,7 +214,7 @@ local function readChatSender(guid, context)
     if not slot or not first or not surname then
         local function shown(value) return readable(value) and tostring(value) or "?" end
         print(L.CHAT_CAPTURE_FAILED)
-        print(("   %s · %s · %s · %s · %s · %s · %s"):format(shown(race), shown(class), shown(sex),
+        print(("   %s - %s - %s - %s - %s - %s - %s"):format(shown(race), shown(class), shown(sex),
             shown(name), shown(realm), shown(context.name), shown(context.server)))
         return
     end
@@ -285,7 +288,25 @@ function Collection.MoveToBonus(key)
     onChanged(entry, false)
 end
 
+function Collection.StandardCardFree(entry)
+    local key = entry.combination
+    return key ~= nil and Catalog.byKey[key] ~= nil and ForeverDexDB.cards[key] == nil
+end
+
+-- Moves a bonus card back to its standard card, with its date and details.
+function Collection.MoveToStandard(key)
+    local entry = ForeverDexDB.cards[key]
+    if not entry or not Collection.StandardCardFree(entry) then return end
+    ForeverDexDB.cards[key] = nil
+    entry.key = entry.combination
+    entry.combination = nil
+    ForeverDexDB.cards[entry.key] = entry
+    print(L.MOVED_TO_STANDARD:format(entry.name))
+    onChanged(entry, false)
+end
+
 function Collection.ToggleFavorite(entry)
     entry.favorite = not entry.favorite or nil
     onChanged(entry, false)
 end
+end)
