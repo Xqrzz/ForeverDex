@@ -1,0 +1,17 @@
+## Interface: 16001
+## Title: ForeverDex
+## Notes: Collect funny character names in WoW Forever.
+## Notes-frFR: Le carnet des noms improbables de WoW Forever.
+## Version: 1.5.0
+## IconTexture: Interface\AddOns\ForeverDex\Media\IconSmall
+## SavedVariables: ForeverDexDB
+
+Locale.lua
+Art.lua
+Settings.lua
+Catalog.lua
+Collection.lua
+CaptureVisuals.lua
+Duel.lua
+UI.lua
+ForeverDex.lua

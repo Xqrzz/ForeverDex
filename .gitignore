@@ -1,0 +1,11 @@
+# Archives de release
+*.zip
+.release/
+
+# Systeme et editeurs
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+.claude/

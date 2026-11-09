@@ -1,0 +1,226 @@
+local _, ns = ...
+local L = ns.L
+local Catalog = {}
+ns.Catalog = Catalog
+
+-- L’ordre des combinaisons fixe les numéros affichés. Les clés sauvegardées utilisent les ID du jeu.
+local races = {
+    { 1, 1, 2, 3, 4, 5, 8, 9 },
+    { 3, 1, 2, 3, 4, 5, 7 },
+    { 4, 1, 3, 4, 5, 11 },
+    { 7, 1, 4, 5, 8, 9 },
+    { 2, 1, 3, 4, 7, 8, 9 },
+    { 5, 1, 2, 4, 5, 8, 9 },
+    { 6, 1, 3, 7, 11 },
+    { 8, 1, 3, 4, 5, 7, 8, 9 },
+    { 95, 1, 3, 4, 8, 11 },
+    { 96, 1, 3, 4, 7, 11 },
+}
+
+-- 1 icône de race, 2 carte du Journal, 3-5 couleur de fond,
+-- 6 décor de la cabine d’essayage, 7 icône de secours,
+-- 8 écran de chargement des cartes et de la fiche, choisi en jeu pour l’ambiance de
+-- chaque race. Sans écran adapté, le décor de la cabine d’essayage le remplace.
+local raceThemes = {
+    [1] = { "human", 291, 0.32, 0.24, 0.15, "Human", nil, "LoadScreenScarletMonastery2" },
+    [2] = { "orc", 213, 0.34, 0.16, 0.09, "Orc", nil, "LoadScreenRagefireChasm" },
+    [3] = { "dwarf", 230, 0.34, 0.25, 0.15, "Dwarf", nil, "LoadScreenBlackrockDepths" },
+    [4] = { "nightelf", 221, 0.13, 0.25, 0.22, "NightElf", nil, 7963776 },
+    [5] = { "undead", 310, 0.20, 0.24, 0.23, "Scourge", nil, "LoadScreenShadowFangKeep" },
+    [6] = { "tauren", 279, 0.25, 0.27, 0.14, "Tauren", nil, 7963784 },
+    [7] = { "gnome", 226, 0.22, 0.27, 0.29, "Gnome", nil, "LoadScreenGnomeregan" },
+    [8] = { "troll", 219, 0.25, 0.28, 0.16, "Troll", nil, "LoadScreenZulGurub" },
+    [95] = { "elf", 221, 0.17, 0.25, 0.32, "NightElf", "Interface\\Icons\\INV_BannerPVP_02", 7963777 },
+    [96] = { "elf", 221, 0.23, 0.18, 0.31, "BloodElf", "Interface\\Icons\\INV_BannerPVP_01", 7963777 },
+}
+
+-- Les Skyborne n’ont pas toujours leur propre icône : on essaie celle de l’elfe
+-- dont ils empruntent le décor.
+local function raceIcon(theme, sex)
+    local suffix = sex == 3 and "female" or "male"
+    local own = ("raceicon-%s-%s"):format(theme[1], suffix)
+    local borrowed = ("raceicon-%s-%s"):format(theme[6]:lower(), suffix)
+    if ns.Art.HasAtlas(own) or not ns.Art.HasAtlas(borrowed) then return own end
+    return borrowed
+end
+
+local slots, byKey, slotByKey, raceList, classList, seenClass = {}, {}, {}, {}, {}, {}
+function Catalog.SlotKey(race, class, sex)
+    return race .. ":" .. class .. ":" .. sex
+end
+
+for _, race in ipairs(races) do
+    local raceID, theme = race[1], raceThemes[race[1]]
+    local info = {
+        id = raceID, name = L.RACES[raceID], theme = theme, total = 0,
+        icon = raceIcon(theme, 2), fallbackIcon = theme[7],
+    }
+    raceList[#raceList + 1] = info
+    for i = 2, #race do
+        local class = C_CreatureInfo.GetClassInfo(race[i])
+        if not seenClass[class.classFile] then
+            seenClass[class.classFile] = true
+            classList[#classList + 1] = { token = class.classFile, name = class.className }
+        end
+        for sex = 2, 3 do
+            local slot = {
+                index = #slots + 1,
+                key = Catalog.SlotKey(raceID, race[i], sex),
+                raceID = raceID,
+                race = L.RACES[raceID],
+                class = class.className,
+                token = class.classFile,
+                sex = sex == 2 and L.MALE or L.FEMALE,
+                sexID = sex,
+                fallbackIcon = theme[7],
+                theme = theme,
+                portraitAtlas = raceIcon(theme, sex),
+            }
+            slots[slot.index], byKey[slot.key], slotByKey[slot.key] = slot, slot, slot
+            info.total = info.total + 1
+        end
+    end
+end
+
+local bonusSlots = {}
+for i = 1, 39 do
+    local slot = { index = #slots + 1, key = "bonus:" .. i, race = L.BONUS, class = "" }
+    slots[slot.index], slotByKey[slot.key] = slot, slot
+    bonusSlots[i] = slot
+end
+
+Catalog.slots = slots
+Catalog.byKey = byKey
+Catalog.bonusSlots = bonusSlots
+Catalog.slotByKey = slotByKey
+Catalog.races = raceList
+table.sort(classList, function(a, b) return a.name < b.name end)
+Catalog.classes = classList
+
+-- Un bonus rempli emprunte la combinaison du personnage capturé.
+function Catalog.Describe(slot, entry)
+    local details = slot.sex and slot or (entry and byKey[entry.combination])
+    local description = details and (details.race .. " · " .. details.class .. " · " .. details.sex)
+        or L.BONUS_DESCRIPTION
+    return details, description
+end
+
+-- Cartes classiques remplies pour chaque race (les bonus ne comptent pas).
+function Catalog.RaceProgress(entries)
+    local counts = {}
+    for _, slot in ipairs(slots) do
+        if slot.raceID and entries[slot.key] then
+            counts[slot.raceID] = (counts[slot.raceID] or 0) + 1
+        end
+    end
+    return counts
+end
+
+-- Carte correspondant aux noms de fichier renvoyés par GetPlayerInfoByGUID.
+local raceIDByFile
+function Catalog.SlotForFiles(raceFile, classToken, sex)
+    if not raceIDByFile then
+        raceIDByFile = {}
+        for _, info in ipairs(raceList) do
+            local race = C_CreatureInfo.GetRaceInfo(info.id)
+            if race and race.clientFileString then raceIDByFile[race.clientFileString] = info.id end
+        end
+    end
+    local raceID = raceIDByFile[raceFile]
+    for _, slot in ipairs(slots) do
+        if slot.raceID == raceID and slot.token == classToken and slot.sexID == sex then return slot end
+    end
+end
+
+-- Cartes classiques remplies et disponibles pour une classe.
+function Catalog.ClassProgress(entries, token)
+    local have, total = 0, 0
+    for _, slot in ipairs(slots) do
+        if slot.token == token then
+            total = total + 1
+            if entries[slot.key] then have = have + 1 end
+        end
+    end
+    return have, total
+end
+
+local accents = {
+    ["à"] = "a", ["â"] = "a", ["ä"] = "a", ["ç"] = "c", ["é"] = "e", ["è"] = "e",
+    ["ê"] = "e", ["ë"] = "e", ["î"] = "i", ["ï"] = "i", ["ô"] = "o", ["ö"] = "o",
+    ["ù"] = "u", ["û"] = "u", ["ü"] = "u", ["ÿ"] = "y", ["œ"] = "oe",
+    ["À"] = "a", ["Â"] = "a", ["Ç"] = "c", ["É"] = "e", ["È"] = "e", ["Ê"] = "e",
+    ["Ë"] = "e", ["Î"] = "i", ["Ï"] = "i", ["Ô"] = "o", ["Ù"] = "u", ["Û"] = "u",
+}
+local function normalize(value)
+    -- Recherche littérale insensible à la casse et aux accents français courants.
+    return value:lower():gsub("[\194-\244][\128-\191]+", accents)
+end
+-- Produit la vue filtrée sans modifier la collection.
+-- filters contient trois ensembles cochés : races, classes et sexes. Dans une catégorie,
+-- une seule case suffit ; entre catégories, toutes doivent correspondre (Orc ET Chaman).
+-- Les bonus vides n’ont pas de combinaison : filtrés, ils ne restent que dans l’onglet Bonus.
+local function allowed(set, value)
+    return next(set) == nil or set[value]
+end
+
+function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
+    local query = normalize(searchText):match("^%s*(.-)%s*$")
+    local rows, filled = {}, 0
+    local function add(slot, entry)
+        local details, description = Catalog.Describe(slot, entry)
+        if details then
+            if not (allowed(filters.races, details.raceID) and allowed(filters.classes, details.token)
+                and allowed(filters.sexes, details.sexID)) then
+                return
+            end
+        elseif viewMode ~= 4 and (next(filters.races) or next(filters.classes) or next(filters.sexes)) then
+            return
+        end
+        local name = entry and entry.name or ""
+        local haystack = normalize(slot.race .. " " .. description .. " " .. name)
+        if haystack:find(query, 1, true) then
+            rows[#rows + 1] = {
+                slot = slot, entry = entry, details = details, description = description, name = normalize(name),
+                race = normalize((details or slot).race), class = normalize((details or slot).class),
+            }
+        end
+    end
+    for _, slot in ipairs(slots) do
+        local entry = entries[slot.key]
+        if entry then filled = filled + 1 end
+        if viewMode == 1 or (viewMode == 2 and entry) or (viewMode == 3 and not entry)
+            or (viewMode == 4 and not slot.sex) or (viewMode == 5 and entry and entry.favorite) then
+            add(slot, entry)
+        end
+    end
+    table.sort(rows, function(a, b)
+        if sortMode == 1 then
+            -- Les bonus restent en fin de catalogue. À classe égale, l’index
+            -- conserve l’ordre masculin puis féminin défini à la création.
+            local aBonus, bBonus = not a.slot.sex, not b.slot.sex
+            if aBonus ~= bBonus then return not aBonus end
+            if not aBonus then
+                if a.race ~= b.race then return a.race < b.race end
+                if a.class ~= b.class then return a.class < b.class end
+            end
+        end
+        if sortMode == 3 and a.name ~= b.name then
+            if a.name == "" then return false end
+            if b.name == "" then return true end
+            return a.name < b.name
+        end
+        if sortMode == 4 and a.race ~= b.race then return a.race < b.race end
+        if sortMode == 5 and a.class ~= b.class then return a.class < b.class end
+        -- Les cartes sans date ou sans niveau passent après les autres.
+        if sortMode == 6 then
+            local first, second = a.entry and a.entry.capturedAt or 0, b.entry and b.entry.capturedAt or 0
+            if first ~= second then return first > second end
+        end
+        if sortMode == 7 then
+            local first, second = a.entry and a.entry.level or 0, b.entry and b.entry.level or 0
+            if first ~= second then return first > second end
+        end
+        return a.slot.index < b.slot.index
+    end)
+    return rows, filled
+end
