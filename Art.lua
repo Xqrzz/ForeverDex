@@ -245,12 +245,15 @@ end
 
 -- Shrinks a line that does not fit. SetTextScale keeps the font family, so
 -- letters from another alphabet still display, unlike SetFont.
-function Art.FitLine(line, value, maxWidth)
+-- fixedWidth: the line has a set width, widened so the client does not cut the text.
+function Art.FitLine(line, value, maxWidth, fixedWidth)
     line:SetText(value)
     if not line.SetTextScale then return end
     line:SetTextScale(1)
     local width = line.GetUnboundedStringWidth and line:GetUnboundedStringWidth() or line:GetStringWidth()
-    line:SetTextScale(width > maxWidth and math.max(0.7, maxWidth / width) or 1)
+    local scale = width > maxWidth and math.max(0.7, maxWidth / width) or 1
+    line:SetTextScale(scale)
+    if fixedWidth then line:SetWidth(maxWidth / scale) end
 end
 
 function Art.Sound(...)

@@ -617,7 +617,7 @@ render = function()
 end
 
 local function paintSide(side, display, combination, unit, total)
-    side.name:SetText(display)
+    Art.FitLine(side.name, display, 260, true)
     side.combo:SetText(combination and (combination.race .. L.SEPARATOR .. combination.class) or "")
     local color = combination and RAID_CLASS_COLORS[combination.token]
     if color then side.combo:SetTextColor(color.r, color.g, color.b) else side.combo:SetTextColor(0.8, 0.8, 0.8) end

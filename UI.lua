@@ -284,7 +284,7 @@ for i, filter in ipairs(raceRows) do
     row.name:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 7, -1)
     row.name:SetWidth(96)
     row.name:SetWordWrap(false)
-    Art.FitLine(row.name, filter.name, 96)
+    row.name:SetText(filter.name)
     row.count = text(row, "GameFontHighlightSmall")
     row.count:SetPoint("TOPRIGHT", -6, -7)
     row.count:SetJustifyH("RIGHT")
@@ -665,7 +665,7 @@ local function paintCard(card, row)
     -- The gradient stops just above the text to keep the image visible.
     card.plate.shade:SetHeight(guild and 74 or 60)
     paintStar(card.star, entry)
-    Art.FitLine(card.details, row.description, CARD_W - 41)
+    Art.FitLine(card.details, row.description, CARD_W - 41, true)
     local color = row.details and RAID_CLASS_COLORS[row.details.token]
     if entry and color then
         card.details:SetTextColor(color.r, color.g, color.b)
@@ -1016,6 +1016,7 @@ refresh = function()
         local selected
         if id then selected = filters.races[id] == true else selected = next(filters.races) == nil end
         row.count:SetText(have .. "/" .. all)
+        Art.FitLine(row.name, row.filter.name, 96, true)
         row.bar:SetMinMaxValues(0, all)
         row.bar:SetValue(have)
         row.selected:SetShown(selected)
