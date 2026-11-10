@@ -3,6 +3,7 @@ local _, ns = ...
 ns.Locales.deDE = {
     MINIMAP_OPTIONS = "Rechtsklick: Einstellungen.",
     BINDING_CAPTURE = "Ziel einfangen",
+    BINDING_COMPARE = "Sammlungen mit dem Ziel vergleichen",
     BINDING_TOGGLE = "Sammlung öffnen oder schließen",
     TAB_PETS = "Begleiter",
     PETS = "Begleiter",

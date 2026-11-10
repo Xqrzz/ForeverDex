@@ -4,6 +4,9 @@
     <Binding name="FOREVERDEX_CAPTURE" header="FOREVERDEX" category="ADDONS">
         SlashCmdList.FOREVERDEX("capture")
     </Binding>
+    <Binding name="FOREVERDEX_COMPARE" category="ADDONS">
+        SlashCmdList.FOREVERDEX("compare")
+    </Binding>
     <Binding name="FOREVERDEX_TOGGLE" category="ADDONS">
         SlashCmdList.FOREVERDEX("")
     </Binding>

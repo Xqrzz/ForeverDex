@@ -3,6 +3,7 @@ local _, ns = ...
 ns.Locales.itIT = {
     MINIMAP_OPTIONS = "Clic destro: impostazioni.",
     BINDING_CAPTURE = "Cattura bersaglio",
+    BINDING_COMPARE = "Confronta le collezioni con il bersaglio",
     BINDING_TOGGLE = "Apri o chiudi la collezione",
     TAB_PETS = "Famigli",
     PETS = "Famigli",

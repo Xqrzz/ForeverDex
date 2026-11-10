@@ -3,6 +3,7 @@ local _, ns = ...
 ns.Locales.enUS = {
     MINIMAP_OPTIONS = "Right-click: settings.",
     BINDING_CAPTURE = "Capture target",
+    BINDING_COMPARE = "Compare collections with target",
     BINDING_TOGGLE = "Open or close the collection",
     TAB_PETS = "Pets",
     PETS = "Pets",

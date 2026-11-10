@@ -3,6 +3,7 @@ local _, ns = ...
 ns.Locales.ptBR = {
     MINIMAP_OPTIONS = "Botão direito: configurações.",
     BINDING_CAPTURE = "Capturar alvo",
+    BINDING_COMPARE = "Comparar coleções com o alvo",
     BINDING_TOGGLE = "Abrir ou fechar a coleção",
     TAB_PETS = "Mascotes",
     PETS = "Mascotes",

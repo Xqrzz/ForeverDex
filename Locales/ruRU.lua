@@ -3,6 +3,7 @@ local _, ns = ...
 ns.Locales.ruRU = {
     MINIMAP_OPTIONS = "Правый клик: настройки.",
     BINDING_CAPTURE = "Поймать цель",
+    BINDING_COMPARE = "Сравнить коллекции с целью",
     BINDING_TOGGLE = "Открыть или закрыть коллекцию",
     TAB_PETS = "Питомцы",
     PETS = "Питомцы",

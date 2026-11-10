@@ -191,15 +191,27 @@ local function requestFromChat(context)
     startRequest(name, realm, nil, combination)
 end
 
--- Right-click on a player portrait, a party member or a name in chat.
+-- Controller mode: the portrait menu opened with the controller does not accept any
+-- addon entry. Its protected actions, such as Follow, are then blocked and the
+-- controller buttons lock up. Controller players compare with the key binding instead.
+local function gamepadActive()
+    if C_GamePad and C_GamePad.IsEnabled and C_GamePad.IsEnabled() then return true end
+    return GetCVarBool ~= nil and GetCVarBool("GamePadEnable") == true
+end
+
+-- Right-click on a player portrait, a party member or a name in chat. With the
+-- controller already on at login, the portrait menus are not touched at all.
 if Menu and Menu.ModifyMenu then
-    for _, tag in ipairs({ "MENU_UNIT_PLAYER", "MENU_UNIT_PARTY", "MENU_UNIT_RAID_PLAYER" }) do
-        Menu.ModifyMenu(tag, function(_, root, context)
-            local unit = context and context.unit
-            if not unit or not Duel.CanRequest(unit) then return end
-            root:CreateDivider()
-            root:CreateButton(L.COMPARE_MENU, function() Duel.Request(unit) end)
-        end)
+    if not gamepadActive() then
+        for _, tag in ipairs({ "MENU_UNIT_PLAYER", "MENU_UNIT_PARTY", "MENU_UNIT_RAID_PLAYER" }) do
+            Menu.ModifyMenu(tag, function(_, root, context)
+                if gamepadActive() then return end
+                local unit = context and context.unit
+                if not unit or not Duel.CanRequest(unit) then return end
+                root:CreateDivider()
+                root:CreateButton(L.COMPARE_MENU, function() Duel.Request(unit) end)
+            end)
+        end
     end
     -- In chat, the option follows "Add to ForeverDex", already preceded by a separator.
     Menu.ModifyMenu("MENU_UNIT_FRIEND", function(_, root, context)

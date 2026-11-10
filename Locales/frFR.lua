@@ -3,6 +3,7 @@ local _, ns = ...
 ns.Locales.frFR = {
     MINIMAP_OPTIONS = "Clic droit : paramètres.",
     BINDING_CAPTURE = "Capturer la cible",
+    BINDING_COMPARE = "Comparer les collections avec la cible",
     BINDING_TOGGLE = "Ouvrir ou fermer la collection",
     TAB_PETS = "Familiers",
     PETS = "Familiers",
