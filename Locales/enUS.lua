@@ -265,5 +265,10 @@ ns.Locales.enUS = {
     PRESENCE_PREVIEW = "Preview",
     PRESENCE_REPLAY = "Replay the ping",
     PRESENCE_LIMITS = "Only players of your faction, outside dungeons and raids. Nothing is sent during combat.",
+    PRESENCE_DEMO = "Test in game",
+    PRESENCE_DEMO_STOP = "Stop the test",
+    PRESENCE_DEMO_TIP = "Shows the icon above every friendly player of your faction within 30 yards, as if they had ForeverDex. Nothing is sent. Stops with this button, /fdex presence demo or /reload.",
+    PRESENCE_DEMO_ON = "Presence demo on: every friendly player nearby gets the icon. Nothing is sent. /fdex presence demo to stop.",
+    PRESENCE_DEMO_OFF = "Presence demo off.",
     PRESENCE_REPORT = "%d nearby players with ForeverDex: %s",
 }

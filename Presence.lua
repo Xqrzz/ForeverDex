@@ -68,10 +68,15 @@ local function inInstance()
     return safe(IsInInstance) == true
 end
 
--- Settings read every frame by the animation, cached here.
+-- Demo: every friendly player of our faction within RANGE counts as a ForeverDex
+-- player, without any message. Until /reload or the same command again.
+local demo = false
+
+-- Settings read every frame by the animation, cached here. The demo shows the
+-- icons even when the option is off.
 local look = {}
 local function readLook()
-    look.show = Settings.Get("presenceShow")
+    look.show = Settings.Get("presenceShow") or demo
     look.announce = Settings.Get("presenceAnnounce")
     look.icon = ICON_BY_KEY[Settings.Get("presenceIcon")] or ICONS[1]
     look.intensity = Settings.Get("presenceIntensity")
@@ -399,9 +404,15 @@ local function attach(unit, plate)
 end
 
 -- Shows or hides the icon of one nameplate unit, from what is known of its player.
+local demoKnown = {} -- [short name] = what the demo pretends to know
+
 local function update(unit)
     local who = plates[unit]
     local entry = who and known[who]
+    if demo and who then
+        demoKnown[who] = demoKnown[who] or { has = true }
+        entry = demoKnown[who]
+    end
     local plate = getPlate(unit)
     if not (look.show and entry and entry.has and plate) then
         local icon = icons[unit]
@@ -455,7 +466,7 @@ local function wantPing(who)
 end
 
 local function enqueue(who)
-    if queued[who] or not wantPing(who) then return end
+    if demo or queued[who] or not wantPing(who) then return end
     queued[who] = true
     queue[#queue + 1] = who
 end
@@ -463,7 +474,7 @@ end
 -- Sends the next ping in the queue, if the moment allows it.
 local lastPing = 0
 local function pingNext(now)
-    if #queue == 0 or now - lastPing < PING_GAP or not look.show then return end
+    if #queue == 0 or now - lastPing < PING_GAP or not look.show or demo then return end
     if inCombat() or inInstance() then return end
     local who = table.remove(queue, 1)
     queued[who] = nil
@@ -631,6 +642,29 @@ Settings.OnChange(function(key)
     if Presence.RefreshPreview then Presence.RefreshPreview() end
 end)
 
+function Presence.ToggleDemo()
+    demo = not demo
+    local wasShown = look.show
+    readLook()
+    for unit in pairs(icons) do release(unit) end
+    wipe(demoKnown)
+    if demo then
+        if not wasShown then applyCVars() end
+        startTicker()
+        scanPlates()
+    elseif not look.show then
+        unmuteAll()
+        restoreCVars()
+    end
+    updateAll()
+    DEFAULT_CHAT_FRAME:AddMessage(L.CHAT_PREFIX .. (demo and L.PRESENCE_DEMO_ON or L.PRESENCE_DEMO_OFF))
+    if Presence.RefreshDemoButton then Presence.RefreshDemoButton() end
+end
+
+function Presence.IsDemo()
+    return demo
+end
+
 -- Options page with a live preview ----------------------------------------------------
 
 local page, left, right = Settings.AddPage(L.PRESENCE_TITLE, L.PRESENCE_SUBTITLE)
@@ -701,6 +735,18 @@ local replay = B.action(right, L.PRESENCE_REPLAY, 180, function()
     stop(preview, true)
     play(preview, look.duration)
 end)
+
+-- In-game test: starts the demo and closes the options so the city shows.
+local demoButton = B.action(right, L.PRESENCE_DEMO, 180, function()
+    local starting = not demo
+    Presence.ToggleDemo()
+    if starting and SettingsPanel and SettingsPanel:IsShown() and HideUIPanel then HideUIPanel(SettingsPanel) end
+end, L.PRESENCE_DEMO_TIP)
+
+function Presence.RefreshDemoButton()
+    demoButton:SetText(demo and L.PRESENCE_DEMO_STOP or L.PRESENCE_DEMO)
+end
+page:HookScript("OnShow", Presence.RefreshDemoButton)
 
 -- In ping mode the preview starts again shortly after each ping.
 preview.onDone = function()

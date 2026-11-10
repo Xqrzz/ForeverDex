@@ -264,5 +264,10 @@ ns.Locales.frFR = {
     PRESENCE_PREVIEW = "Aperçu",
     PRESENCE_REPLAY = "Rejouer le ping",
     PRESENCE_LIMITS = "Seulement les joueurs de ta faction, hors donjons et raids. Rien n’est envoyé pendant un combat.",
+    PRESENCE_DEMO = "Tester en jeu",
+    PRESENCE_DEMO_STOP = "Arrêter le test",
+    PRESENCE_DEMO_TIP = "Affiche l’icône au-dessus de tous les joueurs alliés de ta faction à moins de 30 mètres, comme s’ils avaient ForeverDex. Rien n’est envoyé. S’arrête avec ce bouton, /fdex presence demo ou /reload.",
+    PRESENCE_DEMO_ON = "Démo de présence activée : tous les joueurs alliés proches ont l’icône. Rien n’est envoyé. /fdex presence demo pour arrêter.",
+    PRESENCE_DEMO_OFF = "Démo de présence désactivée.",
     PRESENCE_REPORT = "%d joueurs proches avec ForeverDex : %s",
 }

@@ -37,6 +37,7 @@ Open the journal with the minimap icon or `/foreverdex`.
 | `/fdex capture` | Capture your target (works in macros) |
 | `/fdex compare` | Compare collections with your target (works in macros) |
 | `/fdex presence` | List the nearby players who have ForeverDex |
+| `/fdex presence demo` | Show the icon above every friendly player nearby, to try it out (nothing is sent) |
 | `/fdex options` | Open the settings |
 
 Capturing the target, comparing collections with it and opening the journal can also be bound to a key or a controller button, under Options → Keybindings → AddOns → ForeverDex.
