@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.1
+
+- Key bindings (keyboard or controller) to capture the target and open the collection
+- `/fdex capture` to capture the target from a macro
+- The capture ball now shows on the target frame of other interfaces, like EllesmereUI
+
 ## 1.6.0
 
 - Right-click menu on every card: favorite, bonus, delete
