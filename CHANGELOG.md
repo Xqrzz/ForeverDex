@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.1
+
+- Fixed Follow being blocked (and controller buttons locking up) when opening a player's portrait menu with a controller: in controller mode, "Compare our captures" is no longer added to portrait menus
+- New key binding to compare collections with your target, usable on a controller button
+
 ## 1.7.0
 
 - Combat mode on the duel screen: pick a champion, then vote for the best name
