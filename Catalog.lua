@@ -91,20 +91,46 @@ for i = 1, 39 do
     bonusSlots[i] = slot
 end
 
+-- Hunter pets: free slots in their own section, outside the player collection
+-- and its progress. Every pet card shares the hunter look, over a forest backdrop.
+local PET_DETAILS = {
+    race = L.PETS, class = "", token = "HUNTER",
+    theme = { nil, nil, 0.16, 0.22, 0.11, "NightElf" },
+    fallbackIcon = "Interface\\Icons\\Ability_Hunter_BeastTaming",
+}
+local petSlots = {}
+for i = 1, 60 do
+    local slot = { index = i, key = "pet:" .. i, race = L.PETS, class = "", pet = true }
+    slotByKey[slot.key] = slot
+    petSlots[i] = slot
+end
+
 Catalog.slots = slots
 Catalog.byKey = byKey
 Catalog.bonusSlots = bonusSlots
+Catalog.petSlots = petSlots
 Catalog.slotByKey = slotByKey
 Catalog.races = raceList
 table.sort(classList, function(a, b) return a.name < b.name end)
 Catalog.classes = classList
 
 -- A filled bonus borrows the combination of the captured character.
+-- A pet is described by its family (Raptor, Boar…).
 function Catalog.Describe(slot, entry)
+    if slot.pet then return PET_DETAILS, entry and entry.family or L.PET_DESCRIPTION end
     local details = slot.sex and slot or (entry and byKey[entry.combination])
     local description = details and (details.race .. L.SEPARATOR .. details.class .. L.SEPARATOR .. details.sex)
         or L.BONUS_DESCRIPTION
     return details, description
+end
+
+-- Filled slots of a list (Catalog.slots or Catalog.petSlots).
+function Catalog.Filled(entries, list)
+    local count = 0
+    for _, slot in ipairs(list) do
+        if entries[slot.key] then count = count + 1 end
+    end
+    return count
 end
 
 -- Standard cards filled for each race (bonuses do not count).
@@ -178,7 +204,9 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
     local rows, filled = {}, 0
     local function add(slot, entry)
         local details, description = Catalog.Describe(slot, entry)
-        if details then
+        if slot.pet then
+            -- The race, class and sex filters do not apply to pets.
+        elseif details then
             if not (allowed(filters.races, details.raceID) and allowed(filters.classes, details.token)
                 and allowed(filters.sexes, details.sexID)) then
                 return
@@ -188,7 +216,9 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
         end
         local name = entry and entry.name or ""
         local guild, zone = entry and entry.guild or "", entry and entry.zone or ""
-        local haystack = normalize(slot.race .. " " .. description .. " " .. name .. " " .. guild .. " " .. zone)
+        local owner = entry and entry.owner or ""
+        local haystack = normalize(slot.race .. " " .. description .. " " .. name .. " " .. guild .. " " .. zone
+            .. " " .. owner)
         if haystack:find(query, 1, true) then
             rows[#rows + 1] = {
                 slot = slot, entry = entry, details = details, description = description, name = normalize(name),
@@ -203,6 +233,11 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
             or (viewMode == 4 and not slot.sex) or (viewMode == 5 and entry and entry.favorite) then
             add(slot, entry)
         end
+    end
+    -- Pets have their own tab, and also show among the favorites.
+    for _, slot in ipairs(petSlots) do
+        local entry = entries[slot.key]
+        if viewMode == 6 or (viewMode == 5 and entry and entry.favorite) then add(slot, entry) end
     end
     table.sort(rows, function(a, b)
         if sortMode == 1 then

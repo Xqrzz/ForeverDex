@@ -454,7 +454,7 @@ local function showToast(entry)
     local color = combination and RAID_CLASS_COLORS[combination.token]
     if color then toastCombo:SetTextColor(color.r, color.g, color.b) else toastCombo:SetTextColor(0.8, 0.8, 0.8) end
 
-    local target = ns.Collection.ReadTarget()
+    local target = ns.Collection.ReadTarget() or ns.Collection.ReadPet()
     if target and target.id == entry.id and SetPortraitTexture then
         toastIcon:SetTexture(nil)
         toastIcon:SetTexCoord(0, 1, 0, 1)
@@ -466,14 +466,13 @@ local function showToast(entry)
         toastIcon:SetTexCoord(0, 1, 0, 1)
     end
 
-    local count = 0
-    for _, candidate in ipairs(catalog.slots) do
-        if ForeverDexDB.cards[candidate.key] then count = count + 1 end
-    end
-    toastBar:SetMinMaxValues(0, #catalog.slots)
+    -- A pet fills the pet section, a player the main collection.
+    local list = slot and slot.pet and catalog.petSlots or catalog.slots
+    local count = catalog.Filled(ForeverDexDB.cards, list)
+    toastBar:SetMinMaxValues(0, #list)
     fillFrom, fillTo, fillElapsed = math.max(0, count - 1), count, 0
     toastBar:SetValue(fillFrom)
-    toastCount:SetText(("%d / %d"):format(count, #catalog.slots))
+    toastCount:SetText(("%d / %d"):format(count, #list))
 
     toastAnimation:Stop()
     glowAnimation:Stop()

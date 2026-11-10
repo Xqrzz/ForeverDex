@@ -70,7 +70,9 @@ end
 local function serialize()
     local parts = {}
     for key, entry in pairs(ForeverDexDB.cards) do
-        if Catalog.slotByKey[key] and entry.name then
+        -- Pets stay out of duels: the duel screen only shows player cards.
+        local slot = Catalog.slotByKey[key]
+        if slot and not slot.pet and entry.name then
             local name = entry.name:gsub("[~=@#|]", "")
             parts[#parts + 1] = key .. (entry.combination and ("@" .. entry.combination) or "") .. "=" .. name
         end

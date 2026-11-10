@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Pets: capture hunter pets with their name, family and owner, in a new Pets tab with 60 slots
+
 ## 1.6.1
 
 - Key bindings (keyboard or controller) to capture the target and open the collection

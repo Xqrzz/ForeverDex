@@ -469,6 +469,19 @@ end
 
 -- Card grid ----------------------------------------------------------------
 
+-- "B" for bonus cards, "F"/"P" for pets, nothing for standard cards.
+local function badgePrefix(slot)
+    if slot.pet then return L.PET_BADGE end
+    return slot.sex and "" or L.BONUS_BADGE
+end
+
+-- Line under the name: the guild of a player, the owner of a pet.
+local function subtitle(entry)
+    if not entry then return end
+    if entry.owner then return L.PET_OF:format(entry.owner) end
+    return entry.guild and ("<" .. entry.guild .. ">")
+end
+
 -- Favorite star, on the cards and the detail page. The raid marker exists on
 -- every client; it is grayed out as long as the card is not a favorite.
 local function favoriteStar(parent, size)
@@ -613,8 +626,8 @@ for i = 1, PAGE_SIZE do
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(row.entry and not hidden and row.entry.name or L.UNDISCOVERED_TOOLTIP)
         GameTooltip:AddLine(row.description, 1, 1, 1, true)
-        if row.entry and row.entry.guild and not hidden then
-            GameTooltip:AddLine("<" .. row.entry.guild .. ">", 0.25, 1, 0.25)
+        if subtitle(row.entry) and not hidden then
+            GameTooltip:AddLine(subtitle(row.entry), 0.25, 1, 0.25)
         end
         if self.targeted:IsShown() then GameTooltip:AddLine(L.LIVE_TOOLTIP, 1, 0.82, 0.36) end
         GameTooltip:AddLine(L.CLICK_DETAIL, 0.6, 0.6, 0.6)
@@ -642,7 +655,7 @@ local function paintCard(card, row)
     local entry = row.entry
     if slot.key == pendingReveal then entry = nil end
     paintPlate(card.plate, row.details, entry)
-    card.number:SetText(("%s#%03d"):format(slot.sex and "" or L.BONUS_BADGE, slot.index))
+    card.number:SetText(("%s#%03d"):format(badgePrefix(slot), slot.index))
     -- A discovered card shows the player's level rather than a redundant status.
     if entry then
         card.status:SetText(entry.level and L.LEVEL_SHORT:format(entry.level) or "")
@@ -657,9 +670,9 @@ local function paintCard(card, row)
     -- The name is the star; the guild, when there is one, sits below it.
     fitText(card.name, entry and entry.name or "???", 20, 13)
     if entry then card.name:SetTextColor(1, 0.82, 0) else card.name:SetTextColor(0.6, 0.6, 0.6) end
-    local guild = entry and entry.guild
+    local guild = subtitle(entry)
     card.guild:SetShown(guild ~= nil)
-    if guild then fitText(card.guild, "<" .. guild .. ">", 12, 9) end
+    if guild then fitText(card.guild, guild, 12, 9) end
     card.name:ClearAllPoints()
     card.name:SetPoint("BOTTOMLEFT", 10, guild and 39 or 27)
     -- The gradient stops just above the text to keep the image visible.
@@ -783,18 +796,18 @@ bannerStar:SetPoint("TOPRIGHT", bannerBadge, "TOPLEFT", -4, -2)
 
 local function paintShowcase(entry)
     local slot, combination = detail.slot, detail.combination
-    local guild = entry and entry.guild
+    local guild = subtitle(entry)
     fitText(bannerName, entry and entry.name or "???", 30, 16, BANNER_TEXT_W)
     if entry then bannerName:SetTextColor(1, 0.82, 0) else bannerName:SetTextColor(0.6, 0.6, 0.6) end
     bannerGuild:SetShown(guild ~= nil)
-    if guild then fitText(bannerGuild, "<" .. guild .. ">", 16, 10, BANNER_TEXT_W) end
+    if guild then fitText(bannerGuild, guild, 16, 10, BANNER_TEXT_W) end
     -- The stack stays vertically centered, with or without a guild.
     bannerName:ClearAllPoints()
     bannerName:SetPoint("BOTTOMLEFT", BANNER_TEXT_X, guild and 104 or 93)
     bannerIcon:ClearAllPoints()
     bannerIcon:SetPoint("BOTTOMLEFT", BANNER_TEXT_X, guild and 57 or 67)
 
-    bannerNumber:SetText((slot.sex and "" or L.BONUS_BADGE) .. L.CARD_NUMBER:format(slot.index))
+    bannerNumber:SetText(badgePrefix(slot) .. L.CARD_NUMBER:format(slot.index))
     if entry then
         bannerStatus:SetText(entry.level and L.LEVEL_SHORT:format(entry.level) or "")
         bannerStatus:SetTextColor(1, 0.9, 0.65)
@@ -900,6 +913,7 @@ local function showDetail(slot, perRace, filled)
 
     local facts = {}
     if entry then
+        if entry.owner then facts[#facts + 1] = { L.PET_OWNER, entry.owner } end
         if entry.capturedAt then facts[#facts + 1] = { L.CAPTURED_ON, date(L.DATE_FORMAT, entry.capturedAt) } end
         if entry.zone then facts[#facts + 1] = { L.CAPTURED_IN, entry.zone } end
         if entry.level then facts[#facts + 1] = { L.LEVEL, tostring(entry.level) } end
@@ -917,13 +931,15 @@ local function showDetail(slot, perRace, filled)
     end
     detail.body:SetShown(#facts == 0)
     if not entry then
-        detail.body:SetText(slot.sex and L.EMPTY_HINT:format(description) or L.BONUS_HINT)
+        detail.body:SetText(slot.pet and L.PET_HINT or slot.sex and L.EMPTY_HINT:format(description) or L.BONUS_HINT)
     elseif #facts == 0 then
         detail.body:SetText(L.NO_DETAILS)
     end
 
     local progress = {}
-    if combination then
+    if slot.pet then
+        progress[1] = { L.PETS, Catalog.Filled(entries, Catalog.petSlots), #Catalog.petSlots }
+    elseif combination then
         for _, info in ipairs(Catalog.races) do
             if info.id == combination.raceID then
                 progress[#progress + 1] = { info.name, perRace[info.id] or 0, info.total }
@@ -932,7 +948,7 @@ local function showDetail(slot, perRace, filled)
         local have, total = Catalog.ClassProgress(entries, combination.token)
         progress[#progress + 1] = { combination.class, have, total }
     end
-    progress[#progress + 1] = { L.HOME, filled, #Catalog.slots }
+    if not slot.pet then progress[#progress + 1] = { L.HOME, filled, #Catalog.slots } end
     for i, row in ipairs(progressRows) do
         local item = progress[i]
         row.label:SetShown(item ~= nil)
@@ -947,7 +963,7 @@ end
 
 -- Tabs ----------------------------------------------------------------------------
 
-local tabNames = { L.TAB_ALL, L.TAB_FILLED, L.TAB_EMPTY, L.TAB_BONUS, L.TAB_FAVORITES }
+local tabNames = { L.TAB_ALL, L.TAB_FILLED, L.TAB_EMPTY, L.TAB_BONUS, L.TAB_FAVORITES, L.TAB_PETS }
 local tabs, nativeTabs = {}, true
 for i, name in ipairs(tabNames) do
     local tab, native = create("Button", "ForeverDexWindowTab" .. i, panel, "PanelTabButtonTemplate", "UIPanelButtonTemplate")
@@ -1064,7 +1080,7 @@ refresh = function()
     else
         setCrumbs({ { L.HOME, (activeFilters() > 0 or viewMode ~= 1) and home or nil }, { section } })
     end
-    updatePortraits(Collection.ReadTarget())
+    updatePortraits(Collection.ReadTarget() or Collection.ReadPet())
 end
 
 local function isSortSelected(mode)
@@ -1257,17 +1273,25 @@ end
 updateTarget = function()
     local anchored = attachCapture()
     local entry = Collection.ReadTarget()
-    updatePortraits(entry)
+    -- A hunter pet has no fixed card: only a pet already in the collection counts as saved.
+    local pet = not entry and Collection.ReadPet() or nil
+    updatePortraits(entry or pet)
     local current = entry and ForeverDexDB.cards[entry.key]
     local alreadySaved = current and current.id == entry.id
+    if pet then
+        local _, existing = Collection.FindPetSlot(pet)
+        current = existing and ForeverDexDB.cards[existing.key]
+        alreadySaved = current ~= nil
+    end
     -- The card for this combination is held by another player.
     local holder = current and not alreadySaved and current or nil
     local showCapture = false
     if capture then
         -- Setting: always (new card or replacement), empty card only, or never.
         local mode = ns.Settings.Get("portraitButton")
-        showCapture = anchored and entry ~= nil and not alreadySaved
-        if mode == "missing" then showCapture = anchored and entry ~= nil and current == nil end
+        local target = entry or pet
+        showCapture = anchored and target ~= nil and not alreadySaved
+        if mode == "missing" then showCapture = anchored and target ~= nil and current == nil end
         if mode == "off" then showCapture = false end
         capture:SetHolder(holder)
         capture:SetShown(showCapture)
@@ -1284,7 +1308,7 @@ updateTarget = function()
         panelCapture:SetEnabled(slot ~= nil)
         panelCapture:SetText(label or L.ADD_BONUS)
     else
-        panelCapture:SetEnabled(entry ~= nil and not alreadySaved)
+        panelCapture:SetEnabled((entry or pet) ~= nil and not alreadySaved)
         panelCapture:SetText(alreadySaved and L.ALREADY_ADDED or L.ADD_TARGET)
     end
 end

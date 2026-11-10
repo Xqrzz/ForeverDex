@@ -48,6 +48,94 @@ function Collection.ReadTarget(unit)
     return entry
 end
 
+-- Hunter pets ------------------------------------------------------------------
+
+-- "Beast" in each client language: demons, elementals and ghouls also have a
+-- family, but only beasts are hunter pets. An unknown language accepts every family.
+local BEAST = {
+    enUS = "Beast", enGB = "Beast", frFR = "Bête", deDE = "Wildtier", esES = "Bestia", esMX = "Bestia",
+    itIT = "Bestia", ptBR = "Fera", ruRU = "Животное", koKR = "야수", zhCN = "野兽", zhTW = "野獸",
+}
+
+-- The owner only appears in the tooltip, as "Name's Pet". The pattern is built
+-- from the game's own format, so it follows the client language.
+local function ownerPattern(format)
+    if type(format) ~= "string" then return end
+    local escaped = format:gsub("[%(%)%.%+%-%*%?%[%]%^%$]", "%%%0")
+    local pattern = escaped:gsub("%%s", "(.+)")
+    return "^" .. pattern .. "$"
+end
+local OWNER_PATTERNS = {}
+for _, format in ipairs({ UNITNAME_TITLE_PET, UNITNAME_TITLE_MINION, UNITNAME_TITLE_GUARDIAN }) do
+    OWNER_PATTERNS[#OWNER_PATTERNS + 1] = ownerPattern(format)
+end
+
+local function ownerFromLine(line)
+    if not readable(line) or type(line) ~= "string" then return end
+    for _, pattern in ipairs(OWNER_PATTERNS) do
+        local owner = line:match(pattern)
+        if owner then return owner end
+    end
+end
+
+local scanner
+local function tooltipLines(unit)
+    local lines = {}
+    if C_TooltipInfo and C_TooltipInfo.GetUnit then
+        local data = C_TooltipInfo.GetUnit(unit)
+        for _, line in ipairs(data and data.lines or {}) do lines[#lines + 1] = line.leftText end
+        return lines
+    end
+    scanner = scanner or CreateFrame("GameTooltip", "ForeverDexScanner", nil, "GameTooltipTemplate")
+    scanner:SetOwner(UIParent, "ANCHOR_NONE")
+    scanner:SetUnit(unit)
+    for i = 2, math.min(scanner:NumLines(), 5) do
+        local region = _G["ForeverDexScannerTextLeft" .. i]
+        lines[#lines + 1] = region and region:GetText()
+    end
+    scanner:Hide()
+    return lines
+end
+
+local function readOwner(unit)
+    if UnitIsUnit(unit, "pet") then
+        local first, surname = UnitFullName("player")
+        return surname and surname ~= "" and (first .. " " .. surname) or first
+    end
+    for _, line in ipairs(tooltipLines(unit)) do
+        local owner = ownerFromLine(line)
+        if owner then return owner end
+    end
+end
+
+-- Reads the target when it is a player's beast: name, family and owner.
+function Collection.ReadPet(unit)
+    unit = unit or "target"
+    local player, controlled = UnitIsPlayer(unit), UnitPlayerControlled(unit)
+    if not readable(player) or player or not readable(controlled) or not controlled then return end
+    local name, family, kind = UnitName(unit), UnitCreatureFamily(unit), UnitCreatureType(unit)
+    if not readable(name) or name == "" or name == UNKNOWNOBJECT or not readable(family) or family == "" then return end
+    local beast = BEAST[GetLocale()]
+    if beast and (not readable(kind) or kind ~= beast) then return end
+    local owner = readOwner(unit)
+    if not readable(owner) or not owner then return end
+    local entry = { name = name, family = family, owner = owner, id = name .. "@" .. owner }
+    local level = UnitLevel(unit)
+    if readable(level) and level > 0 then entry.level = level end
+    return entry
+end
+
+-- Slot already holding this pet, then the first free slot.
+function Collection.FindPetSlot(entry)
+    local available
+    for _, slot in ipairs(Catalog.petSlots) do
+        local current = ForeverDexDB.cards[slot.key]
+        if current and current.id == entry.id then return nil, slot end
+        if not current and not available then available = slot end
+    end
+    return available
+end
+
 -- Saved data conversions. migrations[n] moves the data from version n - 1
 -- to version n. To change the format: increase DB_VERSION and add a
 -- conversion, without ever changing the ones already released.
@@ -160,9 +248,24 @@ local function place(entry, noThrow)
     end
 end
 
+local function capturePet(entry)
+    local slot, existing = Collection.FindPetSlot(entry)
+    if existing then
+        print(L.CHAT_PREFIX .. L.PET_ALREADY:format(entry.name))
+    elseif not slot then
+        print(L.CHAT_PREFIX .. L.PETS_FULL)
+    else
+        entry.key = slot.key
+        save(entry)
+    end
+end
+
+-- The target is a player or a hunter pet: the ball, the button and the key binding all come here.
 function Collection.Capture()
     local entry = Collection.ReadTarget()
-    if entry then place(entry) end
+    if entry then return place(entry) end
+    local pet = Collection.ReadPet()
+    if pet then capturePet(pet) end
 end
 
 -- Capture from chat ------------------------------------------------------------

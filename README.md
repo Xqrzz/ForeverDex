@@ -26,6 +26,7 @@ Open the journal with the minimap icon or `/foreverdex`.
 - **Capture a player:** target them and click the ball on their portrait, or right-click their name in chat and choose **Add to ForeverDex**. Captures from chat do not include level or guild.
 - **Card already taken?** You can replace it or add the new character as a bonus.
 - **Fill a bonus slot:** open the **Bonus** tab, target a player and choose **Add as bonus**.
+- **Capture a pet:** target a hunter's pet and click the ball. Its name, family and owner go into the **Pets** tab.
 - **Manage a card:** right-click it to add it to your favorites, move it to or from the bonus cards, or delete it.
 - **Compare collections:** right-click a player portrait, a party or raid member, or a name in chat, then choose **Compare our captures**.
 
