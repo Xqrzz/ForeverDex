@@ -1010,7 +1010,7 @@ end
 
 -- Entry point on the duel screen, in the gap below the VS.
 local start = button(arena, L.COMBAT_BUTTON, 180, function() begin(true) end)
-start:SetPoint("TOP", Duel.VsFrame, "BOTTOM", 0, 0)
+start:SetPoint("TOP", Duel.VsFrame, "BOTTOM", 0, 8)
 start:SetFrameLevel(arena:GetFrameLevel() + 8)
 start:SetMotionScriptsWhileDisabled(true)
 start:SetScript("OnEnter", function(self)
