@@ -12,7 +12,9 @@ ns.Duel = Duel
 --   A<key>=<name>  request accepted: each side then sends its collection
 --   N              request declined
 --   D<i>/<n>#...   chunk i of n of the collection (255 bytes at most per message)
+--   C...           combat, see Combat.lua
 -- A collection received without an accepted request is ignored.
+-- Q and A end with a tab and "combat" when the sender can fight.
 --
 -- Cross-version compatibility: these four messages never change shape.
 -- Anything new goes through either a new message type (unknown types are
@@ -59,12 +61,16 @@ local function identity()
     local key = race and class and sex and Catalog.SlotKey(race, class, sex) or ""
     local firstName, surname = UnitFullName("player")
     local name = surname and surname ~= "" and (firstName .. " " .. surname) or firstName or UnitName("player")
-    return (key .. "=" .. tostring(name):gsub("[~=#]", ""))
+    return (key .. "=" .. tostring(name):gsub("[~=#]", "") .. "\tcombat")
 end
 
 local function parseIdentity(text)
     local key, name = text:match("^([^=]*)=([^\t]*)")
     return Catalog.byKey[key or ""], name ~= "" and name or nil
+end
+
+local function canFight(text)
+    return text:find("\tcombat", 1, true) ~= nil
 end
 
 local function serialize()
@@ -252,7 +258,7 @@ events:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
             print(L.DUEL_AUTO_REFUSED:format(display or who))
             return
         end
-        partners[who] = { chunks = {}, display = display or who, combination = combination, address = sender }
+        partners[who] = { chunks = {}, display = display or who, combination = combination, address = sender, combat = canFight(body) }
         StaticPopup_Show("FOREVERDEX_DUEL", display or who, nil, who)
     elseif kind == "A" and outgoing and outgoing.target == who then
         outgoing.accepted = true
@@ -261,6 +267,7 @@ events:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
         partner.expected = true
         partner.display = display or partner.display
         partner.combination = combination or partner.combination
+        partner.combat = canFight(body)
         partners[who] = partner
         print(L.DUEL_ACCEPTED:format(partner.display))
         sendCollection(sender)
@@ -280,7 +287,10 @@ events:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
         end
         partners[who] = nil
         if outgoing and outgoing.target == who then outgoing = nil end
+        partner.address = partner.address or sender
         Duel.Show(partner, parse(table.concat(partner.chunks, "", 1, total)))
+    elseif kind == "C" and Duel.OnCombatMessage then
+        Duel.OnCombatMessage(body, who)
     end
 end)
 
@@ -661,8 +671,18 @@ window:SetScript("OnUpdate", function(_, delta)
     end
 end)
 
+-- What Combat.lua needs from the duel screen.
+Duel.Window, Duel.Arena, Duel.VsFrame = window, arena, vsFrame
+Duel.Send, Duel.Sound = send, duelSound
+Duel.BLUE, Duel.RED = BLUE, RED
+
 function Duel.Show(partner, cards)
     state.cards, state.page, state.filter = cards, 1, 1
+    Duel.Session = partner.address and {
+        address = partner.address, who = shortName(partner.address),
+        display = partner.display, combination = partner.combination, combat = partner.combat,
+    } or nil
+    if Duel.RefreshCombat then Duel.RefreshCombat() end
     local counts = render()
     local _, _, race = UnitRace("player")
     local _, _, class = UnitClass("player")

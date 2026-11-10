@@ -1,7 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.7.0
 
+- Combat mode on the duel screen: pick a champion, then vote for the best name
 - Pets: capture hunter pets with their name, family and owner, in a new Pets tab with 60 slots
 
 ## 1.6.1

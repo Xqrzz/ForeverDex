@@ -221,7 +221,8 @@ function Art.LoadingScreen(texture, theme, boxWidth, boxHeight)
     local file = theme[8]
     if type(file) == "string" then file = "Interface\\Glues\\LoadingScreens\\" .. file end
     texture:SetTexture(file)
-    crop(texture, 0.02, 0.98, 0.24, 0.82, 0.96, 0.58, boxWidth, boxHeight)
+    -- The files are 4:3 images: without this ratio, the scene looks squeezed sideways.
+    crop(texture, 0.02, 0.98, 0.24, 0.82, 0.96 * 4 / 3, 0.58, boxWidth, boxHeight)
     return true
 end
 

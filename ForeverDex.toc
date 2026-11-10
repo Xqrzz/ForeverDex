@@ -20,5 +20,6 @@ Catalog.lua
 Collection.lua
 CaptureVisuals.lua
 Duel.lua
+Combat.lua
 UI.lua
 ForeverDex.lua
