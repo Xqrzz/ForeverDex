@@ -665,6 +665,48 @@ function Presence.IsDemo()
     return demo
 end
 
+-- /foreverdex presence debug: what the module sees, to understand a missing icon.
+function Presence.Debug()
+    local function say(text) DEFAULT_CHAT_FRAME:AddMessage("|cff63ded1ForeverDex|r presence: " .. text) end
+    local function show(value)
+        if value == nil then return "nil" end
+        if not readable(value) then return "(secret)" end
+        return tostring(value)
+    end
+    say(("demo=%s show=%s option=%s combat=%s instance=%s ticker=%s entered=%s"):format(show(demo), show(look.show),
+        show(Settings.Get("presenceShow")), show(inCombat()), show(inInstance()), show(ticker ~= nil), show(entered)))
+    local cvars = {}
+    for _, name in ipairs(MANAGED_CVARS) do cvars[#cvars + 1] = name:gsub("nameplate", "") .. "=" .. show(getCVar(name)) end
+    say("cvars " .. table.concat(cvars, " "))
+    local saved = ForeverDexDB and ForeverDexDB.presenceCVars
+    if saved then
+        local list = {}
+        for name, value in pairs(saved) do list[#list + 1] = name:gsub("nameplate", "") .. "=" .. show(value) end
+        say("saved " .. table.concat(list, " ") .. (ForeverDexDB.presenceCVarsReturned and " (returned)" or ""))
+    else
+        say("saved none")
+    end
+    local total, listed = 0, 0
+    eachPlate(function(unit, plate)
+        total = total + 1
+        if listed >= 6 then return end
+        if safe(UnitIsPlayer, unit) ~= true then return end
+        listed = listed + 1
+        local icon = icons[unit]
+        say(("%s name=%s tracked=%s player=%s self=%s attack=%s faction=%s range=%s muted=%s icon=%s shown=%s visible=%s alpha=%s"):format(
+            unit, show(safe(UnitName, unit)), show(plates[unit]), show(safe(UnitIsPlayer, unit)),
+            show(safe(UnitIsUnit, unit, "player")), show(safe(UnitCanAttack, "player", unit)),
+            show(safe(UnitFactionGroup, unit)), show(inRange(unit)), show(muted[plate] ~= nil),
+            show(icon ~= nil), show(icon and icon.frame:IsShown()), show(icon and icon.frame:IsVisible()),
+            show(icon and icon.frame:GetEffectiveAlpha())))
+    end)
+    local tracked, active = 0, 0
+    for _ in pairs(plates) do tracked = tracked + 1 end
+    for _ in pairs(icons) do active = active + 1 end
+    say(("plates=%d tracked=%d icons=%d (GetNamePlates=%s)"):format(total, tracked, active,
+        show(C_NamePlate and C_NamePlate.GetNamePlates ~= nil)))
+end
+
 -- Options page with a live preview ----------------------------------------------------
 
 local page, left, right = Settings.AddPage(L.PRESENCE_TITLE, L.PRESENCE_SUBTITLE)

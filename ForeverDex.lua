@@ -56,7 +56,13 @@ SlashCmdList.FOREVERDEX = function(message)
     elseif message and message:lower():match("^%s*compar") then
         ns.Duel.Request()
     elseif message and message:lower():match("^%s*presen") then
-        if message:lower():match("demo") then ns.Presence.ToggleDemo() else ns.Presence.Report() end
+        if message:lower():match("demo") then
+            ns.Presence.ToggleDemo()
+        elseif message:lower():match("debug") then
+            ns.Presence.Debug()
+        else
+            ns.Presence.Report()
+        end
     elseif message and message:lower():match("^%s*duel") then
         ns.Duel.ToggleTrace()
     elseif message and message:lower():match("^%s*opt") then
