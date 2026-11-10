@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Combat mode on the duel screen: pick a champion, then vote for the best name
+
 ## 1.6.0
 
 - Right-click menu on every card: favorite, bonus, delete
