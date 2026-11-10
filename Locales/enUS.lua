@@ -250,7 +250,6 @@ ns.Locales.enUS = {
     PRESENCE_ICON_TIP = "The picture shown above the player.",
     PRESENCE_ICON_ORB = "Capture orb",
     PRESENCE_ICON_EMBLEM = "ForeverDex emblem",
-    PRESENCE_ICON_BOOK = "Book",
     PRESENCE_ICON_SPARK = "Spark of light",
     PRESENCE_DURATION = "Display",
     PRESENCE_DURATION_TIP = "Permanent: the icon stays while the player is nearby. Ping: it shines for a few seconds when you meet, then again if you meet later.",

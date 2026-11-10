@@ -33,12 +33,14 @@ local TICK = 0.5
 local FRIEND_CVARS = { "nameplateShowFriends", "nameplateShowFriendlyPlayers" }
 local MANAGED_CVARS = { "nameplateShowFriends", "nameplateShowFriendlyPlayers", "nameplateShowAll", "nameplateMaxDistance" }
 
--- Icon choices: texture, round mask, fallback when the file is missing.
+-- Icon choices: key, label, texture, blend mode (BLEND when absent).
+-- A square game icon (INV_Misc_Book_09) made round crashed this client
+-- (ACCESS_VIOLATION), with a mask texture as with SetPortraitToTexture: round images
+-- only. A saved choice that no longer exists falls back to the orb.
 local ICONS = {
     { "orb", L.PRESENCE_ICON_ORB, MEDIA .. "Ball" },
     { "emblem", L.PRESENCE_ICON_EMBLEM, MEDIA .. "Icon" },
-    { "book", L.PRESENCE_ICON_BOOK, "Interface\\Icons\\INV_Misc_Book_09", true },
-    { "spark", L.PRESENCE_ICON_SPARK, "Interface\\Cooldown\\star4", false, "ADD" },
+    { "spark", L.PRESENCE_ICON_SPARK, "Interface\\Cooldown\\star4", "ADD" },
 }
 local ICON_BY_KEY = {}
 for _, icon in ipairs(ICONS) do ICON_BY_KEY[icon[1]] = icon end
@@ -107,15 +109,10 @@ local function setIconTexture(icon, choice)
     if icon.choice == choice then return end
     icon.choice = choice
     local core = icon.core
-    -- Square icons are made round by the game itself (SetPortraitToTexture). A mask
-    -- texture on a layer resized every frame crashed this client (ACCESS_VIOLATION).
-    if not (choice[4] and SetPortraitToTexture and pcall(SetPortraitToTexture, core, choice[3])) then
-        Art.SmoothTexture(core, choice[3])
-    end
-    core:SetBlendMode(choice[5] or "BLEND")
+    Art.SmoothTexture(core, choice[3])
+    core:SetBlendMode(choice[4] or "BLEND")
     core:SetVertexColor(1, 1, 1, 1)
-    if choice[5] == "ADD" then core:SetVertexColor(GOLD[1], GOLD[2], GOLD[3], 1) end
-    icon.rim:SetShown(choice[4] == true)
+    if choice[4] == "ADD" then core:SetVertexColor(GOLD[1], GOLD[2], GOLD[3], 1) end
 end
 
 function Presence.CreateIcon(parent)
@@ -127,7 +124,6 @@ function Presence.CreateIcon(parent)
     icon.star = layer(frame, "Interface\\Cooldown\\star4", "BACKGROUND", 1)
     icon.wave = layer(frame, MEDIA .. "Ring", "BORDER", 0)
     icon.core = layer(frame, MEDIA .. "Ball", "ARTWORK", 0, "BLEND")
-    icon.rim = layer(frame, "Interface\\Minimap\\MiniMap-TrackingBorder", "OVERLAY", 0, "BLEND")
     icon.glint = layer(frame, MEDIA .. "Glow", "OVERLAY", 1)
     -- Gold light; each layer's own alpha (SetAlpha) is animated.
     for _, texture in ipairs({ icon.halo, icon.star, icon.wave, icon.glint }) do
@@ -185,14 +181,6 @@ local function animate(icon, now)
     core:SetSize(size * pop, size * pop)
     core:ClearAllPoints()
     core:SetPoint("CENTER", icon.frame, "CENTER", 0, bob)
-    -- Gold ring of the minimap buttons: its circle sits in the top left of the image,
-    -- 53 px wide around a 21 px icon placed 5 px in (see the minimap button).
-    if icon.rim:IsShown() then
-        local unit = size * pop / 21
-        icon.rim:SetSize(53 * unit, 53 * unit)
-        icon.rim:ClearAllPoints()
-        icon.rim:SetPoint("TOPLEFT", core, "TOPLEFT", -5 * unit, 5 * unit)
-    end
 
     -- Halo breathing behind the icon.
     local breath = 0.5 + 0.5 * sin(phase * 2.6)
