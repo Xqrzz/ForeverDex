@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Presence: a glowing ForeverDex icon above the friendly players within 30 yards who have the addon too, so you know who you can compare with
-- New Presence settings page with a live preview: icon (capture orb, emblem, spark of light), glow intensity, opacity, size, and permanent display or a ping of a few seconds
+- New Presence settings page with a live preview: icon (capture orb, gold star, teal crystal, spark of light), glow intensity, opacity, size, and permanent display or a ping of a few seconds
 - Option to stay invisible to other ForeverDex players
 - `/fdex presence` lists the nearby players who have ForeverDex
 - Demo to try the icon in game: "Test in game" on the Presence page, or `/fdex presence demo`, shows it above every friendly player nearby without sending anything

@@ -39,7 +39,8 @@ local MANAGED_CVARS = { "nameplateShowFriends", "nameplateShowFriendlyPlayers", 
 -- only. A saved choice that no longer exists falls back to the orb.
 local ICONS = {
     { "orb", L.PRESENCE_ICON_ORB, MEDIA .. "Ball" },
-    { "emblem", L.PRESENCE_ICON_EMBLEM, MEDIA .. "Icon" },
+    { "star", L.PRESENCE_ICON_STAR, MEDIA .. "Star" },
+    { "gem", L.PRESENCE_ICON_GEM, MEDIA .. "Gem" },
     { "spark", L.PRESENCE_ICON_SPARK, "Interface\\Cooldown\\star4", "ADD" },
 }
 local ICON_BY_KEY = {}
