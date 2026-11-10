@@ -21,5 +21,6 @@ Collection.lua
 CaptureVisuals.lua
 Duel.lua
 Combat.lua
+Presence.lua
 UI.lua
 ForeverDex.lua

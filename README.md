@@ -28,6 +28,7 @@ Open the journal with the minimap icon or `/foreverdex`.
 - **Fill a bonus slot:** open the **Bonus** tab, target a player and choose **Add as bonus**.
 - **Capture a pet:** target a hunter's pet and click the ball. Its name, family and owner go into the **Pets** tab.
 - **Manage a card:** right-click it to add it to your favorites, move it to or from the bonus cards, or delete it.
+- **Spot other collectors:** a glowing ForeverDex icon appears above the friendly players within 30 yards who have the addon too. Pick the icon, its glow, opacity, size and whether it stays or only pings for a few seconds under Options → AddOns → ForeverDex → Presence, with a live preview. You can also stop showing yourself to others.
 - **Compare collections:** right-click a player portrait, a party or raid member, or a name in chat, then choose **Compare our captures**. With a controller, use the **Compare collections with target** key binding instead.
 
 | Command | Action |
@@ -35,6 +36,7 @@ Open the journal with the minimap icon or `/foreverdex`.
 | `/foreverdex` or `/fdex` | Open or close the journal |
 | `/fdex capture` | Capture your target (works in macros) |
 | `/fdex compare` | Compare collections with your target (works in macros) |
+| `/fdex presence` | List the nearby players who have ForeverDex |
 | `/fdex options` | Open the settings |
 
 Capturing the target, comparing collections with it and opening the journal can also be bound to a key or a controller button, under Options → Keybindings → AddOns → ForeverDex.

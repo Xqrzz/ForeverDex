@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Presence: a glowing ForeverDex icon above the friendly players within 30 yards who have the addon too, so you know who you can compare with
+- New Presence settings page with a live preview: icon (capture orb, emblem, book, spark of light), glow intensity, opacity, size, and permanent display or a ping of a few seconds
+- Option to stay invisible to other ForeverDex players
+- `/fdex presence` lists the nearby players who have ForeverDex
+
 ## 1.7.1
 
 - Fixed Follow being blocked (and controller buttons locking up) when opening a player's portrait menu with a controller: in controller mode, "Compare our captures" is no longer added to portrait menus
