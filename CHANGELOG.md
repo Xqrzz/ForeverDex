@@ -9,6 +9,9 @@
 - `/fdex` shortcut
 - German, Spanish, Italian, Portuguese and Russian
 - Language setting, independent of the game client
+- Long names shrink to fit instead of being cut off
+- "Sex" filter renamed to "Gender"
+- Duel filters show how many cards each one contains
 - Fixed large collections failing to compare inside instances
 - Removed fallbacks for old game APIs
 
