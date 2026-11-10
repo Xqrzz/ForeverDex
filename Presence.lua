@@ -107,22 +107,15 @@ local function setIconTexture(icon, choice)
     if icon.choice == choice then return end
     icon.choice = choice
     local core = icon.core
-    Art.SmoothTexture(core, choice[3])
+    -- Square icons are made round by the game itself (SetPortraitToTexture). A mask
+    -- texture on a layer resized every frame crashed this client (ACCESS_VIOLATION).
+    if not (choice[4] and SetPortraitToTexture and pcall(SetPortraitToTexture, core, choice[3])) then
+        Art.SmoothTexture(core, choice[3])
+    end
     core:SetBlendMode(choice[5] or "BLEND")
     core:SetVertexColor(1, 1, 1, 1)
     if choice[5] == "ADD" then core:SetVertexColor(GOLD[1], GOLD[2], GOLD[3], 1) end
-    if choice[4] then
-        if not icon.mask and core.AddMaskTexture then
-            icon.mask = icon.frame:CreateMaskTexture()
-            icon.mask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-            icon.mask:SetAllPoints(core)
-        end
-        if icon.mask and not icon.masked then core:AddMaskTexture(icon.mask) icon.masked = true end
-        icon.rim:Show()
-    else
-        if icon.mask and icon.masked then core:RemoveMaskTexture(icon.mask) icon.masked = false end
-        icon.rim:Hide()
-    end
+    icon.rim:SetShown(choice[4] == true)
 end
 
 function Presence.CreateIcon(parent)
