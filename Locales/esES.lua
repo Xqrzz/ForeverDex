@@ -2,6 +2,8 @@ local _, ns = ...
 
 ns.Locales.esES = {
     MINIMAP_OPTIONS = "Clic derecho: ajustes.",
+    BINDING_CAPTURE = "Capturar objetivo",
+    BINDING_TOGGLE = "Abrir o cerrar la colección",
     DUEL_AUTO_REFUSED = "Solicitud de comparación de %s rechazada automáticamente (ver ajustes).",
     RESET_PROMPT = "¿Borrar las %s cartas de tu colección?",
     RESET_CONFIRM = "¿Seguro que quieres borrarlo todo?\nNo se puede deshacer.",

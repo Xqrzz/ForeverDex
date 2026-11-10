@@ -1097,6 +1097,38 @@ panel:HookScript("OnHide", function() Art.Sound("IG_SPELLBOOK_CLOSE") end)
 
 local capturePortrait
 
+-- Target frame of another interface (EllesmereUI, oUF layouts…): the frame showing
+-- the "target" unit whose parent is on screen. Blizzard's frame is skipped, and so
+-- are frames left under a hidden parent. The result is kept until it stops matching;
+-- a failed search is only tried again after a short delay.
+local otherTarget, lastSearch
+local function showsTarget(frame)
+    if frame == TargetFrame or (frame.IsForbidden and frame:IsForbidden()) then return false end
+    local unit = frame.unit
+    if unit ~= "target" and frame.GetAttribute then unit = frame:GetAttribute("unit") end
+    local parent = frame:GetParent()
+    return unit == "target" and parent ~= nil and parent:IsVisible() and frame:GetWidth() > 40
+end
+
+local function findOtherTarget()
+    if otherTarget and showsTarget(otherTarget) then return otherTarget end
+    otherTarget = nil
+    local now = GetTime()
+    if lastSearch and now - lastSearch < 2 then return end
+    lastSearch = now
+    local best, bestArea = nil, 0
+    local frame = EnumerateFrames()
+    while frame do
+        if showsTarget(frame) then
+            local area = frame:GetWidth() * frame:GetHeight()
+            if area > bestArea then best, bestArea = frame, area end
+        end
+        frame = EnumerateFrames(frame)
+    end
+    otherTarget = best
+    return best
+end
+
 -- Displayed target frame and region where the ball sits. ElvUI creates its own after
 -- the addon loads and reparents Blizzard's to a hidden parent, so the choice is
 -- made again on every update. Without an ElvUI portrait, we aim at the whole frame.
@@ -1105,6 +1137,14 @@ local function targetAnchor()
     if elvFrame and not (blizzard and blizzard:GetParent() == UIParent) then
         local portrait = elvFrame.Portrait
         return elvFrame, portrait and portrait:IsShown() and portrait or elvFrame
+    end
+    -- Blizzard's frame is hidden while there is a target: another interface replaced it.
+    local replaced = not blizzard or blizzard:GetParent() ~= UIParent
+        or (UnitExists("target") and not blizzard:IsShown())
+    local other = replaced and findOtherTarget()
+    if other then
+        local portrait = other.Portrait
+        return other, portrait and portrait.IsShown and portrait:IsShown() and portrait or other
     end
     if not blizzard then return end
     local container = blizzard.TargetFrameContainer

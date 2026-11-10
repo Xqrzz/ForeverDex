@@ -2,6 +2,8 @@ local _, ns = ...
 
 ns.Locales.deDE = {
     MINIMAP_OPTIONS = "Rechtsklick: Einstellungen.",
+    BINDING_CAPTURE = "Ziel einfangen",
+    BINDING_TOGGLE = "Sammlung öffnen oder schließen",
     DUEL_AUTO_REFUSED = "Vergleichsanfrage von %s automatisch abgelehnt (siehe Einstellungen).",
     RESET_PROMPT = "Die %s Karten deiner Sammlung löschen?",
     RESET_CONFIRM = "Wirklich alles löschen?\nDas kann nicht rückgängig gemacht werden.",

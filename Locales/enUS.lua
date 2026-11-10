@@ -2,6 +2,8 @@ local _, ns = ...
 
 ns.Locales.enUS = {
     MINIMAP_OPTIONS = "Right-click: settings.",
+    BINDING_CAPTURE = "Capture target",
+    BINDING_TOGGLE = "Open or close the collection",
     DUEL_AUTO_REFUSED = "Comparison request from %s declined automatically (see settings).",
     RESET_PROMPT = "Erase the %s cards of your collection?",
     RESET_CONFIRM = "Really erase everything?\nThis cannot be undone.",

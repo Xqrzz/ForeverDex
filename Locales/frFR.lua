@@ -2,6 +2,8 @@ local _, ns = ...
 
 ns.Locales.frFR = {
     MINIMAP_OPTIONS = "Clic droit : paramètres.",
+    BINDING_CAPTURE = "Capturer la cible",
+    BINDING_TOGGLE = "Ouvrir ou fermer la collection",
     DUEL_AUTO_REFUSED = "Demande de comparaison de %s refusée automatiquement (voir les paramètres).",
     RESET_PROMPT = "Effacer les %s cartes de ta collection ?",
     RESET_CONFIRM = "Vraiment tout effacer ?\nCette action est définitive.",

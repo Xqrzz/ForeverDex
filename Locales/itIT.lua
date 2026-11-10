@@ -2,6 +2,8 @@ local _, ns = ...
 
 ns.Locales.itIT = {
     MINIMAP_OPTIONS = "Clic destro: impostazioni.",
+    BINDING_CAPTURE = "Cattura bersaglio",
+    BINDING_TOGGLE = "Apri o chiudi la collezione",
     DUEL_AUTO_REFUSED = "Richiesta di confronto di %s rifiutata automaticamente (vedi impostazioni).",
     RESET_PROMPT = "Cancellare le %s carte della tua collezione?",
     RESET_CONFIRM = "Vuoi davvero cancellare tutto?\nNon si può annullare.",

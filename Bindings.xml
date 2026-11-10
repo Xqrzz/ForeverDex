@@ -1,0 +1,10 @@
+<!-- Shown in the game's key bindings, under AddOns > ForeverDex. A keyboard key and a
+     controller button can both be assigned. The names are set in ForeverDex.lua. -->
+<Bindings>
+    <Binding name="FOREVERDEX_CAPTURE" header="FOREVERDEX" category="ADDONS">
+        SlashCmdList.FOREVERDEX("capture")
+    </Binding>
+    <Binding name="FOREVERDEX_TOGGLE" category="ADDONS">
+        SlashCmdList.FOREVERDEX("")
+    </Binding>
+</Bindings>

@@ -38,10 +38,17 @@ local L = ns.L
 
 SLASH_FOREVERDEX1 = "/foreverdex"
 SLASH_FOREVERDEX2 = "/fdex"
+-- Names of the key bindings declared in Bindings.xml.
+BINDING_HEADER_FOREVERDEX = "ForeverDex"
+BINDING_NAME_FOREVERDEX_CAPTURE = L.BINDING_CAPTURE
+BINDING_NAME_FOREVERDEX_TOGGLE = L.BINDING_TOGGLE
 -- "/foreverdex textures" lists the atlases missing from this client.
 -- "/foreverdex compare" offers the comparison to the target (usable in a macro).
+-- "/foreverdex capture" captures the target, like the ball (key binding, macro).
 SlashCmdList.FOREVERDEX = function(message)
-    if message and message:lower():match("^%s*textures") then
+    if message and message:lower():match("^%s*capt") then
+        ns.Collection.Capture()
+    elseif message and message:lower():match("^%s*textures") then
         ns.Art.Report()
     elseif message and message:lower():match("^%s*compar") then
         ns.Duel.Request()

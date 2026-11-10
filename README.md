@@ -32,8 +32,11 @@ Open the journal with the minimap icon or `/foreverdex`.
 | Command | Action |
 | --- | --- |
 | `/foreverdex` or `/fdex` | Open or close the journal |
+| `/fdex capture` | Capture your target (works in macros) |
 | `/fdex compare` | Compare collections with your target (works in macros) |
 | `/fdex options` | Open the settings |
+
+Capturing the target and opening the journal can also be bound to a key or a controller button, under Options → Keybindings → AddOns → ForeverDex.
 
 Settings are also available under Options → AddOns → ForeverDex, or by right-clicking the minimap icon.
 
