@@ -1,11 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.7.5
 
 - Collectors: a glowing ForeverDex icon on the nameplate of nearby friendly players (10, 30 or 40 yards) who have the addon too, and a line in their tooltip, so you know who you can compare with. Your nameplate settings are never changed: the icon needs friendly nameplates (Shift+V)
 - New Collectors settings page with a live preview: icon (capture orb, spark of light, or one of the eight raid markers), detection distance, glow intensity, opacity, size, height, and permanent display or a ping of a few seconds
 - Option to stay invisible to other ForeverDex players
 - Works with nameplate addons: the icon goes above and in front of their bar
+- Opening the settings from the minimap icon, `/fdex options` or the book no longer leaves the Escape menu open
 - Settings tooltips with choices list each choice on its own line, its name in gold
 - `/fdex collectors` lists the nearby players who have ForeverDex
 - Demo to try the icon in game: "Test in game" on the Collectors page, or `/fdex collectors demo`, shows it above every friendly player nearby without sending anything
