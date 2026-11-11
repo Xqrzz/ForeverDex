@@ -29,6 +29,7 @@ local DEFAULTS = {
     presenceIntensity = 1,     -- strength of the glow, 0 to 1.5
     presenceAlpha = 1,         -- opacity of the whole icon, 0.2 to 1
     presenceSize = 1,          -- scale of the icon, 0.6 to 1.6
+    presenceRange = 30,        -- detection distance in yards: 10, 30 or 40
     presenceDuration = 0,      -- 0 = permanent, otherwise seconds of the ping
 }
 Settings.DEFAULTS = DEFAULTS
@@ -233,14 +234,17 @@ local function slider(spot, key, label, low, high, step, format, description)
     track:SetPoint("RIGHT", 0, 0)
     track:SetHeight(6)
     track:SetColorTexture(0, 0, 0, 0.6)
-    local fill = bar:CreateTexture(nil, "BORDER")
-    fill:SetPoint("LEFT", track, "LEFT")
-    fill:SetHeight(6)
-    fill:SetColorTexture(1, 0.75, 0.2, 0.75)
     local thumb = bar:CreateTexture(nil, "OVERLAY")
     thumb:SetTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
     thumb:SetSize(32, 32)
     bar:SetThumbTexture(thumb)
+    -- The fill ends under the handle: the game keeps the handle inside the bar, so its
+    -- centre does not travel the full width and a computed width drifts from it.
+    local fill = bar:CreateTexture(nil, "BORDER")
+    fill:SetPoint("LEFT", track, "LEFT")
+    fill:SetPoint("RIGHT", thumb, "CENTER")
+    fill:SetHeight(6)
+    fill:SetColorTexture(1, 0.75, 0.2, 0.75)
     bar:SetMinMaxValues(low, high)
     bar:SetValueStep(step)
     if bar.SetObeyStepOnDrag then bar:SetObeyStepOnDrag(true) end
@@ -248,7 +252,6 @@ local function slider(spot, key, label, low, high, step, format, description)
     local updating = false
     local function show(value)
         shown:SetText(format(value))
-        fill:SetWidth(math.max(1, (value - low) / (high - low) * bar:GetWidth()))
     end
     bar:SetScript("OnValueChanged", function(_, value)
         -- Rounded to the step, then to two decimals so 0.05 steps compare exactly.

@@ -8,7 +8,7 @@ ns.Presence = Presence
 --
 -- No API tells which addons another player runs, so the clients introduce themselves
 -- with whispered addon messages (invisible in chat), on the prefix of Duel.lua:
---   P       ping, sent when a friendly player's nameplate appears within RANGE
+--   P       ping, sent when a friendly player's nameplate appears within the chosen distance
 --   P\tq    the same from a player who does not want to be shown (quiet)
 --   H       answer: "I have ForeverDex"
 -- Older versions ignore these message types (see "Comparison compatibility").
@@ -22,7 +22,10 @@ ns.Presence = Presence
 
 local PREFIX = "ForeverDex"
 local MEDIA = "Interface\\AddOns\\ForeverDex\\Media\\"
-local RANGE = 30          -- yards: nameplate distance asked from the game
+-- Detection distance (presenceRange): 10 and 30 are checked with CheckInteractDistance
+-- (duel range, about 10 yards, and follow range, about 28 yards). Farther, the
+-- nameplates decide: the game creates them up to nameplateMaxDistance.
+local FAR = 40
 local PING_GAP = 0.4      -- seconds between two pings
 local WAIT_ANSWER = 15    -- no answer after this: the player has no ForeverDex
 local KNOWN_FOR = 600     -- an answer, or its absence, is trusted for 10 minutes
@@ -33,16 +36,21 @@ local TICK = 0.5
 local FRIEND_CVARS = { "nameplateShowFriends", "nameplateShowFriendlyPlayers" }
 local MANAGED_CVARS = { "nameplateShowFriends", "nameplateShowFriendlyPlayers", "nameplateShowAll", "nameplateMaxDistance" }
 
--- Icon choices: key, label, texture, blend mode (BLEND when absent).
+-- Icon choices: key, label, texture, blend mode (BLEND when absent), game file.
 -- A square game icon (INV_Misc_Book_09) made round crashed this client
--- (ACCESS_VIOLATION), with a mask texture as with SetPortraitToTexture: round images
--- only. A saved choice that no longer exists falls back to the orb.
+-- (ACCESS_VIOLATION), with a mask texture as with SetPortraitToTexture: only images
+-- already round. The game's files get no TRILINEAR filter, in case it played a part.
+-- A saved choice that no longer exists falls back to the orb.
 local ICONS = {
     { "orb", L.PRESENCE_ICON_ORB, MEDIA .. "Ball" },
-    { "star", L.PRESENCE_ICON_STAR, MEDIA .. "Star" },
-    { "gem", L.PRESENCE_ICON_GEM, MEDIA .. "Gem" },
-    { "spark", L.PRESENCE_ICON_SPARK, "Interface\\Cooldown\\star4", "ADD" },
+    { "spark", L.PRESENCE_ICON_SPARK, "Interface\\Cooldown\\star4", "ADD", true },
 }
+-- The raid target markers, under their names in the game's language.
+local MARKER_NAMES = { "Star", "Circle", "Diamond", "Triangle", "Moon", "Square", "Cross", "Skull" }
+for i, english in ipairs(MARKER_NAMES) do
+    ICONS[#ICONS + 1] = { "marker" .. i, _G["RAID_TARGET_" .. i] or english,
+        "Interface\\TargetingFrame\\UI-RaidTargetingIcon_" .. i, nil, true }
+end
 local ICON_BY_KEY = {}
 for _, icon in ipairs(ICONS) do ICON_BY_KEY[icon[1]] = icon end
 
@@ -71,7 +79,7 @@ local function inInstance()
     return safe(IsInInstance) == true
 end
 
--- Demo: every friendly player of our faction within RANGE counts as a ForeverDex
+-- Demo: every friendly player of our faction within the distance counts as a ForeverDex
 -- player, without any message. Until /reload or the same command again.
 local demo = false
 
@@ -85,6 +93,7 @@ local function readLook()
     look.intensity = Settings.Get("presenceIntensity")
     look.alpha = Settings.Get("presenceAlpha")
     look.size = Settings.Get("presenceSize")
+    look.range = Settings.Get("presenceRange")
     look.duration = Settings.Get("presenceDuration")
 end
 readLook()
@@ -110,7 +119,7 @@ local function setIconTexture(icon, choice)
     if icon.choice == choice then return end
     icon.choice = choice
     local core = icon.core
-    Art.SmoothTexture(core, choice[3])
+    if choice[5] then core:SetTexture(choice[3]) else Art.SmoothTexture(core, choice[3]) end
     core:SetBlendMode(choice[4] or "BLEND")
     core:SetVertexColor(1, 1, 1, 1)
     if choice[4] == "ADD" then core:SetVertexColor(GOLD[1], GOLD[2], GOLD[3], 1) end
@@ -266,7 +275,14 @@ local function applyCVars()
     for _, name in ipairs(FRIEND_CVARS) do setCVar(name, 1) end
     setCVar("nameplateShowAll", 1)
     local distance = tonumber(saved.nameplateMaxDistance)
-    if distance and distance < RANGE then setCVar("nameplateMaxDistance", RANGE) end
+    -- Plates at least as far as the chosen distance; a player who shows them farther
+    -- keeps their value.
+    local wanted = look.range >= FAR and FAR or 30
+    if distance and distance < wanted then
+        setCVar("nameplateMaxDistance", wanted)
+    elseif distance then
+        setCVar("nameplateMaxDistance", distance)
+    end
 end
 
 local function restoreCVars()
@@ -353,7 +369,8 @@ end
 -- Not asked in combat, where the game may restrict it.
 local function inRange(unit)
     if not CheckInteractDistance or inCombat() then return nil end
-    return safe(CheckInteractDistance, unit, 4)
+    if look.range >= FAR then return nil end
+    return safe(CheckInteractDistance, unit, look.range <= 10 and 3 or 4)
 end
 
 local function release(unit)
@@ -614,6 +631,8 @@ Settings.OnChange(function(key)
             unmuteAll()
             restoreCVars()
         end
+    elseif key == "presenceRange" then
+        if look.show then applyCVars() end
     elseif key == "presenceDuration" then
         -- Permanent and ping icons do not end the same way: they start again.
         for unit in pairs(icons) do release(unit) end
@@ -702,6 +721,11 @@ B.section(left, L.PRESENCE_LOOK)
 local iconChoices = {}
 for _, icon in ipairs(ICONS) do iconChoices[#iconChoices + 1] = { icon[1], icon[2] } end
 B.choice(left, "presenceIcon", L.PRESENCE_ICON, iconChoices, L.PRESENCE_ICON_TIP)
+B.choice(left, "presenceRange", L.PRESENCE_RANGE, {
+    { 10, L.PRESENCE_RANGE_YARDS:format(10) },
+    { 30, L.PRESENCE_RANGE_YARDS:format(30) },
+    { FAR, L.PRESENCE_RANGE_YARDS:format(FAR) },
+}, L.PRESENCE_RANGE_TIP)
 B.choice(left, "presenceDuration", L.PRESENCE_DURATION, {
     { 0, L.PRESENCE_PERMANENT },
     { 3, L.PRESENCE_PING:format(3) },

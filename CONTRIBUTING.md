@@ -17,7 +17,7 @@
 | `UI.lua` | Adventure Guide style window: race list, card grid, detail page, tabs and capture. |
 | `ForeverDex.lua` | Initialization once saved data is loaded, game events, slash command and minimap button. |
 
-`Media/` holds the capture orb (`Ball.tga`, a single image so it can rotate), the addon icons, and the presence icons (`Star.tga`, `Gem.tga`) with their soft halo and ring (`Glow.tga`, `Ring.tga`).
+`Media/` holds the capture orb (`Ball.tga`, a single image so it can rotate), the addon icons, and the soft halo and ring of the presence icon (`Glow.tga`, `Ring.tga`).
 
 ## Saved data
 
