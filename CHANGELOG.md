@@ -6,6 +6,7 @@
 - New Presence settings page with a live preview: icon (capture orb, spark of light, or one of the eight raid markers), detection distance, glow intensity, opacity, size, height, and permanent display or a ping of a few seconds
 - Option to stay invisible to other ForeverDex players
 - Works with nameplate addons: the icon goes above and in front of their bar
+- Settings tooltips with choices list each choice on its own line, its name in gold
 - `/fdex presence` lists the nearby players who have ForeverDex
 - Demo to try the icon in game: "Test in game" on the Presence page, or `/fdex presence demo`, shows it above every friendly player nearby without sending anything
 

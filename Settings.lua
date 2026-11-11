@@ -138,11 +138,30 @@ local function section(spot, label)
     spot.y = spot.y - 8
 end
 
+-- A description on several lines lists choices: "Name: what it does", one per line.
+-- The game's tooltips have no bold, so the name stands out in gold. A description on
+-- one line (an intro, or a translation not split yet) is shown as it is.
+local function addDescription(description)
+    if not description:find("\n", 1, true) then
+        GameTooltip:AddLine(description, 1, 1, 1, true)
+        return
+    end
+    for line in description:gmatch("[^\n]+") do
+        -- The separator is kept as written: "Name: " in English, "Nom : " in French.
+        local name, separator, text = line:match("^(.-)(%s*:%s+)(.+)$")
+        if name and name ~= "" then
+            GameTooltip:AddLine("|cffffd100" .. name .. "|r" .. separator .. text, 1, 1, 1, true)
+        else
+            GameTooltip:AddLine(line, 1, 1, 1, true)
+        end
+    end
+end
+
 local function tooltip(frame, label, description)
     frame:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(label)
-        GameTooltip:AddLine(description, 1, 1, 1, true)
+        addDescription(description)
         GameTooltip:Show()
     end)
     frame:SetScript("OnLeave", function() GameTooltip:Hide() end)
