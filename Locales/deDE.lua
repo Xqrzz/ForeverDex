@@ -177,6 +177,7 @@ ns.Locales.deDE = {
     CHAT_CAPTURE = "Zu ForeverDex hinzufügen",
     CHAT_ALREADY = "|cff63ded1ForeverDex|r: %s ist bereits in deiner Sammlung.",
     CHAT_CAPTURE_FAILED = "|cff63ded1ForeverDex|r: Dieser Spieler konnte im Chat nicht erkannt werden. Empfangene Daten:",
+    CHAT_FACTION_PROMPT = "Zu welcher Fraktion gehört %s?",
     COMBINATION_OWNED = "Kombination bereits gefangen: %s",
     CLICK_TO_REPLACE = "Klicken, um diese Karte zu ersetzen oder als Bonus hinzuzufügen.",
     MINIMAP_TOOLTIP = "Klicken, um die Sammlung zu öffnen oder zu schließen.",

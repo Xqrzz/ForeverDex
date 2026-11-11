@@ -177,6 +177,7 @@ ns.Locales.itIT = {
     CHAT_CAPTURE = "Aggiungi a ForeverDex",
     CHAT_ALREADY = "|cff63ded1ForeverDex|r: %s è già nella tua collezione.",
     CHAT_CAPTURE_FAILED = "|cff63ded1ForeverDex|r: Impossibile identificare questo giocatore dalla chat. Dati ricevuti:",
+    CHAT_FACTION_PROMPT = "Di quale fazione è %s?",
     COMBINATION_OWNED = "Combinazione già catturata: %s",
     CLICK_TO_REPLACE = "Clicca per sostituire questa carta o aggiungere come bonus.",
     MINIMAP_TOOLTIP = "Clicca per aprire o chiudere la collezione.",

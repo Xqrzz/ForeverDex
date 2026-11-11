@@ -178,6 +178,7 @@ ns.Locales.enUS = {
     CHAT_CAPTURE = "Add to ForeverDex",
     CHAT_ALREADY = "|cff63ded1ForeverDex|r: %s is already in your collection.",
     CHAT_CAPTURE_FAILED = "|cff63ded1ForeverDex|r: Could not identify this player from chat. Data received:",
+    CHAT_FACTION_PROMPT = "Which faction is %s from?",
     COMBINATION_OWNED = "Combination already caught: %s",
     CLICK_TO_REPLACE = "Click to replace this card or add as a bonus.",
     MINIMAP_TOOLTIP = "Click to open or close the collection.",

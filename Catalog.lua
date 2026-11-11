@@ -145,19 +145,44 @@ function Catalog.RaceProgress(entries)
 end
 
 -- Card matching the file names returned by GetPlayerInfoByGUID.
-local raceIDByFile
-function Catalog.SlotForFiles(raceFile, classToken, sex)
-    if not raceIDByFile then
-        raceIDByFile = {}
+-- Several races can share a file name (Skyborne Alliance and Horde): the GUID
+-- does not give the faction. faction (optional) picks among them; otherwise the
+-- player's faction. The second value tells whether several cards were possible.
+local raceIDsByFile
+-- Server races unknown to the client API: their faction is written by hand.
+local KNOWN_FACTIONS = { [95] = "Alliance", [96] = "Horde" }
+local function raceFaction(raceID)
+    local info = C_CreatureInfo.GetFactionInfo and C_CreatureInfo.GetFactionInfo(raceID)
+    return info and info.groupTag or KNOWN_FACTIONS[raceID]
+end
+
+function Catalog.SlotForFiles(raceFile, classToken, sex, faction)
+    if not raceIDsByFile then
+        raceIDsByFile = {}
         for _, info in ipairs(raceList) do
             local race = C_CreatureInfo.GetRaceInfo(info.id)
-            if race and race.clientFileString then raceIDByFile[race.clientFileString] = info.id end
+            local file = race and race.clientFileString
+            if file then
+                raceIDsByFile[file] = raceIDsByFile[file] or {}
+                table.insert(raceIDsByFile[file], info.id)
+            end
         end
     end
-    local raceID = raceIDByFile[raceFile]
-    for _, slot in ipairs(slots) do
-        if slot.raceID == raceID and slot.token == classToken and slot.sexID == sex then return slot end
+    local candidates = {}
+    for _, raceID in ipairs(raceIDsByFile[raceFile] or {}) do
+        for _, slot in ipairs(slots) do
+            if slot.raceID == raceID and slot.token == classToken and slot.sexID == sex then
+                candidates[#candidates + 1] = slot
+            end
+        end
     end
+    if #candidates > 1 then
+        faction = faction or UnitFactionGroup("player")
+        for _, slot in ipairs(candidates) do
+            if raceFaction(slot.raceID) == faction then return slot, true end
+        end
+    end
+    return candidates[1], #candidates > 1
 end
 
 -- Standard cards filled and available for a class.

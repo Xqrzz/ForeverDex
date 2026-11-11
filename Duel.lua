@@ -186,7 +186,7 @@ local function requestFromChat(context)
     if not readable(name) or name == "" then return end
     local combination
     if readable(class) and readable(race) and readable(sex) then
-        combination = Catalog.SlotForFiles(race, class, sex)
+        combination = Catalog.SlotForFiles(race, class, sex, Collection.ChatSenderFaction(guid, context))
     end
     startRequest(name, realm, nil, combination)
 end

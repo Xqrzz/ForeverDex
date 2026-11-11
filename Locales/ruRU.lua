@@ -177,6 +177,7 @@ ns.Locales.ruRU = {
     CHAT_CAPTURE = "Добавить в ForeverDex",
     CHAT_ALREADY = "|cff63ded1ForeverDex|r: %s уже в вашей коллекции.",
     CHAT_CAPTURE_FAILED = "|cff63ded1ForeverDex|r: Не удалось определить игрока по чату. Полученные данные:",
+    CHAT_FACTION_PROMPT = "К какой фракции относится %s?",
     COMBINATION_OWNED = "Сочетание уже поймано: %s",
     CLICK_TO_REPLACE = "Нажмите, чтобы заменить карту или добавить как бонус.",
     MINIMAP_TOOLTIP = "Нажмите, чтобы открыть или закрыть коллекцию.",

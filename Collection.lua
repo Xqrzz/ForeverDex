@@ -306,12 +306,44 @@ local function readChatName(name, realm, context)
     return first or chatFirst, chatSurname
 end
 
+-- The GUID does not give the faction. When the sender is visible (target, nameplate,
+-- group…), their unit gives it.
+local function unitForGUID(guid)
+    if UnitTokenFromGUID then
+        local unit = UnitTokenFromGUID(guid)
+        if readable(unit) and unit then return unit end
+    end
+    local units = { "target", "mouseover", "focus" }
+    for i = 1, 40 do units[#units + 1] = "nameplate" .. i end
+    for i = 1, 4 do units[#units + 1] = "party" .. i end
+    for i = 1, 40 do units[#units + 1] = "raid" .. i end
+    for _, unit in ipairs(units) do
+        local other = UnitGUID(unit)
+        if readable(other) and other == guid then return unit end
+    end
+end
+
+-- Only the spoken chats (say, yell, emotes) reach players of the other faction.
+local SPOKEN = { SAY = true, YELL = true, EMOTE = true, TEXT_EMOTE = true }
+
+-- Faction of the sender, or nil when it cannot be known.
+local function chatSenderFaction(guid, context)
+    local unit = unitForGUID(guid)
+    local faction = unit and UnitFactionGroup(unit)
+    if readable(faction) and faction then return faction end
+    if context and SPOKEN[context.chatType] then return end
+    return UnitFactionGroup("player")
+end
+
+Collection.ChatSenderFaction = chatSenderFaction
+
 -- Chat provides neither level nor guild: those fields stay empty on the card.
+-- Returns what the card needs, then the faction when it is known.
 local function readChatSender(guid, context)
     local _, class, _, race, sex, name, realm = GetPlayerInfoByGUID(guid)
-    local slot
+    local slot, ambiguous
     if readable(class) and readable(race) and readable(sex) then
-        slot = Catalog.SlotForFiles(race, class, sex)
+        slot, ambiguous = Catalog.SlotForFiles(race, class, sex)
     end
     local first, surname = readChatName(name, realm, context)
     if not slot or not first or not surname then
@@ -321,20 +353,45 @@ local function readChatSender(guid, context)
             shown(name), shown(realm), shown(context.name), shown(context.server)))
         return
     end
-    local entry = { key = slot.key }
-    setCharacterName(entry, first, surname)
-    return entry
+    local sender = { race = race, class = class, sex = sex, first = first, surname = surname }
+    return sender, chatSenderFaction(guid, context), ambiguous
 end
 
-local function captureFromChat(context)
-    local guid = chatSenderGUID(context)
-    local entry = guid and readChatSender(guid, context)
-    if not entry then return end
+local function storeFromChat(sender, faction)
+    local slot = Catalog.SlotForFiles(sender.race, sender.class, sender.sex, faction)
+    local entry = { key = slot.key }
+    setCharacterName(entry, sender.first, sender.surname)
     local current = ForeverDexDB.cards[entry.key]
     if current and current.id == entry.id then
         print(L.CHAT_ALREADY:format(entry.name))
     else
         place(entry, true)
+    end
+end
+
+-- The race exists in both factions and nothing tells which one: the player chooses.
+StaticPopupDialogs["FOREVERDEX_FACTION"] = {
+    text = L.CHAT_FACTION_PROMPT,
+    button1 = FACTION_ALLIANCE,
+    -- Cancel stays button 2: the Escape key triggers this button.
+    button2 = CANCEL,
+    button3 = FACTION_HORDE,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    OnAccept = function(_, sender) storeFromChat(sender, "Alliance") end,
+    OnAlt = function(_, sender) storeFromChat(sender, "Horde") end,
+}
+
+local function captureFromChat(context)
+    local guid = chatSenderGUID(context)
+    if not guid then return end
+    local sender, faction, ambiguous = readChatSender(guid, context)
+    if not sender then return end
+    if ambiguous and not faction then
+        StaticPopup_Show("FOREVERDEX_FACTION", sender.first .. " " .. sender.surname, nil, sender)
+    else
+        storeFromChat(sender, faction)
     end
 end
 

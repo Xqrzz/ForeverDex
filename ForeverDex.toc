@@ -2,7 +2,7 @@
 ## Title: ForeverDex
 ## Notes: Collect funny character names in WoW Forever.
 ## Notes-frFR: Le carnet des noms improbables de WoW Forever.
-## Version: 1.7.5
+## Version: 1.7.6
 ## IconTexture: Interface\AddOns\ForeverDex\Media\IconSmall
 ## SavedVariables: ForeverDexDB
 

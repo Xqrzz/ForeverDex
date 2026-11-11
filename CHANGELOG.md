@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.6
+
+- Fixed Skyborne players added from chat always going into the Horde card: the faction is now read from the player when they are visible (target, nameplate, group…), and from chat channels that only reach your own faction
+- When a Skyborne speaks in /say, /yell or an emote and is not visible, ForeverDex asks which faction they belong to (Alliance or Horde) before adding them
+- "Compare our captures" from chat also shows the right Skyborne card
+
 ## 1.7.5
 
 - Collectors: a glowing ForeverDex icon on the nameplate of nearby friendly players (10, 30 or 40 yards) who have the addon too, and a line in their tooltip, so you know who you can compare with. Your nameplate settings are never changed: the icon needs friendly nameplates (Shift+V)
