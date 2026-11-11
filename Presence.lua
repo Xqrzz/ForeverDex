@@ -454,7 +454,9 @@ end
 --
 -- A line under a player known to have ForeverDex. It works without any nameplate.
 
-local TOOLTIP_ICON = "|T" .. MEDIA .. "Ball:14:14|t "
+-- The 32 px icon of the addon list: the 256 px orb shrunk to 14 px in a text line
+-- gets no smoothing there and looked pixelated.
+local TOOLTIP_ICON = "|T" .. MEDIA .. "IconSmall:16:16|t "
 
 local function addTooltipLine(tooltip)
     if not look.show or not tooltip or tooltip ~= GameTooltip then return end
