@@ -271,5 +271,8 @@ ns.Locales.frFR = {
     PRESENCE_DEMO_ON = "Démo de présence activée : tous les joueurs alliés proches comptent comme équipés (icône sur les barres d’info alliées, Maj+V, et ligne dans l’infobulle). Rien n’est envoyé. /fdex presence demo pour arrêter.",
     PRESENCE_DEMO_OFF = "Démo de présence désactivée.",
     PRESENCE_TOOLTIP = "A ForeverDex",
+    PRESENCE_HEIGHT = "Hauteur",
+    PRESENCE_HEIGHT_TIP = "Monte ou descend l’icône au-dessus de la barre d’info. Avec un addon de barres d’info, ForeverDex la place déjà au-dessus de sa barre ; ajuste ici si besoin.",
+    PRESENCE_PIXELS = "%+d px",
     PRESENCE_REPORT = "%d joueurs proches avec ForeverDex : %s",
 }

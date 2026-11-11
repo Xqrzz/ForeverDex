@@ -90,6 +90,7 @@ local function readLook()
     look.alpha = Settings.Get("presenceAlpha")
     look.size = Settings.Get("presenceSize")
     look.range = Settings.Get("presenceRange")
+    look.height = Settings.Get("presenceHeight")
     look.duration = Settings.Get("presenceDuration")
 end
 readLook()
@@ -303,18 +304,85 @@ local function release(unit)
     spare[#spare + 1] = icon
 end
 
+-- Nameplate addons (Plater, ElvUI, Kui...) hide the Blizzard bar and draw their own on
+-- the same base frame, at their own height, level and strata. The Blizzard bar keeps
+-- the fixed placement; any other bar is measured: the icon goes above its highest
+-- visible piece, and in front of it.
+local BLIZZARD_OFFSET = 36
+local STRATA = { BACKGROUND = 1, LOW = 2, MEDIUM = 3, HIGH = 4, DIALOG = 5, FULLSCREEN = 6, FULLSCREEN_DIALOG = 7, TOOLTIP = 8 }
+
+local function shownAlpha(object)
+    local okShown, shown = pcall(object.IsVisible, object)
+    if not okShown or not readable(shown) or not shown then return false end
+    local getter = object.GetEffectiveAlpha or object.GetAlpha
+    local okAlpha, alpha = pcall(getter, object)
+    return not okAlpha or not readable(alpha) or alpha > 0.01
+end
+
+local function blizzardBarShown(plate)
+    local ok, frame = pcall(function() return plate.UnitFrame end)
+    return ok and type(frame) == "table" and shownAlpha(frame)
+end
+
+-- Top of the visible content (in the plate's units), highest frame level and strata.
+local function measure(plate)
+    local plateScale = plate:GetEffectiveScale()
+    local top, level, strata = nil, plate:GetFrameLevel(), plate:GetFrameStrata()
+    local function reach(object)
+        if not shownAlpha(object) then return end
+        local okTop, value = pcall(object.GetTop, object)
+        local okHeight, height = pcall(object.GetHeight, object)
+        if not (okTop and readable(value) and value and okHeight and readable(height)) then return end
+        -- Wide glows and highlights are not the bar.
+        if height > 150 then return end
+        local okScale, scale = pcall(object.GetEffectiveScale, object)
+        value = value * ((okScale and readable(scale) and scale) or plateScale) / plateScale
+        if not top or value > top then top = value end
+    end
+    local function frame(object, depth)
+        if object.foreverDexIcon or not shownAlpha(object) then return end
+        local okLevel, value = pcall(object.GetFrameLevel, object)
+        if okLevel and readable(value) and value > level then level = value end
+        local okStrata, name = pcall(object.GetFrameStrata, object)
+        if okStrata and readable(name) and (STRATA[name] or 0) > (STRATA[strata] or 0) then strata = name end
+        reach(object)
+        for _, region in ipairs({ object:GetRegions() }) do reach(region) end
+        if depth < 3 then
+            for _, child in ipairs({ object:GetChildren() }) do frame(child, depth + 1) end
+        end
+    end
+    for _, child in ipairs({ plate:GetChildren() }) do pcall(frame, child, 1) end
+    return top, level, strata
+end
+
+local function place(icon, plate)
+    local height = look.height
+    if blizzardBarShown(plate) then
+        icon.frame:SetPoint("CENTER", plate, "CENTER", 0, BLIZZARD_OFFSET + height)
+        icon.frame:SetFrameStrata(plate:GetFrameStrata())
+        icon.frame:SetFrameLevel(plate:GetFrameLevel() + 10)
+        return
+    end
+    local top, level, strata = measure(plate)
+    local _, centerY = plate:GetCenter()
+    local offset = BLIZZARD_OFFSET
+    if top and centerY then offset = top - centerY + 30 * look.size * 0.6 end
+    icon.frame:SetPoint("CENTER", plate, "CENTER", 0, offset + height)
+    icon.frame:SetFrameStrata(strata)
+    icon.frame:SetFrameLevel(math.max(plate:GetFrameLevel() + 10, level + 5))
+end
+
 local function attach(unit, plate)
     local icon = icons[unit]
     if not icon then
         icon = table.remove(spare) or Presence.CreateIcon(UIParent)
+        icon.frame.foreverDexIcon = true
         icons[unit] = icon
     end
     icon.frame:SetParent(plate)
     icon.frame:ClearAllPoints()
-    -- Above the Blizzard bar and its name.
-    icon.frame:SetPoint("CENTER", plate, "CENTER", 0, 36)
     if icon.frame.SetIgnoreParentAlpha then icon.frame:SetIgnoreParentAlpha(true) end
-    icon.frame:SetFrameLevel(plate:GetFrameLevel() + 10)
+    place(icon, plate)
     return icon
 end
 
@@ -338,6 +406,7 @@ local function update(unit)
             play(attach(unit, plate), look.duration)
         elseif icon and active[icon] then
             entry.shown = now
+            place(icon, plate)
         end
     elseif range == false then
         if icon then stop(icon) end
@@ -632,6 +701,9 @@ local function percent(value) return L.PERCENT:format(math.floor(value * 100 + 0
 B.slider(left, "presenceIntensity", L.PRESENCE_INTENSITY, 0, 1.5, 0.05, percent, L.PRESENCE_INTENSITY_TIP)
 B.slider(left, "presenceAlpha", L.PRESENCE_ALPHA, 0.2, 1, 0.05, percent, L.PRESENCE_ALPHA_TIP)
 B.slider(left, "presenceSize", L.PRESENCE_SIZE, 0.6, 1.6, 0.05, percent, L.PRESENCE_SIZE_TIP)
+B.slider(left, "presenceHeight", L.PRESENCE_HEIGHT, -20, 40, 1, function(value)
+    return L.PRESENCE_PIXELS:format(value)
+end, L.PRESENCE_HEIGHT_TIP)
 
 -- Preview: the player's own character under the icon, in a small scene.
 B.section(right, L.PRESENCE_PREVIEW)
@@ -699,8 +771,11 @@ preview.onDone = function()
     end)
 end
 
+local PREVIEW_TOP = -40
+
 function Presence.RefreshPreview()
     if not page:IsVisible() then return end
+    preview.frame:SetPoint("TOP", stage, "TOP", 0, PREVIEW_TOP + look.height)
     replay:SetEnabled(look.duration > 0)
     if not active[preview] or (look.duration == 0) ~= (preview.duration == 0) then
         stop(preview, true)

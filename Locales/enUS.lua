@@ -272,5 +272,8 @@ ns.Locales.enUS = {
     PRESENCE_DEMO_ON = "Presence demo on: every friendly player nearby counts as a ForeverDex player (icon on friendly nameplates, Shift+V, and tooltip line). Nothing is sent. /fdex presence demo to stop.",
     PRESENCE_DEMO_OFF = "Presence demo off.",
     PRESENCE_TOOLTIP = "Has ForeverDex",
+    PRESENCE_HEIGHT = "Height",
+    PRESENCE_HEIGHT_TIP = "Moves the icon up or down above the nameplate. With a nameplate addon, ForeverDex already places it above the addon's bar; adjust here if needed.",
+    PRESENCE_PIXELS = "%+d px",
     PRESENCE_REPORT = "%d nearby players with ForeverDex: %s",
 }

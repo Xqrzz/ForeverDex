@@ -30,6 +30,7 @@ local DEFAULTS = {
     presenceAlpha = 1,         -- opacity of the whole icon, 0.2 to 1
     presenceSize = 1,          -- scale of the icon, 0.6 to 1.6
     presenceRange = 30,        -- detection distance in yards: 10, 30 or 40
+    presenceHeight = 0,        -- pixels added to the icon's height above the bar
     presenceDuration = 0,      -- 0 = permanent, otherwise seconds of the ping
 }
 Settings.DEFAULTS = DEFAULTS

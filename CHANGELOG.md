@@ -3,8 +3,9 @@
 ## Unreleased
 
 - Presence: a glowing ForeverDex icon on the nameplate of nearby friendly players (10, 30 or 40 yards) who have the addon too, and a line in their tooltip, so you know who you can compare with. Your nameplate settings are never changed: the icon needs friendly nameplates (Shift+V)
-- New Presence settings page with a live preview: icon (capture orb, spark of light, or one of the eight raid markers), detection distance, glow intensity, opacity, size, and permanent display or a ping of a few seconds
+- New Presence settings page with a live preview: icon (capture orb, spark of light, or one of the eight raid markers), detection distance, glow intensity, opacity, size, height, and permanent display or a ping of a few seconds
 - Option to stay invisible to other ForeverDex players
+- Works with nameplate addons: the icon goes above and in front of their bar
 - `/fdex presence` lists the nearby players who have ForeverDex
 - Demo to try the icon in game: "Test in game" on the Presence page, or `/fdex presence demo`, shows it above every friendly player nearby without sending anything
 
