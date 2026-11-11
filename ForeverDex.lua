@@ -46,6 +46,8 @@ BINDING_NAME_FOREVERDEX_TOGGLE = L.BINDING_TOGGLE
 -- "/foreverdex textures" lists the atlases missing from this client.
 -- "/foreverdex compare" offers the comparison to the target (usable in a macro).
 -- "/foreverdex capture" captures the target, like the ball (key binding, macro).
+-- "/foreverdex collectors" (or "presence") lists the nearby players known to have ForeverDex,
+-- "/foreverdex collectors demo" shows the icon above every friendly player nearby.
 SlashCmdList.FOREVERDEX = function(message)
     if message and message:lower():match("^%s*capt") then
         ns.Collection.Capture()
@@ -53,6 +55,14 @@ SlashCmdList.FOREVERDEX = function(message)
         ns.Art.Report()
     elseif message and message:lower():match("^%s*compar") then
         ns.Duel.Request()
+    elseif message and (message:lower():match("^%s*presen") or message:lower():match("^%s*collec")) then
+        if message:lower():match("demo") then
+            ns.Presence.ToggleDemo()
+        elseif message:lower():match("debug") then
+            ns.Presence.Debug()
+        else
+            ns.Presence.Report()
+        end
     elseif message and message:lower():match("^%s*duel") then
         ns.Duel.ToggleTrace()
     elseif message and message:lower():match("^%s*opt") then

@@ -13,10 +13,11 @@
 | `Collection.lua` | Reading the target, saved data migration, adding and replacing cards. |
 | `CaptureVisuals.lua` | Capture animation and the notification rising from the bottom of the screen. |
 | `Duel.lua` | Comparison between two ForeverDex users: request, agreement, exchange over whispered addon messages, and the duel screen. |
+| `Presence.lua` | Glowing icon above nearby ForeverDex players: ping and answer over whispered addon messages, icon hung from the nameplates the player already shows (their nameplate settings are never changed), tooltip line, and its settings page with a live preview. |
 | `UI.lua` | Adventure Guide style window: race list, card grid, detail page, tabs and capture. |
 | `ForeverDex.lua` | Initialization once saved data is loaded, game events, slash command and minimap button. |
 
-`Media/` holds the capture orb (`Ball.tga`, a single image so it can rotate) and the addon icons.
+`Media/` holds the capture orb (`Ball.tga`, a single image so it can rotate), the addon icons, and the soft halo and ring of the presence icon (`Glow.tga`, `Ring.tga`).
 
 ## Saved data
 
@@ -30,7 +31,7 @@ The custom portrait is rendered from the target. Saved data keeps the character'
 
 ## Comparison compatibility
 
-Two players must be able to compare collections across different versions. Never change the shape of the `Q`, `A`, `N` and `D` messages in `Duel.lua`. To add data, create a new message type (ignored by older versions) or add a field after a tab in an existing item. Cards whose key is unknown to the catalog are ignored on receipt.
+Two players must be able to compare collections across different versions. Never change the shape of the `Q`, `A`, `N` and `D` messages in `Duel.lua`. To add data, create a new message type (ignored by older versions) or add a field after a tab in an existing item. Cards whose key is unknown to the catalog are ignored on receipt. `Presence.lua` uses the `P` and `H` types on the same prefix; older versions ignore them.
 
 ## In-game checks
 
