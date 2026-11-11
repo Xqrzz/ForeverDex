@@ -17,7 +17,8 @@ ns.Presence = Presence
 -- in the 3D world. While the option is on, the friendly nameplates are switched on;
 -- the values the player had are saved first and given back when the option is turned
 -- off and at logout (same approach as the Lueur addon). Plates the player would not
--- have seen keep their Blizzard bar hidden: only the ForeverDex icon remains.
+-- have seen keep only their name (a unit with a plate loses the name drawn above it):
+-- the rest of the Blizzard bar is hidden.
 -- The game forbids touching friendly nameplates in dungeons and raids: no icon there.
 
 local PREFIX = "ForeverDex"
@@ -241,9 +242,13 @@ local function getCVar(name)
 end
 
 -- Only the settings this client knows (the list varies between versions).
+-- While forcing is set, CVAR_UPDATE comes from us, not from the player.
+local forcing = false
 local function setCVar(name, value)
     if getCVar(name) == nil then return end
+    forcing = true
     pcall(C_CVar and C_CVar.SetCVar or SetCVar, name, tostring(value))
+    forcing = false
 end
 
 local pendingCVars -- "apply" or "restore", waiting for the end of combat
@@ -341,16 +346,53 @@ local function plateOwed(unit)
 end
 
 local function unmute(plate)
-    local frame = muted[plate]
-    if frame then pcall(frame.SetAlpha, frame, 1) end
+    local list = muted[plate]
+    if list then
+        for _, item in ipairs(list) do pcall(item[1].SetAlpha, item[1], item[2]) end
+    end
     muted[plate] = nil
+end
+
+-- What to hide on a Blizzard plate: everything but its name. A unit with a nameplate
+-- loses the name the game draws above it, so the plate's own name must stay.
+local function collect(frame, keep, ancestors, list)
+    for _, region in ipairs({ frame:GetRegions() }) do
+        if region ~= keep then list[#list + 1] = region end
+    end
+    for _, child in ipairs({ frame:GetChildren() }) do
+        if ancestors[child] then collect(child, keep, ancestors, list) else list[#list + 1] = child end
+    end
 end
 
 local function mute(plate, unit)
     if not look.show or plateOwed(unit) then unmute(plate) return end
+    if muted[plate] then return end
     local ok, frame = pcall(function() return plate.UnitFrame end)
     if not ok or type(frame) ~= "table" then return end
-    if pcall(frame.SetAlpha, frame, 0) then muted[plate] = frame end
+    local objects
+    local okName, name = pcall(function() return frame.name end)
+    if okName and type(name) == "table" and name.GetParent then
+        local ancestors, parent = {}, name:GetParent()
+        while parent and parent ~= frame do
+            ancestors[parent] = true
+            parent = parent:GetParent()
+        end
+        if parent == frame then
+            objects = {}
+            local okCollect = pcall(collect, frame, name, ancestors, objects)
+            if not okCollect then objects = nil end
+        end
+    end
+    -- No name found: the whole bar goes, as a last resort.
+    objects = objects or { frame }
+    local list = {}
+    for _, object in ipairs(objects) do
+        local okAlpha, alpha = pcall(object.GetAlpha, object)
+        if okAlpha and readable(alpha) and pcall(object.SetAlpha, object, 0) then
+            list[#list + 1] = { object, alpha }
+        end
+    end
+    muted[plate] = list
 end
 
 local function unmuteAll()
@@ -395,8 +437,8 @@ local function attach(unit, plate)
     end
     icon.frame:SetParent(plate)
     icon.frame:ClearAllPoints()
-    -- Just above the head when the Blizzard bar is hidden, above the bar otherwise.
-    icon.frame:SetPoint("CENTER", plate, "CENTER", 0, muted[plate] and 10 or 36)
+    -- Above the name, which stays when the Blizzard bar is hidden; above the bar otherwise.
+    icon.frame:SetPoint("CENTER", plate, "CENTER", 0, muted[plate] and 28 or 36)
     if icon.frame.SetIgnoreParentAlpha then icon.frame:SetIgnoreParentAlpha(true) end
     icon.frame:SetFrameLevel(plate:GetFrameLevel() + 10)
     return icon
@@ -514,8 +556,11 @@ local function tick()
     end
     pingNext(now)
     -- The game may give the bar its alpha back: hidden again.
-    for plate, frame in pairs(muted) do
-        if frame.GetAlpha and frame:GetAlpha() > 0 then pcall(frame.SetAlpha, frame, 0) end
+    for _, list in pairs(muted) do
+        for _, item in ipairs(list) do
+            local ok, alpha = pcall(item[1].GetAlpha, item[1])
+            if ok and readable(alpha) and alpha > 0 then pcall(item[1].SetAlpha, item[1], 0) end
+        end
     end
     updateAll()
 end
@@ -573,6 +618,40 @@ events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("PLAYER_LOGOUT")
+events:RegisterEvent("CVAR_UPDATE")
+
+-- Ctrl+V (all nameplates) and Shift+V (friendly nameplates) while the icons are on.
+-- Both keys flip the setting from its current value, which ForeverDex holds at 1: each
+-- press therefore arrives as a 0. It flips the player's own preference instead, the
+-- one that decides which Blizzard bars stay visible and that is given back at the end,
+-- and the plates come back for the icons.
+local PLAYER_CVARS = { "nameplateShowAll", "nameplateShowFriends", "nameplateShowFriendlyPlayers" }
+local function playerChangedCVars()
+    local db = ForeverDexDB
+    local saved = db and db.presenceCVars
+    if forcing or not look.show or not saved or db.presenceCVarsReturned then return end
+    local changed = false
+    for _, name in ipairs(PLAYER_CVARS) do
+        local value = getCVar(name)
+        if value ~= nil and value ~= "1" then
+            local shown = saved[name] ~= "1"
+            saved[name] = shown and "1" or "0"
+            changed = true
+            if name == "nameplateShowAll" then
+                DEFAULT_CHAT_FRAME:AddMessage(L.CHAT_PREFIX .. (shown and L.PRESENCE_BARS_SHOWN or L.PRESENCE_BARS_HIDDEN))
+            end
+        end
+    end
+    if not changed then return end
+    applyCVars()
+    for plate in pairs(muted) do unmute(plate) end
+    remuteAll()
+    for unit in pairs(icons) do
+        local plate = getPlate(unit)
+        if plate then attach(unit, plate) end
+    end
+end
+
 events:SetScript("OnEvent", function(_, event, a, b, _, d)
     if event == "CHAT_MSG_ADDON" then
         local prefix, text, sender = a, b, d
@@ -615,6 +694,8 @@ events:SetScript("OnEvent", function(_, event, a, b, _, d)
         scanPlates()
     elseif event == "PLAYER_LOGOUT" then
         returnCVars()
+    elseif event == "CVAR_UPDATE" then
+        playerChangedCVars()
     end
 end)
 

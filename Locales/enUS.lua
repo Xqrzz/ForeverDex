@@ -271,5 +271,7 @@ ns.Locales.enUS = {
     PRESENCE_DEMO_TIP = "Shows the icon above every friendly player of your faction within the detection distance, as if they had ForeverDex. Nothing is sent. Stops with this button, /fdex presence demo or /reload.",
     PRESENCE_DEMO_ON = "Presence demo on: every friendly player nearby gets the icon. Nothing is sent. /fdex presence demo to stop.",
     PRESENCE_DEMO_OFF = "Presence demo off.",
+    PRESENCE_BARS_SHOWN = "Nameplates shown. Ctrl+V switches them again; the ForeverDex icons stay either way.",
+    PRESENCE_BARS_HIDDEN = "Nameplates hidden, names kept. Ctrl+V shows them again; the ForeverDex icons stay either way.",
     PRESENCE_REPORT = "%d nearby players with ForeverDex: %s",
 }

@@ -270,5 +270,7 @@ ns.Locales.frFR = {
     PRESENCE_DEMO_TIP = "Affiche l’icône au-dessus de tous les joueurs alliés de ta faction à portée de détection, comme s’ils avaient ForeverDex. Rien n’est envoyé. S’arrête avec ce bouton, /fdex presence demo ou /reload.",
     PRESENCE_DEMO_ON = "Démo de présence activée : tous les joueurs alliés proches ont l’icône. Rien n’est envoyé. /fdex presence demo pour arrêter.",
     PRESENCE_DEMO_OFF = "Démo de présence désactivée.",
+    PRESENCE_BARS_SHOWN = "Barres d’info affichées. Ctrl+V les bascule à nouveau ; les icônes ForeverDex restent dans les deux cas.",
+    PRESENCE_BARS_HIDDEN = "Barres d’info masquées, noms conservés. Ctrl+V les réaffiche ; les icônes ForeverDex restent dans les deux cas.",
     PRESENCE_REPORT = "%d joueurs proches avec ForeverDex : %s",
 }
