@@ -8,18 +8,16 @@ ns.Presence = Presence
 --
 -- No API tells which addons another player runs, so the clients introduce themselves
 -- with whispered addon messages (invisible in chat), on the prefix of Duel.lua:
---   P       ping, sent when a friendly player's nameplate appears within the chosen distance
+--   P       ping, sent when a friendly player shows up within the chosen distance
 --   P\tq    the same from a player who does not want to be shown (quiet)
 --   H       answer: "I have ForeverDex"
 -- Older versions ignore these message types (see "Comparison compatibility").
 --
 -- The icon hangs from the player's nameplate, the only frame that follows a character
--- in the 3D world. While the option is on, the friendly nameplates are switched on;
--- the values the player had are saved first and given back when the option is turned
--- off and at logout (same approach as the Lueur addon). Plates the player would not
--- have seen keep only their name (a unit with a plate loses the name drawn above it):
--- the rest of the Blizzard bar is hidden.
--- The game forbids touching friendly nameplates in dungeons and raids: no icon there.
+-- in the 3D world. ForeverDex never changes the nameplate settings: the icon shows on
+-- the plates the player's own settings display (Shift+V for friendly players), and a
+-- line in the player's tooltip works without them. Detection also starts on mouseover
+-- and target. The game forbids touching friendly nameplates in dungeons and raids.
 
 local PREFIX = "ForeverDex"
 local MEDIA = "Interface\\AddOns\\ForeverDex\\Media\\"
@@ -33,9 +31,6 @@ local KNOWN_FOR = 600     -- an answer, or its absence, is trusted for 10 minute
 local REPLAY_GAP = 45     -- ping mode: shown again when met again after this
 local ANSWER_GAP = 20     -- at most one answer per player in this time
 local TICK = 0.5
-
-local FRIEND_CVARS = { "nameplateShowFriends", "nameplateShowFriendlyPlayers" }
-local MANAGED_CVARS = { "nameplateShowFriends", "nameplateShowFriendlyPlayers", "nameplateShowAll", "nameplateMaxDistance" }
 
 -- Icon choices: key, label, texture, blend mode (BLEND when absent), game file.
 -- A square game icon (INV_Misc_Book_09) made round crashed this client
@@ -235,84 +230,27 @@ driver:SetScript("OnUpdate", function()
 end)
 
 -- Game settings ---------------------------------------------------------------------
+--
+-- ForeverDex no longer touches the nameplate settings: forcing them changed how every
+-- name in town looked (a unit with a plate loses the name drawn above it) and fought
+-- Ctrl+V. Versions from this branch may have saved the player's values while forcing
+-- them; those values are given back once, then forgotten.
 
 local function getCVar(name)
     local ok, value = pcall(C_CVar and C_CVar.GetCVar or GetCVar, name)
     if ok then return value end
 end
 
--- Only the settings this client knows (the list varies between versions).
--- While forcing is set, CVAR_UPDATE comes from us, not from the player.
-local forcing = false
-local function setCVar(name, value)
-    if getCVar(name) == nil then return end
-    forcing = true
-    pcall(C_CVar and C_CVar.SetCVar or SetCVar, name, tostring(value))
-    forcing = false
-end
-
-local pendingCVars -- "apply" or "restore", waiting for the end of combat
-
-local function cvarsLookApplied()
-    if getCVar("nameplateShowAll") ~= nil and getCVar("nameplateShowAll") ~= "1" then return false end
-    for _, name in ipairs(FRIEND_CVARS) do
-        local value = getCVar(name)
-        if value ~= nil and value ~= "1" then return false end
-    end
-    return true
-end
-
-local function applyCVars()
-    if not ForeverDexDB then return end
-    if InCombatLockdown() then pendingCVars = "apply" return end
+local function giveBackCVars()
     local db = ForeverDexDB
-    if db.presenceCVarsReturned then
-        -- Given back at the last logout: what the client holds now are the player's
-        -- values, maybe changed since. They are read again, unless they are ours.
-        db.presenceCVarsReturned = nil
-        if not cvarsLookApplied() then db.presenceCVars = nil end
-    end
-    db.presenceCVars = db.presenceCVars or {}
-    local saved = db.presenceCVars
-    for _, name in ipairs(MANAGED_CVARS) do
-        if saved[name] == nil then saved[name] = getCVar(name) or false end
-    end
-    for _, name in ipairs(FRIEND_CVARS) do setCVar(name, 1) end
-    setCVar("nameplateShowAll", 1)
-    local distance = tonumber(saved.nameplateMaxDistance)
-    -- Plates at least as far as the chosen distance; a player who shows them farther
-    -- keeps their value.
-    local wanted = look.range >= FAR and FAR or 30
-    if distance and distance < wanted then
-        setCVar("nameplateMaxDistance", wanted)
-    elseif distance then
-        setCVar("nameplateMaxDistance", distance)
-    end
-end
-
-local function restoreCVars()
-    if not ForeverDexDB then return end
-    if InCombatLockdown() then pendingCVars = "restore" return end
-    local saved = ForeverDexDB.presenceCVars
-    if saved then
-        for name, value in pairs(saved) do
-            if value ~= false then setCVar(name, value) end
+    local saved = db and db.presenceCVars
+    if not saved or InCombatLockdown() then return end
+    for name, value in pairs(saved) do
+        if value ~= false and getCVar(name) ~= nil then
+            pcall(C_CVar and C_CVar.SetCVar or SetCVar, name, tostring(value))
         end
     end
-    ForeverDexDB.presenceCVars = nil
-    ForeverDexDB.presenceCVarsReturned = nil
-end
-
--- At logout the game gets its values back, so disabling or removing ForeverDex from
--- the addon list leaves nothing behind. They stay saved in case the client does not
--- store them (game closed abruptly).
-local function returnCVars()
-    local db = ForeverDexDB
-    if not db or not db.presenceCVars or InCombatLockdown() then return end
-    for name, value in pairs(db.presenceCVars) do
-        if value ~= false then setCVar(name, value) end
-    end
-    db.presenceCVarsReturned = true
+    db.presenceCVars, db.presenceCVarsReturned = nil, nil
 end
 
 -- Nameplates ------------------------------------------------------------------------
@@ -320,83 +258,14 @@ end
 local known = {}   -- [short name] = { has, checked, asking, shown, address }
 local plates = {}  -- [unit] = short name of the friendly player on that plate
 local icons = {}   -- [unit] = icon hanging from that plate
-local muted = {}   -- [plate] = Blizzard unit frame hidden on it
 local spare = {}   -- icons no longer used
 local queue = {}   -- short names waiting for their ping, in order
 local queued = {}
 local answered = {} -- [short name] = time of our last answer
+local demoKnown = {} -- [short name] = what the demo pretends to know
 
 local function getPlate(unit)
     return C_NamePlate and safe(C_NamePlate.GetNamePlateForUnit, unit)
-end
-
--- Would the player's own settings show this plate? Then its Blizzard bar stays.
-local function plateOwed(unit)
-    local saved = ForeverDexDB and ForeverDexDB.presenceCVars
-    if not saved or ForeverDexDB.presenceCVarsReturned then return true end
-    if saved.nameplateShowAll == "0" and not inCombat() then return false end
-    local hostile = safe(UnitCanAttack, "player", unit)
-    if hostile ~= false then return true end
-    local knownValue = false
-    for _, name in ipairs(FRIEND_CVARS) do
-        if saved[name] == "1" then return true end
-        knownValue = knownValue or saved[name] ~= false
-    end
-    return not knownValue
-end
-
-local function unmute(plate)
-    local list = muted[plate]
-    if list then
-        for _, item in ipairs(list) do pcall(item[1].SetAlpha, item[1], item[2]) end
-    end
-    muted[plate] = nil
-end
-
--- What to hide on a Blizzard plate: everything but its name. A unit with a nameplate
--- loses the name the game draws above it, so the plate's own name must stay.
-local function collect(frame, keep, ancestors, list)
-    for _, region in ipairs({ frame:GetRegions() }) do
-        if region ~= keep then list[#list + 1] = region end
-    end
-    for _, child in ipairs({ frame:GetChildren() }) do
-        if ancestors[child] then collect(child, keep, ancestors, list) else list[#list + 1] = child end
-    end
-end
-
-local function mute(plate, unit)
-    if not look.show or plateOwed(unit) then unmute(plate) return end
-    if muted[plate] then return end
-    local ok, frame = pcall(function() return plate.UnitFrame end)
-    if not ok or type(frame) ~= "table" then return end
-    local objects
-    local okName, name = pcall(function() return frame.name end)
-    if okName and type(name) == "table" and name.GetParent then
-        local ancestors, parent = {}, name:GetParent()
-        while parent and parent ~= frame do
-            ancestors[parent] = true
-            parent = parent:GetParent()
-        end
-        if parent == frame then
-            objects = {}
-            local okCollect = pcall(collect, frame, name, ancestors, objects)
-            if not okCollect then objects = nil end
-        end
-    end
-    -- No name found: the whole bar goes, as a last resort.
-    objects = objects or { frame }
-    local list = {}
-    for _, object in ipairs(objects) do
-        local okAlpha, alpha = pcall(object.GetAlpha, object)
-        if okAlpha and readable(alpha) and pcall(object.SetAlpha, object, 0) then
-            list[#list + 1] = { object, alpha }
-        end
-    end
-    muted[plate] = list
-end
-
-local function unmuteAll()
-    for plate in pairs(muted) do unmute(plate) end
 end
 
 -- A friendly player of our faction, other than us: someone we can whisper.
@@ -415,18 +284,23 @@ local function inRange(unit)
     return safe(CheckInteractDistance, unit, look.range <= 10 and 3 or 4)
 end
 
+-- What is known of a player: the real answers, or the demo's pretence.
+local function entryFor(who, unit)
+    if demo and who and (not unit or eligible(unit)) then
+        demoKnown[who] = demoKnown[who] or { has = true }
+        return demoKnown[who]
+    end
+    return who and known[who]
+end
+
 local function release(unit)
     local icon = icons[unit]
     if not icon then return end
     icons[unit] = nil
-    icon.onDone = function(done)
-        done.frame:SetParent(nil)
-        done.frame:ClearAllPoints()
-        done.onDone = nil
-        spare[#spare + 1] = done
-    end
     stop(icon, true)
-    icon.onDone(icon)
+    icon.frame:SetParent(nil)
+    icon.frame:ClearAllPoints()
+    spare[#spare + 1] = icon
 end
 
 local function attach(unit, plate)
@@ -437,23 +311,17 @@ local function attach(unit, plate)
     end
     icon.frame:SetParent(plate)
     icon.frame:ClearAllPoints()
-    -- Above the name, which stays when the Blizzard bar is hidden; above the bar otherwise.
-    icon.frame:SetPoint("CENTER", plate, "CENTER", 0, muted[plate] and 28 or 36)
+    -- Above the Blizzard bar and its name.
+    icon.frame:SetPoint("CENTER", plate, "CENTER", 0, 36)
     if icon.frame.SetIgnoreParentAlpha then icon.frame:SetIgnoreParentAlpha(true) end
     icon.frame:SetFrameLevel(plate:GetFrameLevel() + 10)
     return icon
 end
 
 -- Shows or hides the icon of one nameplate unit, from what is known of its player.
-local demoKnown = {} -- [short name] = what the demo pretends to know
-
 local function update(unit)
     local who = plates[unit]
-    local entry = who and known[who]
-    if demo and who then
-        demoKnown[who] = demoKnown[who] or { has = true }
-        entry = demoKnown[who]
-    end
+    local entry = entryFor(who)
     local plate = getPlate(unit)
     if not (look.show and entry and entry.has and plate) then
         local icon = icons[unit]
@@ -506,8 +374,17 @@ local function wantPing(who)
     return GetTime() - (entry.checked or 0) > KNOWN_FOR
 end
 
-local function enqueue(who)
-    if demo or queued[who] or not wantPing(who) then return end
+-- Queues a ping for the player on this unit (nameplate, mouseover or target),
+-- with the address the whisper expects.
+local function consider(unit)
+    if demo or not eligible(unit) or inRange(unit) == false then return end
+    local name = safe(UnitName, unit)
+    if not name or name == "" then return end
+    local who = shortName(name)
+    if queued[who] or not wantPing(who) then return end
+    local entry = known[who] or {}
+    known[who] = entry
+    entry.address = safe(GetUnitName, unit, true) or entry.address or name
     queued[who] = true
     queue[#queue + 1] = who
 end
@@ -515,25 +392,15 @@ end
 -- Sends the next ping in the queue, if the moment allows it.
 local lastPing = 0
 local function pingNext(now)
-    if #queue == 0 or now - lastPing < PING_GAP or not look.show or demo then return end
-    if inCombat() or inInstance() then return end
+    if #queue == 0 or now - lastPing < PING_GAP or demo then return end
+    if not look.show or inCombat() or inInstance() then return end
     local who = table.remove(queue, 1)
     queued[who] = nil
-    local entry = known[who] or {}
-    known[who] = entry
-    -- Still in sight? The plate gives the address the whisper expects.
-    local address
-    for unit, name in pairs(plates) do
-        if name == who and inRange(unit) ~= false then
-            address = safe(GetUnitName, unit, true) or entry.address
-            break
-        end
-    end
-    if not address or not wantPing(who) then return end
-    entry.address = address
+    local entry = known[who]
+    if not (entry and entry.address) or not wantPing(who) then return end
     entry.asking = now
     lastPing = now
-    send(look.announce and "P" or "P\tq", address)
+    send(look.announce and "P" or "P\tq", entry.address)
 end
 
 local function heard(who, address)
@@ -546,40 +413,26 @@ end
 
 local function tick()
     local now = GetTime()
-    for who, entry in pairs(known) do
+    for _, entry in pairs(known) do
         if entry.asking and now - entry.asking > WAIT_ANSWER then
             entry.has, entry.checked, entry.asking = false, now, nil
         end
     end
-    for unit, who in pairs(plates) do
-        if wantPing(who) and inRange(unit) ~= false then enqueue(who) end
-    end
+    for unit in pairs(plates) do consider(unit) end
     pingNext(now)
-    -- The game may give the bar its alpha back: hidden again.
-    for _, list in pairs(muted) do
-        for _, item in ipairs(list) do
-            local ok, alpha = pcall(item[1].GetAlpha, item[1])
-            if ok and readable(alpha) and alpha > 0 then pcall(item[1].SetAlpha, item[1], 0) end
-        end
-    end
     updateAll()
 end
 
 local function addPlate(unit)
-    local plate = getPlate(unit)
-    if plate then mute(plate, unit) end
     if not eligible(unit) then plates[unit] = nil return end
     local name = safe(UnitName, unit)
     if not name or name == "" then return end
-    local who = shortName(name)
-    plates[unit] = who
-    if wantPing(who) and inRange(unit) ~= false then enqueue(who) end
+    plates[unit] = shortName(name)
+    consider(unit)
     update(unit)
 end
 
 local function removePlate(unit)
-    local plate = getPlate(unit)
-    if plate then unmute(plate) end
     plates[unit] = nil
     release(unit)
 end
@@ -597,14 +450,44 @@ local function scanPlates()
     eachPlate(addPlate)
 end
 
-local function remuteAll()
-    eachPlate(function(unit, plate) mute(plate, unit) end)
+-- Tooltip ---------------------------------------------------------------------------
+--
+-- A line under a player known to have ForeverDex. It works without any nameplate.
+
+local TOOLTIP_ICON = "|T" .. MEDIA .. "Ball:14:14|t "
+
+local function addTooltipLine(tooltip)
+    if not look.show or not tooltip or tooltip ~= GameTooltip then return end
+    local ok, _, unit = pcall(tooltip.GetUnit, tooltip)
+    if not ok or not readable(unit) or not unit then return end
+    if not eligible(unit) then return end
+    local name = safe(UnitName, unit)
+    if not name or name == "" then return end
+    local entry = entryFor(shortName(name), unit)
+    if entry and entry.has then
+        tooltip:AddLine(TOOLTIP_ICON .. L.PRESENCE_TOOLTIP, 0.39, 0.87, 0.82)
+        tooltip:Show()
+    end
+end
+
+if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall and Enum and Enum.TooltipDataType then
+    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, addTooltipLine)
+elseif GameTooltip and GameTooltip:HasScript("OnTooltipSetUnit") then
+    GameTooltip:HookScript("OnTooltipSetUnit", addTooltipLine)
+end
+
+-- An answer arriving while the player is still under the mouse shows the line at once.
+local function refreshTooltip(who)
+    if not (GameTooltip and GameTooltip:IsShown()) then return end
+    local name = safe(UnitName, "mouseover")
+    if name and shortName(name) == who and safe(UnitIsPlayer, "mouseover") then
+        pcall(GameTooltip.SetUnit, GameTooltip, "mouseover")
+    end
 end
 
 -- Events ----------------------------------------------------------------------------
 
 local ticker
-local entered = false -- PLAYER_ENTERING_WORLD seen: the game settings can be read
 local function startTicker()
     if ticker then return end
     ticker = C_Timer.NewTicker(TICK, tick)
@@ -614,44 +497,10 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("CHAT_MSG_ADDON")
 events:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 events:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
-events:RegisterEvent("PLAYER_REGEN_DISABLED")
-events:RegisterEvent("PLAYER_REGEN_ENABLED")
+events:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+events:RegisterEvent("PLAYER_TARGET_CHANGED")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
-events:RegisterEvent("PLAYER_LOGOUT")
-events:RegisterEvent("CVAR_UPDATE")
-
--- Ctrl+V (all nameplates) and Shift+V (friendly nameplates) while the icons are on.
--- Both keys flip the setting from its current value, which ForeverDex holds at 1: each
--- press therefore arrives as a 0. It flips the player's own preference instead, the
--- one that decides which Blizzard bars stay visible and that is given back at the end,
--- and the plates come back for the icons.
-local PLAYER_CVARS = { "nameplateShowAll", "nameplateShowFriends", "nameplateShowFriendlyPlayers" }
-local function playerChangedCVars()
-    local db = ForeverDexDB
-    local saved = db and db.presenceCVars
-    if forcing or not look.show or not saved or db.presenceCVarsReturned then return end
-    local changed = false
-    for _, name in ipairs(PLAYER_CVARS) do
-        local value = getCVar(name)
-        if value ~= nil and value ~= "1" then
-            local shown = saved[name] ~= "1"
-            saved[name] = shown and "1" or "0"
-            changed = true
-            if name == "nameplateShowAll" then
-                DEFAULT_CHAT_FRAME:AddMessage(L.CHAT_PREFIX .. (shown and L.PRESENCE_BARS_SHOWN or L.PRESENCE_BARS_HIDDEN))
-            end
-        end
-    end
-    if not changed then return end
-    applyCVars()
-    for plate in pairs(muted) do unmute(plate) end
-    remuteAll()
-    for unit in pairs(icons) do
-        local plate = getPlate(unit)
-        if plate then attach(unit, plate) end
-    end
-end
-
+events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:SetScript("OnEvent", function(_, event, a, b, _, d)
     if event == "CHAT_MSG_ADDON" then
         local prefix, text, sender = a, b, d
@@ -662,7 +511,10 @@ events:SetScript("OnEvent", function(_, event, a, b, _, d)
         if who == shortName(safe(UnitName, "player") or "") then return end
         if kind == "P" then
             -- A quiet ping still deserves an answer, but its sender is not shown.
-            if not text:find("\tq", 2, true) then heard(who, sender) end
+            if not text:find("\tq", 2, true) then
+                heard(who, sender)
+                refreshTooltip(who)
+            end
             local now = GetTime()
             if look.announce and now - (answered[who] or -math.huge) > ANSWER_GAP then
                 answered[who] = now
@@ -670,74 +522,44 @@ events:SetScript("OnEvent", function(_, event, a, b, _, d)
             end
         else
             heard(who, sender)
+            refreshTooltip(who)
         end
     elseif event == "NAME_PLATE_UNIT_ADDED" then
         addPlate(a)
     elseif event == "NAME_PLATE_UNIT_REMOVED" then
         removePlate(a)
-    elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
-        if event == "PLAYER_REGEN_ENABLED" and pendingCVars then
-            local pending = pendingCVars
-            pendingCVars = nil
-            if pending == "apply" and look.show then applyCVars() elseif pending == "restore" then restoreCVars() end
-        end
-        -- Without "always show", the player sees the plates in combat only: bars follow.
-        remuteAll()
-    elseif event == "PLAYER_ENTERING_WORLD" then
-        -- The game settings are read here, once the client has loaded them.
-        entered = true
-        if look.show then
-            applyCVars()
-        elseif ForeverDexDB and ForeverDexDB.presenceCVars then
-            restoreCVars()
-        end
-        scanPlates()
-    elseif event == "PLAYER_LOGOUT" then
-        returnCVars()
-    elseif event == "CVAR_UPDATE" then
-        playerChangedCVars()
+    elseif event == "UPDATE_MOUSEOVER_UNIT" then
+        consider("mouseover")
+    elseif event == "PLAYER_TARGET_CHANGED" then
+        consider("target")
+    elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_REGEN_ENABLED" then
+        giveBackCVars()
+        if event == "PLAYER_ENTERING_WORLD" then scanPlates() end
     end
 end)
 
 Settings.OnChange(function(key)
     if key ~= nil and not key:find("^presence") then return end
     readLook()
-    -- On load (key = nil) the game settings wait for PLAYER_ENTERING_WORLD; after it,
-    -- key = nil means "Default settings" and is handled like a change of the option.
-    if key == "presenceShow" or (key == nil and entered) then
-        if look.show then
-            applyCVars()
-            scanPlates()
-        else
-            unmuteAll()
-            restoreCVars()
-        end
-    elseif key == "presenceRange" then
-        if look.show then applyCVars() end
+    if key == "presenceShow" and look.show then
+        scanPlates()
     elseif key == "presenceDuration" then
         -- Permanent and ping icons do not end the same way: they start again.
         for unit in pairs(icons) do release(unit) end
         for _, entry in pairs(known) do entry.shown = nil end
     end
-    if look.show then startTicker() end
+    startTicker()
     updateAll()
     if Presence.RefreshPreview then Presence.RefreshPreview() end
 end)
 
 function Presence.ToggleDemo()
     demo = not demo
-    local wasShown = look.show
     readLook()
     for unit in pairs(icons) do release(unit) end
     wipe(demoKnown)
-    if demo then
-        if not wasShown then applyCVars() end
-        startTicker()
-        scanPlates()
-    elseif not look.show then
-        unmuteAll()
-        restoreCVars()
-    end
+    startTicker()
+    scanPlates()
     updateAll()
     DEFAULT_CHAT_FRAME:AddMessage(L.CHAT_PREFIX .. (demo and L.PRESENCE_DEMO_ON or L.PRESENCE_DEMO_OFF))
     if Presence.RefreshDemoButton then Presence.RefreshDemoButton() end
@@ -755,38 +577,29 @@ function Presence.Debug()
         if not readable(value) then return "(secret)" end
         return tostring(value)
     end
-    say(("demo=%s show=%s option=%s combat=%s instance=%s ticker=%s entered=%s"):format(show(demo), show(look.show),
-        show(Settings.Get("presenceShow")), show(inCombat()), show(inInstance()), show(ticker ~= nil), show(entered)))
+    say(("demo=%s show=%s announce=%s combat=%s instance=%s ticker=%s queue=%d"):format(show(demo), show(look.show),
+        show(look.announce), show(inCombat()), show(inInstance()), show(ticker ~= nil), #queue))
     local cvars = {}
-    for _, name in ipairs(MANAGED_CVARS) do cvars[#cvars + 1] = name:gsub("nameplate", "") .. "=" .. show(getCVar(name)) end
-    say("cvars " .. table.concat(cvars, " "))
-    local saved = ForeverDexDB and ForeverDexDB.presenceCVars
-    if saved then
-        local list = {}
-        for name, value in pairs(saved) do list[#list + 1] = name:gsub("nameplate", "") .. "=" .. show(value) end
-        say("saved " .. table.concat(list, " ") .. (ForeverDexDB.presenceCVarsReturned and " (returned)" or ""))
-    else
-        say("saved none")
+    for _, name in ipairs({ "nameplateShowFriends", "nameplateShowFriendlyPlayers", "nameplateShowAll", "nameplateMaxDistance" }) do
+        cvars[#cvars + 1] = name:gsub("nameplate", "") .. "=" .. show(getCVar(name))
     end
+    say("cvars " .. table.concat(cvars, " "))
     local total, listed = 0, 0
-    eachPlate(function(unit, plate)
+    eachPlate(function(unit)
         total = total + 1
-        if listed >= 6 then return end
-        if safe(UnitIsPlayer, unit) ~= true then return end
+        if listed >= 6 or safe(UnitIsPlayer, unit) ~= true then return end
         listed = listed + 1
         local icon = icons[unit]
-        say(("%s name=%s tracked=%s player=%s self=%s attack=%s faction=%s range=%s muted=%s icon=%s shown=%s visible=%s alpha=%s"):format(
-            unit, show(safe(UnitName, unit)), show(plates[unit]), show(safe(UnitIsPlayer, unit)),
-            show(safe(UnitIsUnit, unit, "player")), show(safe(UnitCanAttack, "player", unit)),
-            show(safe(UnitFactionGroup, unit)), show(inRange(unit)), show(muted[plate] ~= nil),
-            show(icon ~= nil), show(icon and icon.frame:IsShown()), show(icon and icon.frame:IsVisible()),
-            show(icon and icon.frame:GetEffectiveAlpha())))
+        local entry = entryFor(plates[unit])
+        say(("%s name=%s tracked=%s attack=%s faction=%s range=%s has=%s icon=%s visible=%s"):format(
+            unit, show(safe(UnitName, unit)), show(plates[unit]), show(safe(UnitCanAttack, "player", unit)),
+            show(safe(UnitFactionGroup, unit)), show(inRange(unit)), show(entry and entry.has),
+            show(icon ~= nil), show(icon and icon.frame:IsVisible())))
     end)
-    local tracked, active = 0, 0
+    local tracked, shown = 0, 0
     for _ in pairs(plates) do tracked = tracked + 1 end
-    for _ in pairs(icons) do active = active + 1 end
-    say(("plates=%d tracked=%d icons=%d (GetNamePlates=%s)"):format(total, tracked, active,
-        show(C_NamePlate and C_NamePlate.GetNamePlates ~= nil)))
+    for _ in pairs(icons) do shown = shown + 1 end
+    say(("plates=%d tracked=%d icons=%d"):format(total, tracked, shown))
 end
 
 -- Options page with a live preview ----------------------------------------------------
