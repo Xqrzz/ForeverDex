@@ -393,9 +393,44 @@ if _G.Settings and _G.Settings.RegisterCanvasLayoutCategory then
     _G.Settings.RegisterAddOnCategory(category)
 end
 
+-- The game's options window assumes it was opened from the Escape menu: on this client
+-- it brings that menu up with it, and closing the window goes back to it. When
+-- ForeverDex opens the window (minimap icon, /fdex options) and the menu was closed,
+-- the menu is closed again, at the opening and when the window closes. A window opened
+-- from the Escape menu keeps the game's behaviour.
+local strayMenu = false -- the window was opened by us, the Escape menu was closed
+
+local function closeStrayMenu()
+    if not strayMenu or not GameMenuFrame or InCombatLockdown() then return end
+    if GameMenuFrame:IsShown() then HideUIPanel(GameMenuFrame) end
+end
+
+local watching = false
+local function watchWindow()
+    if watching or not SettingsPanel then return end
+    watching = true
+    SettingsPanel:HookScript("OnHide", function()
+        if not strayMenu then return end
+        -- The game shows the menu right after hiding the window: one frame later.
+        C_Timer.After(0, function()
+            closeStrayMenu()
+            strayMenu = false
+        end)
+    end)
+end
+
+local function openCategory(id)
+    local menuShown = GameMenuFrame and GameMenuFrame:IsShown()
+    local windowShown = SettingsPanel and SettingsPanel:IsShown()
+    if not windowShown then strayMenu = not menuShown end
+    _G.Settings.OpenToCategory(id)
+    watchWindow()
+    C_Timer.After(0, closeStrayMenu)
+end
+
 function Settings.Open()
     if category and _G.Settings.OpenToCategory then
-        _G.Settings.OpenToCategory(category.GetID and category:GetID() or category.ID)
+        openCategory(category.GetID and category:GetID() or category.ID)
     end
 end
 
@@ -423,7 +458,7 @@ end
 function Settings.OpenPage(page)
     local subcategory = pages[page]
     if subcategory and _G.Settings.OpenToCategory then
-        _G.Settings.OpenToCategory(subcategory.GetID and subcategory:GetID() or subcategory.ID)
+        openCategory(subcategory.GetID and subcategory:GetID() or subcategory.ID)
     else
         Settings.Open()
     end
