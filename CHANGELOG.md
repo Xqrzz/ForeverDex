@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.7.8
 
 - Announcements: ForeverDex can tell your guild, your group or a custom channel you joined about your captures and achievements, with a funny line picked at random (several dozen, in every language). Off by default
 - New Announcements settings page: channel for captures and for achievements, new cards only or replacements too, bonus cards and pets, minimum points of an announced achievement, custom channel name with a live status, [ForeverDex] tag, minimum delay between two announcements, and a local preview
