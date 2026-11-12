@@ -15,7 +15,8 @@
 | `Duel.lua` | Comparison between two ForeverDex users: request, agreement, exchange over whispered addon messages, and the duel screen. |
 | `Presence.lua` | Glowing icon above nearby ForeverDex players: ping and answer over whispered addon messages, icon hung from the nameplates the player already shows (their nameplate settings are never changed), tooltip line, and its settings page with a live preview. |
 | `Share.lua` | Announcements of captures and achievements to other players (guild, group or a custom channel), off by default: channel checks that always refuse the Blizzard channels and /1 /2, message templates with `{fields}`, cooldown, and its settings page. A message is prepared during the player's click and sent when the capture is revealed; a custom channel message leaves at once, since the game may only accept it during a click. |
-| `Home.lua` | Data of the home page, without any frame: the daily challenge (drawn from the date among the missing combinations, kept until midnight), the statistics, and the version summarized by the news box. |
+| `Home.lua` | Data of the home page, without any frame: the daily challenge (drawn from the date among the missing combinations, kept until midnight), the statistics, and the version whose news the home page offers. |
+| `News.lua` | Window listing the changes of the release, built on its first opening: from the banner of the home page, `/fdex news`, or the login message after an update. |
 | `UI.lua` | Adventure Guide style window: race list, card grid, detail page, tabs and capture. Also the registry of the pages that replace the journal (`ns.UI.RegisterPage`) and their side tabs (`ns.UI.AddSideTab`). |
 | `HomeUI.lua` | Home page, the first one shown in each session: daily challenge, news and statistics. |
 | `AchievementsUI.lua` | Achievements page. |
@@ -41,7 +42,7 @@ A page replaces the journal in the window: it covers `ns.UI.PageArea`, provides 
 
 ## Releases
 
-Before a release, update `Home.NEWS_VERSION` in `Home.lua` and `HOME_NEWS_LINES` in every locale: they make the "What's new" box of the home page.
+Before a release, update `Home.NEWS_VERSION` in `Home.lua` and `HOME_NEWS_LINES` in every locale: they make the news window. `ForeverDexDB.seenVersion` remembers the last version the player logged in with: the login message mentions the news only once after an update.
 
 ## Comparison compatibility
 

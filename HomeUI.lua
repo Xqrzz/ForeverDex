@@ -7,7 +7,7 @@ ns.HomeUI = HomeUI
 -- Home page of the main window, the first one shown in each session. On the left, on
 -- the painted journal background, the daily challenge: a combination to look for,
 -- drawn on its race's scenery, with a parchment sheet below it. On the right, a
--- column with the summary of the latest release and a few statistics. The data comes
+-- banner for the news of the release (its window is News.lua) and the statistics. The data comes
 -- from Home.lua; this file only draws it. No sound is played here.
 
 local UI = ns.UI
@@ -20,15 +20,14 @@ local SIDE_W, MARGIN, GAP = 300, 16, 6
 local BOARD_W = window:GetWidth() - 16 - SIDE_W - GAP
 local BANNER_W, BANNER_H = BOARD_W - 2 * MARGIN, 214
 local TEXT_X = 116
-local NEWS_H = 214
-local STAT_ROWS, STAT_STEP, STAT_ICON = 6, 34, 24
+local NEWS_H = 54
+local STAT_ROWS, STAT_STEP, STAT_ICON = 11, 33, 24
 local SECTION_PAD = 14
 
 local INK = { 0.24, 0.13, 0.05 }
 local INK_LIGHT = { 0.36, 0.22, 0.09 }
 local GOLD = { 1, 0.82, 0 }
 local MUTED = { 0.78, 0.71, 0.58 }
-local SOFT = { 0.92, 0.88, 0.8 }
 local NONE = "—"
 
 local function text(parent, font, color)
@@ -87,139 +86,72 @@ board:SetPoint("TOPLEFT", sidebar, "TOPLEFT")
 board:SetPoint("BOTTOMRIGHT", side, "BOTTOMLEFT", -GAP, 0)
 Art.JournalBackground(board)
 
--- Section of the right column: dark box, thin gold edge, warm light at the top.
-local function section(title)
-    local box = CreateFrame("Frame", nil, side, "BackdropTemplate")
-    box:SetBackdrop({
+-- Box of the right column: dark, thin gold edge, warm light at the top.
+local function box()
+    local frame = CreateFrame("Frame", nil, side, "BackdropTemplate")
+    frame:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8X8",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 12,
         insets = { left = 3, right = 3, top = 3, bottom = 3 },
     })
-    box:SetBackdropColor(0.1, 0.075, 0.045, 0.7)
-    box:SetBackdropBorderColor(0.62, 0.5, 0.3, 0.9)
-    local light = box:CreateTexture(nil, "BORDER")
+    frame:SetBackdropColor(0.1, 0.075, 0.045, 0.7)
+    frame:SetBackdropBorderColor(0.62, 0.5, 0.3, 0.9)
+    local light = frame:CreateTexture(nil, "BORDER")
     light:SetPoint("TOPLEFT", 3, -3)
     light:SetPoint("TOPRIGHT", -3, -3)
     light:SetHeight(46)
     Art.Gradient(light, 1, 0.75, 0.35, 0, 0.1)
-    box.title = text(box, "GameFontNormalLarge")
-    box.title:SetPoint("TOPLEFT", SECTION_PAD, -13)
-    box.title:SetText(title)
-    box.rule = rule(box, box.title, SECTION_PAD)
-    return box
+    return frame
 end
 
--- What's new ----------------------------------------------------------------------------
+-- Box with a title and a gold rule under it.
+local function section(title)
+    local frame = box()
+    frame.title = text(frame, "GameFontNormalLarge")
+    frame.title:SetPoint("TOPLEFT", SECTION_PAD, -13)
+    frame.title:SetText(title)
+    frame.rule = rule(frame, frame.title, SECTION_PAD)
+    return frame
+end
 
-local news = section(L.HOME_NEWS)
-news:SetPoint("TOPLEFT", 8, -8)
-news:SetPoint("TOPRIGHT", -8, -8)
+-- What's new: a slim banner at the bottom of the column. Its button opens the window
+-- listing every change of the release (News.lua), so the column keeps its size
+-- whatever the length of the release.
+
+local news = box()
+news:SetPoint("BOTTOMLEFT", 8, 8)
+news:SetPoint("BOTTOMRIGHT", -8, 8)
 news:SetHeight(NEWS_H)
-local version = text(news, "GameFontHighlightSmall", MUTED)
-version:SetPoint("TOPRIGHT", -SECTION_PAD, -17)
-version:SetJustifyH("RIGHT")
-version:SetText(L.HOME_VERSION:format(Home.NEWS_VERSION))
-
--- One line per change, after a small gold diamond. The text is set once: it only
--- depends on the language, chosen before the modules load. The box keeps its size
--- whatever the length of the release: each change is cut after NEWS_MAX_LINES lines,
--- the changes that do not fit are left out, and "See all" lists every one of them.
-local NEWS_X, NEWS_GAP, NEWS_BOTTOM, NEWS_MAX_LINES, MORE_H = SECTION_PAD + 14, 9, 12, 3, 18
-local newsWidth = SIDE_W - 16 - SECTION_PAD - NEWS_X
-local newsItems = {}
-for i, item in ipairs(L.HOME_NEWS_LINES) do
-    local line = text(news, "GameFontHighlightSmall", SOFT)
-    line:SetWidth(newsWidth)
-    line:SetJustifyV("TOP")
-    line:SetSpacing(2)
-    if line.SetMaxLines then line:SetMaxLines(NEWS_MAX_LINES) end
-    -- Provisional chain, replaced by layoutNews once the lines can be measured.
-    if i == 1 then
-        line:SetPoint("TOPLEFT", news.rule, "BOTTOMLEFT", 14, -13)
-    else
-        line:SetPoint("TOPLEFT", newsItems[i - 1].line, "BOTTOMLEFT", 0, -NEWS_GAP)
-    end
-    line:SetText(item)
-    local dot = news:CreateTexture(nil, "ARTWORK")
-    dot:SetSize(5, 5)
-    dot:SetColorTexture(1, 0.82, 0.35)
-    if dot.SetRotation then dot:SetRotation(math.rad(45)) end
-    dot:SetPoint("CENTER", line, "TOPLEFT", -9, -5)
-    newsItems[i] = { line = line, dot = dot }
-end
-
-local more = CreateFrame("Button", nil, news)
-more:SetPoint("BOTTOMLEFT", NEWS_X, NEWS_BOTTOM - 2)
-more:SetHeight(MORE_H)
-more:Hide()
-local moreLabel = text(more, "GameFontNormalSmall")
-moreLabel:SetPoint("LEFT")
-moreLabel:SetText(L.HOME_NEWS_ALL:format(#newsItems))
-more:SetWidth(moreLabel:GetStringWidth() + 4)
-more:SetScript("OnEnter", function(self)
-    moreLabel:SetTextColor(1, 1, 1)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText(L.HOME_NEWS .. L.SEPARATOR .. L.HOME_VERSION:format(Home.NEWS_VERSION))
-    for _, item in ipairs(L.HOME_NEWS_LINES) do GameTooltip:AddLine("- " .. item, 1, 1, 1, true) end
-    GameTooltip:Show()
-end)
-more:SetScript("OnLeave", function()
-    moreLabel:SetTextColor(unpack(GOLD))
-    GameTooltip:Hide()
-end)
-
--- Places the changes from the top of the box and keeps as many as fit. Font strings
--- only have a height once the client has measured them: until then, it waits for
--- the next refresh.
-local newsLaidOut
-local function layoutNews()
-    if newsLaidOut then return end
-    local titleHeight = news.title:GetStringHeight()
-    if not titleHeight or titleHeight <= 0 then return end
-    local heights = {}
-    for i, item in ipairs(newsItems) do
-        heights[i] = item.line:GetStringHeight()
-        if not heights[i] or heights[i] <= 0 then return end
-    end
-    local top = 13 + titleHeight + 7 + 1 + 13
-    local function fits(count, reserve)
-        local y = top
-        for i = 1, count do y = y + heights[i] + (i > 1 and NEWS_GAP or 0) end
-        return y <= NEWS_H - NEWS_BOTTOM - reserve
-    end
-    local shown = #newsItems
-    if not fits(shown, 0) then
-        shown = shown - 1
-        while shown > 0 and not fits(shown, MORE_H) do shown = shown - 1 end
-    end
-    local y = top
-    for i, item in ipairs(newsItems) do
-        local visible = i <= shown
-        item.line:SetShown(visible)
-        item.dot:SetShown(visible)
-        if visible then
-            item.line:ClearAllPoints()
-            item.line:SetPoint("TOPLEFT", news, "TOPLEFT", NEWS_X, -y)
-            y = y + heights[i] + NEWS_GAP
-        end
-    end
-    more:SetShown(shown < #newsItems)
-    newsLaidOut = true
-end
+local newsIcon = news:CreateTexture(nil, "ARTWORK")
+newsIcon:SetSize(28, 28)
+newsIcon:SetPoint("LEFT", 12, 0)
+-- The 256 px orb needs the smooth filter to stay clean at this size.
+Art.SmoothTexture(newsIcon, "Interface\\AddOns\\ForeverDex\\Media\\Icon")
+local newsTitle = text(news, "GameFontNormal")
+newsTitle:SetPoint("TOPLEFT", newsIcon, "TOPRIGHT", 9, 0)
+newsTitle:SetText(L.HOME_NEWS)
+local newsVersion = text(news, "GameFontHighlightSmall", MUTED)
+newsVersion:SetPoint("TOPLEFT", newsTitle, "BOTTOMLEFT", 0, -3)
+newsVersion:SetText(L.HOME_VERSION:format(Home.NEWS_VERSION))
+local newsButton = CreateFrame("Button", nil, news, "UIPanelButtonTemplate")
+newsButton:SetSize(80, 22)
+newsButton:SetPoint("RIGHT", -12, 0)
+newsButton:SetText(L.HOME_NEWS_VIEW)
+newsButton:SetScript("OnClick", function() ns.News.Show() end)
 
 -- Statistics ----------------------------------------------------------------------------
 
 local stats = section(L.HOME_STATS)
-stats:SetPoint("TOPLEFT", news, "BOTTOMLEFT", 0, -8)
-stats:SetPoint("BOTTOMRIGHT", -8, 8)
+stats:SetPoint("TOPLEFT", 8, -8)
+stats:SetPoint("BOTTOMRIGHT", news, "TOPRIGHT", 0, 8)
 
 local statRows = {}
 for i = 1, STAT_ROWS do
     local row = {}
     row.icon = stats:CreateTexture(nil, "ARTWORK")
     row.icon:SetSize(STAT_ICON, STAT_ICON)
-    row.icon:SetPoint("TOPLEFT", stats.rule, "BOTTOMLEFT", 0, -12 - (i - 1) * STAT_STEP)
+    row.icon:SetPoint("TOPLEFT", stats.rule, "BOTTOMLEFT", 0, -11 - (i - 1) * STAT_STEP)
     row.label = text(stats, "GameFontNormalSmall", MUTED)
     row.label:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 10, 1)
     row.value = text(stats, "GameFontHighlight")
@@ -454,49 +386,85 @@ local function paintStat(row, label, value)
     row.value:SetTextColor(unpack(value and { 1, 1, 1 } or MUTED))
 end
 
+local ICONS = "Interface\\Icons\\"
+
+-- Class icon and coloured name of a class token.
+local function className(token)
+    local name = Home.ClassName(token)
+    local color = RAID_CLASS_COLORS[token]
+    if color and color.colorStr then name = ("|c%s%s|r"):format(color.colorStr, name) end
+    return name
+end
+
 local function paintStats(figures)
     local rows = statRows
+    local count = L.HOME_STAT_COUNT
 
-    setIcon(rows[1].icon, "Interface\\Icons\\INV_Misc_Book_09")
+    setIcon(rows[1].icon, ICONS .. "INV_Misc_Book_09")
     local percent = figures.total > 0 and math.floor(figures.standard / figures.total * 100 + 0.5) or 0
     paintStat(rows[1], L.HOME_STAT_JOURNAL, L.HOME_STAT_JOURNAL_VALUE:format(figures.standard, figures.total, percent))
 
-    setIcon(rows[2].icon, "Interface\\Icons\\INV_Misc_PocketWatch_01")
-    paintStat(rows[2], L.HOME_STAT_RECENT, tostring(figures.recent))
+    setIcon(rows[2].icon, ICONS .. "INV_Misc_Gift_01")
+    paintStat(rows[2], L.HOME_STAT_BONUS, ("%d / %d"):format(figures.bonus, figures.bonusTotal))
+
+    setIcon(rows[3].icon, ICONS .. "Ability_Hunter_BeastTaming")
+    paintStat(rows[3], L.HOME_STAT_PETS, ("%d / %d"):format(figures.pets, figures.petsTotal))
+
+    setIcon(rows[4].icon, ICONS .. "INV_Misc_Head_Human_01")
+    paintStat(rows[4], L.HOME_STAT_RACES, ("%d / %d"):format(figures.racesComplete, figures.racesTotal))
+
+    setIcon(rows[5].icon, ICONS .. "INV_Misc_PocketWatch_01")
+    paintStat(rows[5], L.HOME_STAT_RECENT, tostring(figures.recent))
 
     -- The last capture shows its race portrait when the client has it.
     local last = figures.last
     local lastSlot = last and Catalog.slotByKey[last.key]
     local details = lastSlot and Catalog.Describe(lastSlot, last)
     if details and details.portraitAtlas and Art.HasAtlas(details.portraitAtlas) then
-        rows[3].icon:Show()
-        rows[3].icon:SetAtlas(details.portraitAtlas)
+        rows[6].icon:Show()
+        rows[6].icon:SetAtlas(details.portraitAtlas)
     else
-        setIcon(rows[3].icon, details and details.fallbackIcon or "Interface\\Icons\\INV_Misc_Note_02")
+        setIcon(rows[6].icon, details and details.fallbackIcon or ICONS .. "INV_Misc_Note_02")
     end
-    paintStat(rows[3], L.HOME_STAT_LAST, last and ("|cffffd100%s|r%s%s"):format(
+    paintStat(rows[6], L.HOME_STAT_LAST, last and ("|cffffd100%s|r%s%s"):format(
         last.name, L.SEPARATOR, date(L.HOME_DATE_FORMAT, last.capturedAt)))
 
     if figures.class then
-        Art.ClassIcon(rows[4].icon, figures.class)
-        local color = RAID_CLASS_COLORS[figures.class]
-        local name = Home.ClassName(figures.class)
-        if color and color.colorStr then name = ("|c%s%s|r"):format(color.colorStr, name) end
-        paintStat(rows[4], L.HOME_STAT_CLASS, L.HOME_STAT_COUNT:format(name, figures.classCount))
+        Art.ClassIcon(rows[7].icon, figures.class)
+        paintStat(rows[7], L.HOME_STAT_CLASS, count:format(className(figures.class), figures.classCount))
     else
-        setIcon(rows[4].icon, "Interface\\Icons\\INV_Misc_QuestionMark")
-        paintStat(rows[4], L.HOME_STAT_CLASS, nil)
+        setIcon(rows[7].icon, ICONS .. "INV_Misc_QuestionMark")
+        paintStat(rows[7], L.HOME_STAT_CLASS, nil)
     end
 
-    setIcon(rows[5].icon, "Interface\\Icons\\INV_Misc_Map_01")
-    paintStat(rows[5], L.HOME_STAT_ZONE,
-        figures.zone and L.HOME_STAT_COUNT:format(figures.zone, figures.zoneCount))
+    setIcon(rows[8].icon, ICONS .. "INV_Misc_Map_01")
+    paintStat(rows[8], L.HOME_STAT_ZONE, figures.zone and count:format(figures.zone, figures.zoneCount))
+
+    setIcon(rows[9].icon, ICONS .. "INV_Shirt_GuildTabard_01")
+    paintStat(rows[9], L.HOME_STAT_GUILD,
+        figures.guild and count:format("<" .. figures.guild .. ">", figures.guildCount))
+
+    -- The character of the account who captured the most, in its class colour.
+    if figures.hunter then
+        if figures.hunterClass then
+            Art.ClassIcon(rows[10].icon, figures.hunterClass)
+        else
+            setIcon(rows[10].icon, ICONS .. "INV_Misc_QuestionMark")
+        end
+        local color = figures.hunterClass and RAID_CLASS_COLORS[figures.hunterClass]
+        local name = figures.hunter
+        if color and color.colorStr then name = ("|c%s%s|r"):format(color.colorStr, name) end
+        paintStat(rows[10], L.HOME_STAT_HUNTER, count:format(name, figures.hunterCount))
+    else
+        setIcon(rows[10].icon, ICONS .. "INV_Misc_QuestionMark")
+        paintStat(rows[10], L.HOME_STAT_HUNTER, nil)
+    end
 
     local achievements = figures.achievements
-    rows[6].icon:Show()
-    rows[6].icon:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Shields")
-    rows[6].icon:SetTexCoord(0, 0.5, 0, 0.45)
-    paintStat(rows[6], L.ACH_TAB, achievements
+    rows[11].icon:Show()
+    rows[11].icon:SetTexture("Interface\\AchievementFrame\\UI-Achievement-Shields")
+    rows[11].icon:SetTexCoord(0, 0.5, 0, 0.45)
+    paintStat(rows[11], L.ACH_TAB, achievements
         and L.HOME_STAT_ACHIEVEMENTS_VALUE:format(achievements.done, achievements.total, achievements.points))
 end
 
@@ -506,7 +474,6 @@ function HomeUI.Refresh()
     greeting:SetText(name and L.HOME_GREETING:format(name) or L.HOME_TAB)
     today:SetText(date(L.HOME_DATE_FORMAT))
     shownDay = date("%Y-%m-%d")
-    layoutNews()
     paintChallenge(Home.Challenge())
     paintStats(Home.Stats())
 end
@@ -518,8 +485,6 @@ local function tick()
     if date("%Y-%m-%d") ~= shownDay then HomeUI.Refresh() else paintCountdown() end
 end
 board:SetScript("OnShow", function()
-    -- The news lines are measured once on screen.
-    if C_Timer and C_Timer.After then C_Timer.After(0, layoutNews) end
     if not ticker and C_Timer and C_Timer.NewTicker then ticker = C_Timer.NewTicker(20, tick) end
 end)
 board:SetScript("OnHide", function()
@@ -530,7 +495,7 @@ end)
 -- Side tab and registration: UI.lua shows this page in place of the journal ----------------
 
 UI.AddSideTab(1, "home", L.HOME_TAB, function(icon)
-    icon:SetTexture("Interface\\AddOns\\ForeverDex\\Media\\Icon")
+    Art.SmoothTexture(icon, "Interface\\AddOns\\ForeverDex\\Media\\Icon")
     icon:SetTexCoord(0, 1, 0, 1)
 end)
 

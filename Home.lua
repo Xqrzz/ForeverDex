@@ -99,10 +99,15 @@ end
 
 -- Short figures for the home page. Pets count as captures, but have no class.
 --   standard, total  standard cards filled, out of all combinations
+--   bonus, pets      bonus cards and pets filled (bonusTotal, petsTotal)
+--   racesComplete    races whose every combination is filled (racesTotal)
 --   recent           captures of the last seven days
 --   last             most recent capture (entry), or nil
 --   class            token of the most captured class, and classCount
 --   zone             zone with the most captures, and zoneCount
+--   guild            guild with the most captured players, and guildCount
+--   hunter           character of the account with the most captures, its
+--                    hunterClass and hunterCount
 --   achievements     done, total and points of the achievements, when available
 function Home.Stats(now)
     now = now or time()
@@ -115,7 +120,15 @@ function Home.Stats(now)
         end
     end
 
-    local classes, zones = {}, {}
+    stats.bonus, stats.bonusTotal = Catalog.Filled(entries, Catalog.bonusSlots), #Catalog.bonusSlots
+    stats.pets, stats.petsTotal = Catalog.Filled(entries, Catalog.petSlots), #Catalog.petSlots
+    local perRace = Catalog.RaceProgress(entries)
+    stats.racesComplete, stats.racesTotal = 0, #Catalog.races
+    for _, race in ipairs(Catalog.races) do
+        if (perRace[race.id] or 0) >= race.total then stats.racesComplete = stats.racesComplete + 1 end
+    end
+
+    local classes, zones, guilds, hunters, hunterClasses = {}, {}, {}, {}, {}
     for key, entry in pairs(entries) do
         local capturedAt = entry.capturedAt
         if capturedAt then
@@ -123,6 +136,11 @@ function Home.Stats(now)
             if not stats.last or capturedAt > stats.last.capturedAt then stats.last = entry end
         end
         if entry.zone then zones[entry.zone] = (zones[entry.zone] or 0) + 1 end
+        if entry.guild then guilds[entry.guild] = (guilds[entry.guild] or 0) + 1 end
+        if entry.capturedBy then
+            hunters[entry.capturedBy] = (hunters[entry.capturedBy] or 0) + 1
+            hunterClasses[entry.capturedBy] = entry.capturedByClass or hunterClasses[entry.capturedBy]
+        end
         local slot = Catalog.slotByKey[key]
         if slot and not slot.pet then
             local details = Catalog.Describe(slot, entry)
@@ -131,6 +149,9 @@ function Home.Stats(now)
     end
     stats.class, stats.classCount = top(classes)
     stats.zone, stats.zoneCount = top(zones)
+    stats.guild, stats.guildCount = top(guilds)
+    stats.hunter, stats.hunterCount = top(hunters)
+    stats.hunterClass = stats.hunter and hunterClasses[stats.hunter]
 
     if ns.Achievements and ns.Achievements.State then
         local state = ns.Achievements.State()

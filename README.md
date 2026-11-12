@@ -39,6 +39,7 @@ Open the journal with the minimap icon or `/foreverdex`. Each session starts on 
 | --- | --- |
 | `/foreverdex` or `/fdex` | Open or close the journal |
 | `/fdex home` | Open the home page: daily challenge, news and statistics |
+| `/fdex news` | List the changes of the latest version |
 | `/fdex capture` | Capture your target (works in macros) |
 | `/fdex compare` | Compare collections with your target (works in macros) |
 | `/fdex collectors` | List the nearby players who have ForeverDex (`/fdex presence` also works) |

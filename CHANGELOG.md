@@ -4,8 +4,9 @@
 
 - New home page, shown the first time the window opens in each session, with its own side tab above the journal one
 - Daily challenge: a race, class and gender still missing from your journal, drawn on its race's scenery, with the progress of that race and class. A new one each day at midnight, with a countdown. Nothing to win, it is only a suggestion. Once captured, the card is marked as met; with a complete journal, the challenge becomes finding a funnier name than the current one
-- "What's new" box summarizing the latest release
-- Short statistics: journal progress, captures of the last seven days, last capture, most captured class, favorite hunting ground and achievements
+- What's new: a banner on the home page opens a window listing every change of the release, which scrolls when the list is long. `/fdex news` opens it too
+- Right after an update, and only once, the login message says there is news to read
+- Statistics: journal progress, bonus cards, pets, complete races, captures of the last seven days, last capture, most captured class, favorite hunting ground, most captured guild, the account's top hunter, and achievements
 - `/fdex home` opens the home page
 - Announcements: the guild, group or channel is checked again just before the message leaves, and a message is never sent anywhere else. A character without a guild or group simply sends nothing
 - Collectors: lighter on resources. The icon animation only runs while an icon is shown, the bar of nameplate addons is measured every few seconds instead of twice a second, pings no longer pile up while the icons are off, and players not met for 30 minutes are forgotten

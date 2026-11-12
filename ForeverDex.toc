@@ -20,6 +20,7 @@ Catalog.lua
 Collection.lua
 Achievements.lua
 Home.lua
+News.lua
 CaptureVisuals.lua
 Duel.lua
 Combat.lua
