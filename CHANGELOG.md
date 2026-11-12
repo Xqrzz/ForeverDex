@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Each new capture remembers which of your characters made it, shown on its detail page as "Captured by"
+- New "Captured by" filter, under Gender, as soon as cards were captured by at least two characters (older captures are listed as Unknown)
+- Search also looks at the capturing character
+
 ## 1.7.6
 
 - Fixed Skyborne players added from chat always going into the Horde card: the faction is now read from the player when they are visible (target, nameplate, group…), and from chat channels that only reach your own faction

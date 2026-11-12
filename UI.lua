@@ -14,7 +14,7 @@ local INK = { 0.24, 0.13, 0.05 }
 local COVER_COORDS = { 0, 0.68359375, 0, 0.7421875 }
 
 local page, sortMode, viewMode, detailKey, pendingReveal = 1, 1, 1, nil, nil
-local filters = { races = {}, classes = {}, sexes = {} }
+local filters = { races = {}, classes = {}, sexes = {}, capturers = {} }
 local refresh, updateTarget
 
 -- A template missing from this client must not prevent the addon from loading.
@@ -163,29 +163,40 @@ end)
 
 local filterChecks = {}
 
+local function filterCheck(set)
+    local check = CreateFrame("CheckButton", nil, filterFrame, "UICheckButtonTemplate")
+    check:SetSize(22, 22)
+    check:SetHitRectInsets(0, -108, 0, 0)
+    check.set = set
+    check.label = text(check, "GameFontHighlightSmall")
+    check.label:SetPoint("LEFT", check, "RIGHT", 2, 0)
+    check.label:SetWidth(108)
+    check.label:SetWordWrap(false)
+    check:SetScript("OnClick", function(self)
+        self.set[self.value] = self:GetChecked() and true or nil
+        page, detailKey = 1, nil
+        Art.Sound("IG_MAINMENU_OPTION_CHECKBOX_ON")
+        refresh()
+    end)
+    filterChecks[#filterChecks + 1] = check
+    return check
+end
+
+local function setFilterItem(check, item)
+    check.value = item.value
+    check.label:SetText(item.name)
+    local color = item.color or HIGHLIGHT_FONT_COLOR
+    check.label:SetTextColor(color.r, color.g, color.b)
+end
+
 local function filterColumn(x, title, items, set)
     local heading = text(filterFrame, "GameFontNormal")
     heading:SetPoint("TOPLEFT", x, -12)
     heading:SetText(title)
     for i, item in ipairs(items) do
-        local check = CreateFrame("CheckButton", nil, filterFrame, "UICheckButtonTemplate")
-        check:SetSize(22, 22)
+        local check = filterCheck(set)
         check:SetPoint("TOPLEFT", x - 2, -32 - (i - 1) * 22)
-        check:SetHitRectInsets(0, -108, 0, 0)
-        check.set, check.value = set, item.value
-        local label = text(check, "GameFontHighlightSmall")
-        label:SetPoint("LEFT", check, "RIGHT", 2, 0)
-        label:SetWidth(108)
-        label:SetWordWrap(false)
-        label:SetText(item.name)
-        if item.color then label:SetTextColor(item.color.r, item.color.g, item.color.b) end
-        check:SetScript("OnClick", function(self)
-            self.set[self.value] = self:GetChecked() and true or nil
-            page, detailKey = 1, nil
-            Art.Sound("IG_MAINMENU_OPTION_CHECKBOX_ON")
-            refresh()
-        end)
-        filterChecks[#filterChecks + 1] = check
+        setFilterItem(check, item)
     end
 end
 
@@ -198,6 +209,61 @@ do
     filterColumn(14, L.SORT_RACE, raceItems, filters.races)
     filterColumn(154, L.SORT_CLASS, classItems, filters.classes)
     filterColumn(294, L.FILTER_SEX, { { name = L.MALE, value = 2 }, { name = L.FEMALE, value = 3 } }, filters.sexes)
+end
+
+-- "Captured by" column, under Gender: the account's characters that filled cards.
+-- It only appears when there is a choice, and follows the collection as it changes.
+local FILTER_HEIGHT, CAPTURER_TOP = 296, -108
+local capturerHeading = text(filterFrame, "GameFontNormal")
+capturerHeading:SetPoint("TOPLEFT", 294, CAPTURER_TOP + 20)
+capturerHeading:SetText(L.FILTER_CAPTURER)
+local capturerChecks, capturerSignature = {}, nil
+
+local function updateCapturers()
+    local UNKNOWN = Catalog.UNKNOWN_CAPTURER
+    local names, classes = {}, {}
+    for _, entry in pairs(ForeverDexDB.cards) do
+        local name = entry.capturedBy or UNKNOWN
+        if classes[name] == nil then
+            names[#names + 1] = name
+            classes[name] = entry.capturedByClass or false
+        end
+    end
+    -- A single capturer leaves nothing to choose.
+    if #names < 2 then wipe(names) end
+    table.sort(names, function(a, b)
+        if (a == UNKNOWN) ~= (b == UNKNOWN) then return b == UNKNOWN end
+        return a < b
+    end)
+    local signature = table.concat(names, "\n")
+    if signature == capturerSignature then return end
+    capturerSignature = signature
+    -- A character that no longer has any card must not keep filtering.
+    local listed = {}
+    for _, name in ipairs(names) do listed[name] = true end
+    for value in pairs(filters.capturers) do
+        if not listed[value] then filters.capturers[value] = nil end
+    end
+    for i, name in ipairs(names) do
+        local check = capturerChecks[i]
+        if not check then
+            check = filterCheck(filters.capturers)
+            check:SetPoint("TOPLEFT", 292, CAPTURER_TOP - (i - 1) * 22)
+            capturerChecks[i] = check
+        end
+        setFilterItem(check, {
+            value = name,
+            name = name == UNKNOWN and L.FILTER_CAPTURER_UNKNOWN or name,
+            color = classes[name] and RAID_CLASS_COLORS[classes[name]] or (name == UNKNOWN and GRAY_FONT_COLOR) or nil,
+        })
+        check:Show()
+    end
+    for i = #names + 1, #capturerChecks do
+        capturerChecks[i].value = nil
+        capturerChecks[i]:Hide()
+    end
+    capturerHeading:SetShown(#names > 0)
+    filterFrame:SetHeight(math.max(FILTER_HEIGHT, -CAPTURER_TOP + #names * 22 + 44))
 end
 
 local function activeFilters()
@@ -220,6 +286,7 @@ end)
 filterReset:SetPoint("BOTTOMRIGHT", -12, 10)
 
 local function updateFilterPanel()
+    updateCapturers()
     local count = activeFilters()
     filterButton:SetText(count > 0 and L.FILTERS_ACTIVE:format(count) or L.FILTERS)
     filterReset:SetEnabled(count > 0)
@@ -853,9 +920,9 @@ end
 -- Left column: capture information, one per line.
 local captureTitle, captureRule = columnHeader(6, 310)
 local factRows = {}
-for i = 1, 4 do
+for i = 1, 5 do
     local label = inkText("GameFontNormalSmall", 0.45, 0.3, 0.12)
-    label:SetPoint("TOPLEFT", captureRule, "BOTTOMLEFT", 0, -14 - (i - 1) * 34)
+    label:SetPoint("TOPLEFT", captureRule, "BOTTOMLEFT", 0, -14 - (i - 1) * 30)
     local value = inkText(bodyFont)
     value:SetPoint("LEFT", label, "LEFT", 90, 0)
     value:SetWidth(220)
@@ -915,6 +982,7 @@ local function showDetail(slot, perRace, filled)
     if entry then
         if entry.owner then facts[#facts + 1] = { L.PET_OWNER, entry.owner } end
         if entry.capturedAt then facts[#facts + 1] = { L.CAPTURED_ON, date(L.DATE_FORMAT, entry.capturedAt) } end
+        if entry.capturedBy then facts[#facts + 1] = { L.CAPTURED_BY, entry.capturedBy } end
         if entry.zone then facts[#facts + 1] = { L.CAPTURED_IN, entry.zone } end
         if entry.level then facts[#facts + 1] = { L.LEVEL, tostring(entry.level) } end
         if entry.guild then facts[#facts + 1] = { L.GUILD, "<" .. entry.guild .. ">" } end
@@ -1334,6 +1402,8 @@ local function restoreView()
     ForeverDexDB.view = view
     if sortNames[view.sort] then sortMode = view.sort end
     if tabNames[view.tab] then viewMode = view.tab end
+    -- The capturer boxes depend on the collection: they exist before the saved choices are read.
+    updateCapturers()
     for name, set in pairs(filters) do
         local saved = view[name]
         if saved then
