@@ -7,7 +7,7 @@
 | File | Responsibility |
 | --- | --- |
 | `Locale.lua`, `Locales/` | Strings for each language. A missing string falls back to English. Also holds `ns.Module`: the other files register their code with it and run at `ADDON_LOADED`, once the saved language is known. |
-| `Art.lua` | Client textures, atlases and sounds, with a fallback when an atlas is missing. `/foreverdex textures` lists missing atlases. |
+| `Art.lua` | Client textures, atlases and sounds, with a fallback when an atlas is missing. |
 | `Settings.lua` | Settings panel and default values. |
 | `Catalog.lua` | Playable combinations, card themes, search, filters and sorting. |
 | `Collection.lua` | Reading the target, saved data migration, adding and replacing cards. |

@@ -7,15 +7,12 @@ ns.Art = Art
 -- Every resource comes from the WoW client. Each element first tries the
 -- modern atlas, then an older texture, then a solid color, so an atlas
 -- missing from the Forever client never shows up as a green square.
-local registered, missing = {}, {}
-
 local function hasAtlas(name)
     return name and C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(name) ~= nil
 end
 Art.HasAtlas = hasAtlas
 
 local function register(specs)
-    registered[#registered + 1] = specs
     return specs
 end
 
@@ -26,8 +23,6 @@ function Art.Apply(texture, specs)
             if hasAtlas(spec.atlas) then
                 texture:SetAtlas(spec.atlas)
                 applied = true
-            else
-                missing[spec.atlas] = true
             end
         elseif spec.file then
             texture:SetTexture(spec.file)
@@ -283,7 +278,6 @@ function Art.Scenery(texture, theme, boxWidth, boxHeight)
             info.width, info.height, boxWidth, boxHeight)
         return true
     end
-    missing[atlas] = true
     texture:SetTexture("Interface\\DressUpFrame\\DressUpBackground-" .. theme[6] .. "1")
     crop(texture, 0, 1, 0, 255 / 256, 256, 255, boxWidth, boxHeight)
     return true
@@ -343,28 +337,5 @@ function Art.Sound(...)
             return
         end
     end
-end
-
--- /foreverdex textures: lists the atlases this client does not have.
-function Art.Report()
-    local catalog = ns.Catalog
-    for _, specs in ipairs(registered) do
-        for _, spec in ipairs(specs) do
-            if spec.atlas and not hasAtlas(spec.atlas) then missing[spec.atlas] = true end
-        end
-    end
-    for _, race in ipairs(catalog.races) do
-        if not hasAtlas(race.icon) then missing[race.icon] = true end
-    end
-    local names = {}
-    for name in pairs(missing) do names[#names + 1] = name end
-    table.sort(names)
-    if #names == 0 then
-        print(L.TEXTURES_OK)
-        return
-    end
-    print(L.TEXTURES_MISSING:format(#names))
-    for _, name in ipairs(names) do print("   - " .. name) end
-    print(L.TEXTURES_FALLBACK)
 end
 end)

@@ -49,30 +49,13 @@ BINDING_HEADER_FOREVERDEX = "ForeverDex"
 BINDING_NAME_FOREVERDEX_CAPTURE = L.BINDING_CAPTURE
 BINDING_NAME_FOREVERDEX_COMPARE = L.BINDING_COMPARE
 BINDING_NAME_FOREVERDEX_TOGGLE = L.BINDING_TOGGLE
--- "/foreverdex textures" lists the atlases missing from this client.
 -- "/foreverdex compare" offers the comparison to the target (usable in a macro).
 -- "/foreverdex capture" captures the target, like the ball (key binding, macro).
 -- "/foreverdex collectors" (or "presence") lists the nearby players known to have ForeverDex,
 -- "/foreverdex collectors demo" shows the icon above every friendly player nearby.
 -- "/foreverdex home" opens the home page (daily challenge, news, statistics).
 -- "/foreverdex achievements" (or "hf") opens the achievements page.
--- "/foreverdex memory" prints the memory of the addon (see reportMemory).
 -- "/foreverdex share" opens the settings of the announcements to other players.
--- "/foreverdex memory": memory of the addon, and how much of it the game can reclaim.
--- The game counts the garbage not yet collected: only the second figure is really kept.
-local function reportMemory()
-    local update = (C_AddOns and C_AddOns.UpdateAddOnMemoryUsage) or UpdateAddOnMemoryUsage
-    local usage = (C_AddOns and C_AddOns.GetAddOnMemoryUsage) or GetAddOnMemoryUsage
-    if not update or not usage then return end
-    update()
-    local before = usage(addon)
-    collectgarbage("collect")
-    update()
-    local after = usage(addon)
-    print(("|cff63ded1ForeverDex|r memory: %.2f MB in use, %.2f MB kept after a garbage collection.")
-        :format(before / 1024, after / 1024))
-end
-
 SlashCmdList.FOREVERDEX = function(message)
     if message and message:lower():match("^%s*capt") then
         ns.Collection.Capture()
@@ -80,22 +63,14 @@ SlashCmdList.FOREVERDEX = function(message)
         ns.UI.Show("home")
     elseif message and (message:lower():match("^%s*achiev") or message:lower():match("^%s*hf%s*$")) then
         ns.UI.ShowAchievements()
-    elseif message and message:lower():match("^%s*textures") then
-        ns.Art.Report()
     elseif message and message:lower():match("^%s*compar") then
         ns.Duel.Request()
     elseif message and (message:lower():match("^%s*presen") or message:lower():match("^%s*collec")) then
         if message:lower():match("demo") then
             ns.Presence.ToggleDemo()
-        elseif message:lower():match("debug") then
-            ns.Presence.Debug()
         else
             ns.Presence.Report()
         end
-    elseif message and message:lower():match("^%s*duel") then
-        ns.Duel.ToggleTrace()
-    elseif message and message:lower():match("^%s*mem") then
-        reportMemory()
     elseif message and message:lower():match("^%s*share") then
         ns.Share.OpenSettings()
     elseif message and message:lower():match("^%s*opt") then

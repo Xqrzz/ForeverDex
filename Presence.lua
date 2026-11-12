@@ -795,39 +795,6 @@ function Presence.IsDemo()
     return demo
 end
 
--- /foreverdex presence debug: what the module sees, to understand a missing icon.
-function Presence.Debug()
-    local function say(text) DEFAULT_CHAT_FRAME:AddMessage("|cff63ded1ForeverDex|r presence: " .. text) end
-    local function show(value)
-        if value == nil then return "nil" end
-        if not readable(value) then return "(secret)" end
-        return tostring(value)
-    end
-    say(("demo=%s show=%s announce=%s combat=%s instance=%s ticker=%s queue=%d"):format(show(demo), show(look.show),
-        show(look.announce), show(inCombat()), show(inInstance()), show(ticker ~= nil), #queue))
-    local cvars = {}
-    for _, name in ipairs({ "nameplateShowFriends", "nameplateShowFriendlyPlayers", "nameplateShowAll", "nameplateMaxDistance" }) do
-        cvars[#cvars + 1] = name:gsub("nameplate", "") .. "=" .. show(getCVar(name))
-    end
-    say("cvars " .. table.concat(cvars, " "))
-    local total, listed = 0, 0
-    eachPlate(function(unit)
-        total = total + 1
-        if listed >= 6 or safe(UnitIsPlayer, unit) ~= true then return end
-        listed = listed + 1
-        local icon = icons[unit]
-        local entry = entryFor(plates[unit])
-        say(("%s name=%s tracked=%s attack=%s faction=%s range=%s has=%s icon=%s visible=%s"):format(
-            unit, show(safe(UnitName, unit)), show(plates[unit]), show(safe(UnitCanAttack, "player", unit)),
-            show(safe(UnitFactionGroup, unit)), show(inRange(unit)), show(entry and entry.has),
-            show(icon ~= nil), show(icon and icon.frame:IsVisible())))
-    end)
-    local tracked, shown = 0, 0
-    for _ in pairs(plates) do tracked = tracked + 1 end
-    for _ in pairs(icons) do shown = shown + 1 end
-    say(("plates=%d tracked=%d icons=%d"):format(total, tracked, shown))
-end
-
 -- Options page with a live preview ----------------------------------------------------
 
 local page, left, right = Settings.AddPage(L.PRESENCE_TITLE, L.PRESENCE_SUBTITLE)
