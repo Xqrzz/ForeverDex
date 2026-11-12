@@ -19,11 +19,13 @@ Settings.lua
 Catalog.lua
 Collection.lua
 Achievements.lua
+Home.lua
 CaptureVisuals.lua
 Duel.lua
 Combat.lua
 Presence.lua
 Share.lua
 UI.lua
+HomeUI.lua
 AchievementsUI.lua
 ForeverDex.lua

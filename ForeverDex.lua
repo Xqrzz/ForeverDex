@@ -54,11 +54,14 @@ BINDING_NAME_FOREVERDEX_TOGGLE = L.BINDING_TOGGLE
 -- "/foreverdex capture" captures the target, like the ball (key binding, macro).
 -- "/foreverdex collectors" (or "presence") lists the nearby players known to have ForeverDex,
 -- "/foreverdex collectors demo" shows the icon above every friendly player nearby.
+-- "/foreverdex home" opens the home page (daily challenge, news, statistics).
 -- "/foreverdex achievements" (or "hf") opens the achievements page.
 -- "/foreverdex share" opens the settings of the announcements to other players.
 SlashCmdList.FOREVERDEX = function(message)
     if message and message:lower():match("^%s*capt") then
         ns.Collection.Capture()
+    elseif message and message:lower():match("^%s*home%s*$") then
+        ns.UI.Show("home")
     elseif message and (message:lower():match("^%s*achiev") or message:lower():match("^%s*hf%s*$")) then
         ns.UI.ShowAchievements()
     elseif message and message:lower():match("^%s*textures") then

@@ -10,6 +10,7 @@ A collection journal for World of Warcraft: Forever. Meet a player with a funny 
 - **Search by name, guild or zone**, with filters (race, class, gender, capturing character) and sorting that are remembered between sessions, plus a Favorites tab
 - **Duels**: compare your collection with another ForeverDex user
 - **Announcements** (optional): share your captures and achievements with your guild, group or a custom channel
+- **Home page**: a daily challenge (a combination to look for, just for fun), the latest news and a few statistics about your collection
 - **Achievements**: 34 goals (captures, races, classes, genders, pets…) announced with an achievement-style alert
 - Available in **English, French, German, Spanish, Italian, Portuguese and Russian**, with a language setting independent of the game client
 
@@ -23,7 +24,7 @@ Install it with your addon manager once it is available on CurseForge, or manual
 
 ## Usage
 
-Open the journal with the minimap icon or `/foreverdex`.
+Open the journal with the minimap icon or `/foreverdex`. Each session starts on the home page; the side tabs on the right switch between the home page, the journal and the achievements.
 
 - **Capture a player:** target them and click the ball on their portrait, or right-click their name in chat and choose **Add to ForeverDex**. Captures from chat do not include level or guild.
 - **Card already taken?** You can replace it or add the new character as a bonus.
@@ -37,6 +38,7 @@ Open the journal with the minimap icon or `/foreverdex`.
 | Command | Action |
 | --- | --- |
 | `/foreverdex` or `/fdex` | Open or close the journal |
+| `/fdex home` | Open the home page: daily challenge, news and statistics |
 | `/fdex capture` | Capture your target (works in macros) |
 | `/fdex compare` | Compare collections with your target (works in macros) |
 | `/fdex collectors` | List the nearby players who have ForeverDex (`/fdex presence` also works) |

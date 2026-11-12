@@ -14,9 +14,10 @@ local INK = { 0.24, 0.13, 0.05 }
 local COVER_COORDS = { 0, 0.68359375, 0, 0.7421875 }
 
 local page, sortMode, viewMode, detailKey, pendingReveal = 1, 1, 1, nil, nil
--- "collection" (the journal) or "achievements" (the page of AchievementsUI.lua),
--- switched by the side tabs on the right of the window.
-local mode = "collection"
+-- "collection" (the journal) or a page registered with ns.UI.RegisterPage ("home",
+-- "achievements"…), switched by the side tabs on the right of the window. Each
+-- session opens on the home page; the window then stays where it was left.
+local mode = "home"
 local filters = { races = {}, classes = {}, sexes = {}, capturers = {} }
 local refresh, updateTarget
 
@@ -1050,17 +1051,96 @@ local function updatePortraits(target)
     end
 end
 
--- Parts of the window that belong to the journal: hidden on the achievements page.
+-- Pages and side tabs ----------------------------------------------------------------
+
+-- Pages shown in place of the journal, by mode. A page is a table with
+-- SetShown(shown): it shows or hides its frames, and refreshes them when shown.
+local pages = {}
+
+local function registerPage(name, page)
+    pages[name] = page
+    page.SetShown(false)
+end
+
+-- Side tabs, on the right edge of the window: one per mode.
+local sideTabs = {}
+
+local function paintSideTab(tab)
+    local active = mode == tab.mode
+    tab.glow:SetShown(active)
+    tab.icon:SetDesaturated(not active)
+    tab.icon:SetAlpha(active and 1 or 0.8)
+    tab:SetBackdropBorderColor(active and 1 or 0.6, active and 0.85 or 0.55, active and 0.4 or 0.45)
+end
+
+-- index: position from the top. paint(icon) sets the icon texture.
+local function addSideTab(index, tabMode, label, paint)
+    local tab = CreateFrame("Button", nil, panel, "BackdropTemplate")
+    tab:SetSize(46, 46)
+    tab:SetPoint("TOPLEFT", panel, "TOPRIGHT", -2, -72 - (index - 1) * 54)
+    tab:SetFrameLevel(panel:GetFrameLevel() + 20)
+    tab:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
+        tile = true, tileSize = 16, edgeSize = 16,
+        insets = { left = 4, right = 4, top = 4, bottom = 4 },
+    })
+    tab:SetBackdropColor(0.08, 0.06, 0.04, 0.95)
+    tab.mode = tabMode
+    tab.icon = tab:CreateTexture(nil, "ARTWORK")
+    tab.icon:SetPoint("TOPLEFT", 7, -7)
+    tab.icon:SetPoint("BOTTOMRIGHT", -7, 7)
+    paint(tab.icon)
+    -- Gold light around the active tab, as on the game's side tabs.
+    tab.glow = tab:CreateTexture(nil, "OVERLAY")
+    tab.glow:SetPoint("TOPLEFT", 4, -4)
+    tab.glow:SetPoint("BOTTOMRIGHT", -4, 4)
+    tab.glow:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+    tab.glow:SetBlendMode("ADD")
+    tab:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    local highlight = tab:GetHighlightTexture()
+    highlight:ClearAllPoints()
+    highlight:SetPoint("TOPLEFT", 4, -4)
+    highlight:SetPoint("BOTTOMRIGHT", -4, 4)
+    tab:SetScript("OnClick", function(self)
+        Art.Sound("IG_CHARACTER_INFO_TAB")
+        mode, detailKey = self.mode, nil
+        refresh()
+    end)
+    tab:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(label)
+        GameTooltip:Show()
+    end)
+    tab:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    sideTabs[#sideTabs + 1] = tab
+    paintSideTab(tab)
+    return tab
+end
+
+addSideTab(2, "collection", L.DETAIL_COLLECTION, function(icon)
+    icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+end)
+
+-- Parts of the window that belong to the journal: hidden while a page replaces it.
 local journalParts = { sidebar, content, counts, percent, progress, panelCapture, sortButton, filterButton, search }
 
--- Returns true when the achievements page took the place of the journal.
+-- Returns true when a page took the place of the journal.
 local function showMode()
-    local achievements = mode == "achievements"
-    for _, part in ipairs(journalParts) do part:SetShown(not achievements) end
-    if achievements then filterFrame:Hide() end
-    if ns.AchievementsUI then ns.AchievementsUI.SetShown(achievements) end
-    if not achievements then return false end
-    -- No bottom tab is selected while the achievements are shown.
+    -- A page missing from this build falls back to the journal.
+    if mode ~= "collection" and not pages[mode] then mode = "collection" end
+    local journal = mode == "collection"
+    for _, part in ipairs(journalParts) do part:SetShown(journal) end
+    if not journal then filterFrame:Hide() end
+    -- Hide first, then show: two pages never overlap, even for a moment.
+    for name, page in pairs(pages) do
+        if name ~= mode then page.SetShown(false) end
+    end
+    if pages[mode] then pages[mode].SetShown(true) end
+    for _, tab in ipairs(sideTabs) do paintSideTab(tab) end
+    if journal then return false end
+    -- No bottom tab is selected while a page is shown.
     if nativeTabs and PanelTemplates_SetTab then
         PanelTemplates_SetTab(panel, 0)
     else
@@ -1410,6 +1490,12 @@ local function restoreView()
     if sortButton.GenerateMenu then sortButton:GenerateMenu() end
 end
 
+-- Opens the window on a mode, and on a card's detail page in the journal.
+local function showWindow(newMode, key)
+    mode, detailKey = newMode, key
+    if panel:IsShown() then refresh() else panel:Show() end
+end
+
 ns.UI = {
     RestoreView = restoreView,
     Refresh = function(entry, isNew, noThrow)
@@ -1455,18 +1541,29 @@ ns.UI = {
     end,
     UpdateTarget = updateTarget,
     Toggle = function() panel:SetShown(not panel:IsShown()) end,
-    -- For AchievementsUI.lua: the window, the area its page covers, and the mode.
+    -- For the pages (HomeUI.lua, AchievementsUI.lua): the window, the area a page
+    -- covers, its registration and its side tab.
     Window = panel,
     PageArea = { sidebar, content },
+    RegisterPage = registerPage,
+    AddSideTab = addSideTab,
+    -- Card plates and medallions, as drawn in the journal.
+    BuildPlate = buildPlate,
+    PaintPlate = paintPlate,
+    PaintMedallion = paintMedallion,
     Mode = function() return mode end,
     SetMode = function(newMode)
         mode, detailKey = newMode, nil
         refresh()
     end,
+    -- Opens the window on a mode ("home", "collection", "achievements"…).
+    Show = showWindow,
     -- Opens the window on the achievements page (achievement alert, /fdex achievements).
-    ShowAchievements = function()
-        mode, detailKey = "achievements", nil
-        if panel:IsShown() then refresh() else panel:Show() end
+    ShowAchievements = function() showWindow("achievements") end,
+    -- Opens the detail page of a card in the journal.
+    ShowCard = function(key)
+        if not Catalog.slotByKey[key] then return end
+        showWindow("collection", key)
     end,
 }
 end)

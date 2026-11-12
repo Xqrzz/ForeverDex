@@ -4,7 +4,7 @@ local L, Art, Achievements = ns.L, ns.Art, ns.Achievements
 local AchievementsUI = {}
 ns.AchievementsUI = AchievementsUI
 
--- Achievements page of the main window, reached through the side tabs on the right of
+-- Achievements page of the main window, reached through its side tab on the right of
 -- the window. It follows the journal: categories in a column on the left (like the
 -- races), the achievements of the selected one on the painted background on the right,
 -- each on its own parchment sheet with its progress bar. Overall points at the top.
@@ -221,70 +221,12 @@ function AchievementsUI.Refresh()
     for i = shown + 1, #sheets do sheets[i]:Hide() end
 end
 
--- Side tabs, on the right edge of the window --------------------------------------------
+-- Side tab and registration: UI.lua shows this page in place of the journal --------------
 
-local tabs = {}
-
-local function paintTab(tab)
-    local active = UI.Mode() == tab.mode
-    tab.glow:SetShown(active)
-    tab.icon:SetDesaturated(not active)
-    tab.icon:SetAlpha(active and 1 or 0.8)
-    tab:SetBackdropBorderColor(active and 1 or 0.6, active and 0.85 or 0.55, active and 0.4 or 0.45)
-end
-
-local function sideTab(index, mode, label, paint)
-    local tab = CreateFrame("Button", nil, window, "BackdropTemplate")
-    tab:SetSize(46, 46)
-    tab:SetPoint("TOPLEFT", window, "TOPRIGHT", -2, -72 - (index - 1) * 54)
-    tab:SetFrameLevel(window:GetFrameLevel() + 20)
-    tab:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border",
-        tile = true, tileSize = 16, edgeSize = 16,
-        insets = { left = 4, right = 4, top = 4, bottom = 4 },
-    })
-    tab:SetBackdropColor(0.08, 0.06, 0.04, 0.95)
-    tab.mode = mode
-    tab.icon = tab:CreateTexture(nil, "ARTWORK")
-    tab.icon:SetPoint("TOPLEFT", 7, -7)
-    tab.icon:SetPoint("BOTTOMRIGHT", -7, 7)
-    paint(tab.icon)
-    -- Gold light around the active tab, as on the game's side tabs.
-    tab.glow = tab:CreateTexture(nil, "OVERLAY")
-    tab.glow:SetPoint("TOPLEFT", 4, -4)
-    tab.glow:SetPoint("BOTTOMRIGHT", -4, 4)
-    tab.glow:SetTexture("Interface\\Buttons\\CheckButtonHilight")
-    tab.glow:SetBlendMode("ADD")
-    tab:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-    local highlight = tab:GetHighlightTexture()
-    highlight:ClearAllPoints()
-    highlight:SetPoint("TOPLEFT", 4, -4)
-    highlight:SetPoint("BOTTOMRIGHT", -4, 4)
-    tab:SetScript("OnClick", function(self)
-        Art.Sound("IG_CHARACTER_INFO_TAB")
-        UI.SetMode(self.mode)
-    end)
-    tab:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(label)
-        GameTooltip:Show()
-    end)
-    tab:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    tabs[#tabs + 1] = tab
-    return tab
-end
-
-sideTab(1, "collection", L.DETAIL_COLLECTION, function(icon)
-    icon:SetTexture("Interface\\Icons\\INV_Misc_Book_09")
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-end)
-sideTab(2, "achievements", L.ACH_TAB, function(icon)
+UI.AddSideTab(3, "achievements", L.ACH_TAB, function(icon)
     icon:SetTexture(ACHIEVEMENT .. "UI-Achievement-Shields")
     icon:SetTexCoord(0, 0.5, 0, 0.45)
 end)
-
--- Shown in place of the journal (called by UI.lua on every refresh) -----------------------
 
 local parts = { summary, pointsBar, column, board }
 function AchievementsUI.SetShown(shown)
@@ -296,7 +238,6 @@ function AchievementsUI.SetShown(shown)
         end
         AchievementsUI.Refresh()
     end
-    for _, tab in ipairs(tabs) do paintTab(tab) end
 end
-AchievementsUI.SetShown(false)
+UI.RegisterPage("achievements", AchievementsUI)
 end)
