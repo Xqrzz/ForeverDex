@@ -1,11 +1,15 @@
 local addon, ns = ...
 
 -- Saved data is available after ADDON_LOADED.
+-- Saved data from an earlier session: a version change is then an update.
+local installed = false
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" then
         if name ~= addon then return end
+        installed = ForeverDexDB ~= nil
         local saved = ForeverDexDB and ForeverDexDB.settings
         ns.ApplyLanguage(saved and saved.language)
         for _, load in ipairs(ns.Modules) do load() end
@@ -27,10 +31,16 @@ events:SetScript("OnEvent", function(self, event, name)
         self:RegisterEvent("PLAYER_REGEN_ENABLED")
         self:RegisterEvent("PLAYER_REGEN_DISABLED")
     elseif event == "PLAYER_ENTERING_WORLD" and not self.greeted then
-        -- Welcome message, once per session (not on every loading screen).
+        -- Welcome message, once per session (not on every loading screen). Right after
+        -- an update, and only once, it also points to the news of the release.
         self.greeted = true
         local version = C_AddOns and C_AddOns.GetAddOnMetadata(addon, "Version")
-        print(("|cff63ded1ForeverDex|r%s%sby |cffffd100Xqrz|r"):format(version and (" v" .. version) or "", ns.L.SEPARATOR))
+        local seen = ForeverDexDB.seenVersion
+        local updated = version ~= nil and version ~= seen and (seen ~= nil or installed)
+        if version then ForeverDexDB.seenVersion = version end
+        local news = updated and (ns.L.SEPARATOR .. ns.L.NEWS_LOGIN:format("|cffffd100/fdex news|r")) or ""
+        print(("|cff63ded1ForeverDex|r%s%sby |cffffd100Xqrz|r%s"):format(version and (" v" .. version) or "",
+            ns.L.SEPARATOR, news))
         ns.UI.UpdateTarget()
     -- Unit events also cover the party and NPCs. Only the target can
     -- change the capture button or the portrait shown in the gallery.
@@ -49,32 +59,31 @@ BINDING_HEADER_FOREVERDEX = "ForeverDex"
 BINDING_NAME_FOREVERDEX_CAPTURE = L.BINDING_CAPTURE
 BINDING_NAME_FOREVERDEX_COMPARE = L.BINDING_COMPARE
 BINDING_NAME_FOREVERDEX_TOGGLE = L.BINDING_TOGGLE
--- "/foreverdex textures" lists the atlases missing from this client.
 -- "/foreverdex compare" offers the comparison to the target (usable in a macro).
 -- "/foreverdex capture" captures the target, like the ball (key binding, macro).
 -- "/foreverdex collectors" (or "presence") lists the nearby players known to have ForeverDex,
 -- "/foreverdex collectors demo" shows the icon above every friendly player nearby.
+-- "/foreverdex home" opens the home page (daily challenge, news, statistics).
+-- "/foreverdex news" lists the changes of the release.
 -- "/foreverdex achievements" (or "hf") opens the achievements page.
 -- "/foreverdex share" opens the settings of the announcements to other players.
 SlashCmdList.FOREVERDEX = function(message)
     if message and message:lower():match("^%s*capt") then
         ns.Collection.Capture()
+    elseif message and message:lower():match("^%s*home%s*$") then
+        ns.UI.Show("home")
+    elseif message and message:lower():match("^%s*news%s*$") then
+        ns.News.Show()
     elseif message and (message:lower():match("^%s*achiev") or message:lower():match("^%s*hf%s*$")) then
         ns.UI.ShowAchievements()
-    elseif message and message:lower():match("^%s*textures") then
-        ns.Art.Report()
     elseif message and message:lower():match("^%s*compar") then
         ns.Duel.Request()
     elseif message and (message:lower():match("^%s*presen") or message:lower():match("^%s*collec")) then
         if message:lower():match("demo") then
             ns.Presence.ToggleDemo()
-        elseif message:lower():match("debug") then
-            ns.Presence.Debug()
         else
             ns.Presence.Report()
         end
-    elseif message and message:lower():match("^%s*duel") then
-        ns.Duel.ToggleTrace()
     elseif message and message:lower():match("^%s*share") then
         ns.Share.OpenSettings()
     elseif message and message:lower():match("^%s*opt") then
@@ -98,7 +107,7 @@ background:SetSize(20, 20)
 background:SetPoint("TOPLEFT", 7, -5)
 local icon = minimapButton:CreateTexture(nil, "ARTWORK")
 -- The ForeverDex orb, slightly larger than a square icon since it is round.
-icon:SetTexture("Interface\\AddOns\\ForeverDex\\Media\\Icon")
+ns.Art.SmoothTexture(icon, "Interface\\AddOns\\ForeverDex\\Media\\Icon")
 icon:SetSize(21, 21)
 icon:SetPoint("TOPLEFT", 5, -5)
 local border = minimapButton:CreateTexture(nil, "OVERLAY")

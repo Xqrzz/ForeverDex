@@ -28,23 +28,8 @@ end
 
 C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
 
--- /foreverdex duel: shows sent and received messages, for diagnostics.
-local tracing = false
-local function trace(direction, who, message)
-    if not tracing then return end
-    DEFAULT_CHAT_FRAME:AddMessage(("|cff63ded1ForeverDex|r: duel %s %s: %s"):format(direction,
-        readable(who) and tostring(who) or "(secret)", readable(message) and tostring(message):sub(1, 40) or "(secret)"))
-end
-
-function Duel.ToggleTrace()
-    tracing = not tracing
-    DEFAULT_CHAT_FRAME:AddMessage("|cff63ded1ForeverDex|r: duel trace: " .. (tracing and "on" or "off"))
-end
-
 local function send(message, target)
-    local result = C_ChatInfo.SendAddonMessage(PREFIX, message, "WHISPER", target)
-    trace("sent to", target, ("%s (result %s)"):format(message:sub(1, 20), tostring(result)))
-    return result
+    return C_ChatInfo.SendAddonMessage(PREFIX, message, "WHISPER", target)
 end
 
 -- First name only: on Forever, the game does not always write the rest of the name the
@@ -246,7 +231,6 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("CHAT_MSG_ADDON")
 events:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
     if not readable(prefix) or prefix ~= PREFIX then return end
-    trace("received from", sender, text)
     if not ForeverDexDB or not readable(sender) or not readable(text) then return end
     local who = shortName(sender)
     local kind, body = text:sub(1, 1), text:sub(2)

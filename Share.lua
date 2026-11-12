@@ -83,7 +83,8 @@ local function groupChat()
 end
 
 -- Chat type and channel number for a destination setting (guild, group, custom),
--- or nil and the reason it is unavailable right now.
+-- or nil and the reason it is unavailable right now. The settings are shared by every
+-- character of the account: a character without a guild or group sends nothing.
 local function destination(choice)
     if choice == "group" then
         local chatType = groupChat()
@@ -214,20 +215,49 @@ local function ready(topic)
     return true
 end
 
+-- Last check before anything leaves: the chat type is one ForeverDex uses, and the
+-- guild, group or channel exists right now. Any other chat type (say, yell,
+-- whisper…) is refused, so a message can never end up somewhere unexpected.
+local AVAILABLE = {
+    GUILD = function() return IsInGuild and IsInGuild() end,
+    PARTY = function() return groupChat() == "PARTY" end,
+    RAID = function() return groupChat() == "RAID" end,
+    INSTANCE_CHAT = function() return groupChat() == "INSTANCE_CHAT" end,
+    CHANNEL = function(target)
+        if type(target) ~= "number" or OFFICIAL_IDS[target] then return false end
+        local id, fullName = GetChannelName(target)
+        return id ~= nil and id == target and not (type(fullName) == "string" and isOfficial(fullName))
+    end,
+}
+
+-- Sends only when the destination passes the check; returns true when sent.
+local function safeSend(text, chatType, target)
+    local available = AVAILABLE[chatType]
+    if not available or not available(target) or type(text) ~= "string" or text == "" then return false end
+    SendChatMessage(text, chatType, nil, target)
+    return true
+end
+
 -- Returns the function that sends the message, to call at the reveal. It sends once,
 -- and REVEAL_LIMIT seconds later at most. A channel may only accept a message sent
 -- during the player's click: that one leaves at once.
-local function schedule(chatType, target, text)
-    local function send() SendChatMessage(text, chatType, nil, target) end
+local function schedule(choice, chatType, target, text)
     if chatType == "CHANNEL" then
-        send()
+        if not safeSend(text, chatType, target) then warn(L.SHARE_UNAVAILABLE) end
         return NOOP
     end
     local sent = false
     local function release()
         if sent then return end
         sent = true
-        send()
+        -- The player may have left the guild or the group while the ball flew: the
+        -- destination is read again, and nothing leaves if it no longer exists.
+        local currentType, currentTarget = destination(choice)
+        if not currentType then
+            warn(currentTarget)
+            return
+        end
+        if not safeSend(text, currentType, currentTarget) then warn(L.SHARE_UNAVAILABLE) end
     end
     C_Timer.After(REVEAL_LIMIT, release)
     return release
@@ -241,13 +271,14 @@ function Share.Capture(entry, isNew)
     if kind == "pet" and not Settings.Get("sharePets") then return NOOP end
     if kind == "bonus" and not Settings.Get("shareBonus") then return NOOP end
     if kind == "replace" and Settings.Get("shareCaptureScope") ~= "all" then return NOOP end
-    local chatType, target = destination(Settings.Get("shareCaptureChannel"))
+    local choice = Settings.Get("shareCaptureChannel")
+    local chatType, target = destination(choice)
     if not chatType then
         warn(target)
         return NOOP
     end
     if not ready("capture") then return NOOP end
-    return schedule(chatType, target, captureText(entry, kind))
+    return schedule(choice, chatType, target, captureText(entry, kind))
 end
 
 -- Prepares the announcement of the achievements earned together (one message for
@@ -259,13 +290,14 @@ function Share.Achievements(list)
         if (achievement.points or 0) >= minimum then kept[#kept + 1] = achievement end
     end
     if #kept == 0 then return NOOP end
-    local chatType, target = destination(Settings.Get("shareAchievementChannel"))
+    local choice = Settings.Get("shareAchievementChannel")
+    local chatType, target = destination(choice)
     if not chatType then
         warn(target)
         return NOOP
     end
     if not ready("achievement") then return NOOP end
-    return schedule(chatType, target, achievementText(kept))
+    return schedule(choice, chatType, target, achievementText(kept))
 end
 
 -- Preview: the message is shown to the player only, with where it would go.

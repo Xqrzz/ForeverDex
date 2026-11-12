@@ -31,6 +31,10 @@ local KNOWN_FOR = 600     -- an answer, or its absence, is trusted for 10 minute
 local REPLAY_GAP = 45     -- ping mode: shown again when met again after this
 local ANSWER_GAP = 20     -- at most one answer per player in this time
 local TICK = 0.5
+local REPLACE_GAP = 2     -- seconds before an icon measures its nameplate again
+local FORGET_AFTER = 1800 -- players unseen for this long are forgotten
+local PRUNE_EVERY = 60    -- seconds between two clean-ups of what is remembered
+local QUEUE_MAX = 40      -- pings waiting at most; the oldest ones are dropped
 
 -- Icon choices: key, label, texture, blend mode (BLEND when absent), game file.
 -- A square game icon (INV_Misc_Book_09) made round crashed this client
@@ -101,6 +105,8 @@ readLook()
 -- Animate() draws one frame of it; the same object serves the nameplates and the preview.
 
 local active = {} -- icons being animated
+-- Runs the animation, only while an icon is animated: hidden otherwise, it costs nothing.
+local driver
 
 local function layer(frame, file, drawLayer, sublevel, blend)
     local texture = frame:CreateTexture(nil, drawLayer, nil, sublevel)
@@ -149,6 +155,7 @@ local function play(icon, duration)
     icon.phase = icon.phase or math.random() * 6
     active[icon] = true
     icon.frame:Show()
+    if driver then driver:Show() end
 end
 
 -- Fades out, then hides.
@@ -217,8 +224,9 @@ local function animate(icon, now)
     return true
 end
 
-local driver = CreateFrame("Frame")
-driver:SetScript("OnUpdate", function()
+driver = CreateFrame("Frame")
+driver:Hide()
+driver:SetScript("OnUpdate", function(self)
     local now = GetTime()
     for icon in pairs(active) do
         if not animate(icon, now) then
@@ -228,6 +236,7 @@ driver:SetScript("OnUpdate", function()
             if icon.onDone then icon.onDone(icon) end
         end
     end
+    if next(active) == nil then self:Hide() end
 end)
 
 -- Game settings ---------------------------------------------------------------------
@@ -299,6 +308,7 @@ local function release(unit)
     if not icon then return end
     icons[unit] = nil
     stop(icon, true)
+    icon.plate, icon.placedAt = nil, nil
     icon.frame:SetParent(nil)
     icon.frame:ClearAllPoints()
     spare[#spare + 1] = icon
@@ -319,52 +329,80 @@ local function shownAlpha(object)
     return not okAlpha or not readable(alpha) or alpha > 0.01
 end
 
+local function unitFrameOf(plate) return plate.UnitFrame end
+
 local function blizzardBarShown(plate)
-    local ok, frame = pcall(function() return plate.UnitFrame end)
+    local ok, frame = pcall(unitFrameOf, plate)
     return ok and type(frame) == "table" and shownAlpha(frame)
 end
 
 -- Top of the visible content (in the plate's units), highest frame level and strata.
+-- The walk runs often: it creates no table and no function. Its state lives in these
+-- upvalues, and the regions and children are read from the varargs the game returns.
+local plateScale, measuredTop, measuredLevel, measuredStrata
+
+local function reach(object)
+    if not shownAlpha(object) then return end
+    local okTop, value = pcall(object.GetTop, object)
+    local okHeight, height = pcall(object.GetHeight, object)
+    if not (okTop and readable(value) and value and okHeight and readable(height)) then return end
+    -- Wide glows and highlights are not the bar.
+    if height > 150 then return end
+    local okScale, scale = pcall(object.GetEffectiveScale, object)
+    value = value * ((okScale and readable(scale) and scale) or plateScale) / plateScale
+    if not measuredTop or value > measuredTop then measuredTop = value end
+end
+
+local function reachEach(...)
+    for i = 1, select("#", ...) do reach((select(i, ...))) end
+end
+
+local walk
+local function walkEach(depth, ...)
+    for i = 1, select("#", ...) do pcall(walk, (select(i, ...)), depth) end
+end
+
+walk = function(object, depth)
+    if object.foreverDexIcon or not shownAlpha(object) then return end
+    local okLevel, value = pcall(object.GetFrameLevel, object)
+    if okLevel and readable(value) and value > measuredLevel then measuredLevel = value end
+    local okStrata, name = pcall(object.GetFrameStrata, object)
+    if okStrata and readable(name) and (STRATA[name] or 0) > (STRATA[measuredStrata] or 0) then
+        measuredStrata = name
+    end
+    reach(object)
+    reachEach(object:GetRegions())
+    if depth < 3 then walkEach(depth + 1, object:GetChildren()) end
+end
+
 local function measure(plate)
-    local plateScale = plate:GetEffectiveScale()
-    local top, level, strata = nil, plate:GetFrameLevel(), plate:GetFrameStrata()
-    local function reach(object)
-        if not shownAlpha(object) then return end
-        local okTop, value = pcall(object.GetTop, object)
-        local okHeight, height = pcall(object.GetHeight, object)
-        if not (okTop and readable(value) and value and okHeight and readable(height)) then return end
-        -- Wide glows and highlights are not the bar.
-        if height > 150 then return end
-        local okScale, scale = pcall(object.GetEffectiveScale, object)
-        value = value * ((okScale and readable(scale) and scale) or plateScale) / plateScale
-        if not top or value > top then top = value end
-    end
-    local function frame(object, depth)
-        if object.foreverDexIcon or not shownAlpha(object) then return end
-        local okLevel, value = pcall(object.GetFrameLevel, object)
-        if okLevel and readable(value) and value > level then level = value end
-        local okStrata, name = pcall(object.GetFrameStrata, object)
-        if okStrata and readable(name) and (STRATA[name] or 0) > (STRATA[strata] or 0) then strata = name end
-        reach(object)
-        for _, region in ipairs({ object:GetRegions() }) do reach(region) end
-        if depth < 3 then
-            for _, child in ipairs({ object:GetChildren() }) do frame(child, depth + 1) end
-        end
-    end
-    for _, child in ipairs({ plate:GetChildren() }) do pcall(frame, child, 1) end
-    return top, level, strata
+    plateScale = plate:GetEffectiveScale()
+    measuredTop, measuredLevel, measuredStrata = nil, plate:GetFrameLevel(), plate:GetFrameStrata()
+    walkEach(1, plate:GetChildren())
+    return measuredTop, measuredLevel, measuredStrata
+end
+
+-- The game may forbid measuring a nameplate ("Can't measure restricted regions"),
+-- for instance a friendly plate it protects: its position must then never be read.
+local function restricted(plate)
+    if not plate.IsAnchoringRestricted then return false end
+    local ok, value = pcall(plate.IsAnchoringRestricted, plate)
+    return not ok or not readable(value) or value == true
 end
 
 local function place(icon, plate)
     local height = look.height
-    if blizzardBarShown(plate) then
+    if restricted(plate) or blizzardBarShown(plate) then
         icon.frame:SetPoint("CENTER", plate, "CENTER", 0, BLIZZARD_OFFSET + height)
         icon.frame:SetFrameStrata(plate:GetFrameStrata())
         icon.frame:SetFrameLevel(plate:GetFrameLevel() + 10)
         return
     end
-    local top, level, strata = measure(plate)
-    local _, centerY = plate:GetCenter()
+    local okMeasure, top, level, strata = pcall(measure, plate)
+    if not okMeasure then top, level, strata = nil, plate:GetFrameLevel(), plate:GetFrameStrata() end
+    -- Read under protection too: a plate can become restricted between two calls.
+    local okCenter, _, centerY = pcall(plate.GetCenter, plate)
+    if not okCenter or not readable(centerY) then centerY = nil end
     local offset = BLIZZARD_OFFSET
     if top and centerY then offset = top - centerY + 30 * look.size * 0.6 end
     icon.frame:SetPoint("CENTER", plate, "CENTER", 0, offset + height)
@@ -372,6 +410,8 @@ local function place(icon, plate)
     icon.frame:SetFrameLevel(math.max(plate:GetFrameLevel() + 10, level + 5))
 end
 
+-- Measuring a nameplate addon's bar walks its frames: the icon only does it when it
+-- changes plate, and then every REPLACE_GAP seconds at most, not on every tick.
 local function attach(unit, plate)
     local icon = icons[unit]
     if not icon then
@@ -379,6 +419,9 @@ local function attach(unit, plate)
         icon.frame.foreverDexIcon = true
         icons[unit] = icon
     end
+    local now = GetTime()
+    if icon.plate == plate and now - (icon.placedAt or 0) < REPLACE_GAP then return icon end
+    icon.plate, icon.placedAt = plate, now
     icon.frame:SetParent(plate)
     icon.frame:ClearAllPoints()
     if icon.frame.SetIgnoreParentAlpha then icon.frame:SetIgnoreParentAlpha(true) end
@@ -406,7 +449,7 @@ local function update(unit)
             play(attach(unit, plate), look.duration)
         elseif icon and active[icon] then
             entry.shown = now
-            place(icon, plate)
+            attach(unit, plate)
         end
     elseif range == false then
         if icon then stop(icon) end
@@ -432,8 +475,42 @@ end
 
 -- Pings -----------------------------------------------------------------------------
 
+-- A whisper to a player who has just logged out makes the game print "No player
+-- named ... is currently playing". The line comes from ForeverDex, not from anything
+-- the player did: it is hidden, and that player counts as not having the addon.
+local NOT_FOUND_GAP = 5 -- seconds during which the game's answer is expected
+local whispered = {}    -- [address] = time of our last whisper to it
+
 local function send(message, target)
+    whispered[target] = GetTime()
     return safe(C_ChatInfo.SendAddonMessage, PREFIX, message, "WHISPER", target)
+end
+
+local notFoundPattern
+local function notFoundName(message)
+    if notFoundPattern == nil then
+        local format = ERR_CHAT_PLAYER_NOT_FOUND_S
+        notFoundPattern = false
+        if type(format) == "string" and format:find("%s", 1, true) then
+            local escaped = format:gsub("[%(%)%.%+%-%*%?%[%]%^%$]", "%%%0")
+            notFoundPattern = "^" .. escaped:gsub("%%s", "(.+)") .. "$"
+        end
+    end
+    return notFoundPattern and message:match(notFoundPattern)
+end
+
+if ChatFrame_AddMessageEventFilter then
+    -- Called once per chat window showing system messages: the record is kept until
+    -- it expires, so that every window hides the line.
+    ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", function(_, _, message)
+        if not readable(message) or type(message) ~= "string" then return false end
+        local address = notFoundName(message)
+        local at = address and whispered[address]
+        if not at or GetTime() - at > NOT_FOUND_GAP then return false end
+        local entry = known[shortName(address)]
+        if entry then entry.has, entry.checked, entry.asking = false, GetTime(), nil end
+        return true
+    end)
 end
 
 local function wantPing(who)
@@ -446,7 +523,8 @@ end
 -- Queues a ping for the player on this unit (nameplate, mouseover or target),
 -- with the address the whisper expects.
 local function consider(unit)
-    if demo or not eligible(unit) or inRange(unit) == false then return end
+    -- Nothing is queued while the icons are off: the queue would only grow.
+    if demo or not look.show or not eligible(unit) or inRange(unit) == false then return end
     local name = safe(UnitName, unit)
     if not name or name == "" then return end
     local who = shortName(name)
@@ -456,6 +534,8 @@ local function consider(unit)
     entry.address = safe(GetUnitName, unit, true) or entry.address or name
     queued[who] = true
     queue[#queue + 1] = who
+    -- A crowded city must not pile up pings: the oldest ones are given up.
+    while #queue > QUEUE_MAX do queued[table.remove(queue, 1)] = nil end
 end
 
 -- Sends the next ping in the queue, if the moment allows it.
@@ -480,6 +560,26 @@ local function heard(who, address)
     updatePlayer(who)
 end
 
+-- Forgets the players not met for a long time, so that a session in town does not
+-- keep every name it ever saw. Those still on a plate or in the queue are kept.
+local lastPrune = 0
+local function prune(now)
+    if now - lastPrune < PRUNE_EVERY then return end
+    lastPrune = now
+    local onPlate = {}
+    for _, who in pairs(plates) do onPlate[who] = true end
+    for who, entry in pairs(known) do
+        local seen = math.max(entry.checked or 0, entry.asking or 0, entry.shown or 0)
+        if not onPlate[who] and not queued[who] and now - seen > FORGET_AFTER then known[who] = nil end
+    end
+    for who, at in pairs(answered) do
+        if now - at > ANSWER_GAP then answered[who] = nil end
+    end
+    for address, at in pairs(whispered) do
+        if now - at > NOT_FOUND_GAP then whispered[address] = nil end
+    end
+end
+
 local function tick()
     local now = GetTime()
     for _, entry in pairs(known) do
@@ -487,6 +587,7 @@ local function tick()
             entry.has, entry.checked, entry.asking = false, now, nil
         end
     end
+    prune(now)
     for unit in pairs(plates) do consider(unit) end
     pingNext(now)
     updateAll()
@@ -624,6 +725,60 @@ Settings.OnChange(function(key)
     if Presence.RefreshPreview then Presence.RefreshPreview() end
 end)
 
+-- Banner at the top of the screen while the demo runs: it says a test is running, and
+-- its button stops it and brings back the Collectors options. Built on the first demo
+-- only, and nothing is written in the chat. It can be dragged out of the way.
+local banner
+local function showBanner(shown)
+    if not shown then
+        if banner then banner:Hide() end
+        return
+    end
+    if not banner then
+        banner = CreateFrame("Frame", "ForeverDexPresenceDemo", UIParent, "BackdropTemplate")
+        banner:SetPoint("TOP", UIParent, "TOP", 0, -110)
+        banner:SetHeight(46)
+        banner:SetFrameStrata("HIGH")
+        banner:SetClampedToScreen(true)
+        banner:EnableMouse(true)
+        banner:SetMovable(true)
+        banner:RegisterForDrag("LeftButton")
+        banner:SetScript("OnDragStart", banner.StartMoving)
+        banner:SetScript("OnDragStop", banner.StopMovingOrSizing)
+        banner:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8X8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 14,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        })
+        banner:SetBackdropColor(0.05, 0.04, 0.03, 0.92)
+        banner:SetBackdropBorderColor(1, 0.82, 0.35, 0.9)
+        local orb = banner:CreateTexture(nil, "ARTWORK")
+        orb:SetSize(24, 24)
+        orb:SetPoint("LEFT", 10, 0)
+        Art.SmoothTexture(orb, MEDIA .. "Ball")
+        local title = banner:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        title:SetPoint("TOPLEFT", orb, "TOPRIGHT", 9, 4)
+        title:SetText(L.PRESENCE_DEMO_BANNER)
+        -- The icons hang from friendly nameplates: without them, nothing shows.
+        local hint = banner:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        hint:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
+        hint:SetTextColor(0.75, 0.72, 0.65)
+        hint:SetText(L.PRESENCE_DEMO_HINT)
+        local stopButton = CreateFrame("Button", nil, banner, "UIPanelButtonTemplate")
+        stopButton:SetSize(120, 22)
+        stopButton:SetPoint("RIGHT", -9, 0)
+        stopButton:SetText(L.PRESENCE_DEMO_STOP)
+        stopButton:SetScript("OnClick", function()
+            if demo then Presence.ToggleDemo() end
+            if Presence.OpenOptions then Presence.OpenOptions() end
+        end)
+        local textWidth = math.max(title:GetStringWidth(), hint:GetStringWidth())
+        banner:SetWidth(10 + 24 + 9 + textWidth + 18 + 120 + 9)
+    end
+    banner:Show()
+end
+
 function Presence.ToggleDemo()
     demo = not demo
     readLook()
@@ -632,45 +787,12 @@ function Presence.ToggleDemo()
     startTicker()
     scanPlates()
     updateAll()
-    DEFAULT_CHAT_FRAME:AddMessage(L.CHAT_PREFIX .. (demo and L.PRESENCE_DEMO_ON or L.PRESENCE_DEMO_OFF))
+    showBanner(demo)
     if Presence.RefreshDemoButton then Presence.RefreshDemoButton() end
 end
 
 function Presence.IsDemo()
     return demo
-end
-
--- /foreverdex presence debug: what the module sees, to understand a missing icon.
-function Presence.Debug()
-    local function say(text) DEFAULT_CHAT_FRAME:AddMessage("|cff63ded1ForeverDex|r presence: " .. text) end
-    local function show(value)
-        if value == nil then return "nil" end
-        if not readable(value) then return "(secret)" end
-        return tostring(value)
-    end
-    say(("demo=%s show=%s announce=%s combat=%s instance=%s ticker=%s queue=%d"):format(show(demo), show(look.show),
-        show(look.announce), show(inCombat()), show(inInstance()), show(ticker ~= nil), #queue))
-    local cvars = {}
-    for _, name in ipairs({ "nameplateShowFriends", "nameplateShowFriendlyPlayers", "nameplateShowAll", "nameplateMaxDistance" }) do
-        cvars[#cvars + 1] = name:gsub("nameplate", "") .. "=" .. show(getCVar(name))
-    end
-    say("cvars " .. table.concat(cvars, " "))
-    local total, listed = 0, 0
-    eachPlate(function(unit)
-        total = total + 1
-        if listed >= 6 or safe(UnitIsPlayer, unit) ~= true then return end
-        listed = listed + 1
-        local icon = icons[unit]
-        local entry = entryFor(plates[unit])
-        say(("%s name=%s tracked=%s attack=%s faction=%s range=%s has=%s icon=%s visible=%s"):format(
-            unit, show(safe(UnitName, unit)), show(plates[unit]), show(safe(UnitCanAttack, "player", unit)),
-            show(safe(UnitFactionGroup, unit)), show(inRange(unit)), show(entry and entry.has),
-            show(icon ~= nil), show(icon and icon.frame:IsVisible())))
-    end)
-    local tracked, shown = 0, 0
-    for _ in pairs(plates) do tracked = tracked + 1 end
-    for _ in pairs(icons) do shown = shown + 1 end
-    say(("plates=%d tracked=%d icons=%d"):format(total, tracked, shown))
 end
 
 -- Options page with a live preview ----------------------------------------------------
@@ -752,12 +874,17 @@ local replay = B.action(right, L.PRESENCE_REPLAY, 180, function()
     play(preview, look.duration)
 end)
 
--- In-game test: starts the demo and closes the options so the city shows.
+-- In-game test: starting it closes the options so the city shows; the banner at the
+-- top of the screen stops it and brings this page back.
 local demoButton = B.action(right, L.PRESENCE_DEMO, 180, function()
     local starting = not demo
     Presence.ToggleDemo()
     if starting and SettingsPanel and SettingsPanel:IsShown() and HideUIPanel then HideUIPanel(SettingsPanel) end
 end, L.PRESENCE_DEMO_TIP)
+
+function Presence.OpenOptions()
+    Settings.OpenPage(page)
+end
 
 function Presence.RefreshDemoButton()
     demoButton:SetText(demo and L.PRESENCE_DEMO_STOP or L.PRESENCE_DEMO)
