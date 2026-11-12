@@ -28,4 +28,9 @@ function ns.ApplyLanguage(choice)
     local active = ns.Locales[code] or en
     if active ~= en then setmetatable(active, { __index = en }) end
     ns.L = active
+    -- Changing the language needs a reload: the other translations are never read
+    -- again, and are let go instead of staying in memory for the whole session.
+    for other, strings in pairs(ns.Locales) do
+        if strings ~= active and strings ~= en then ns.Locales[other] = nil end
+    end
 end

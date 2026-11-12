@@ -7,6 +7,10 @@
 - "What's new" box summarizing the latest release
 - Short statistics: journal progress, captures of the last seven days, last capture, most captured class, favorite hunting ground and achievements
 - `/fdex home` opens the home page
+- Announcements: the guild, group or channel is checked again just before the message leaves, and a message is never sent anywhere else. A character without a guild or group simply sends nothing
+- Collectors: lighter on resources. The icon animation only runs while an icon is shown, the bar of nameplate addons is measured every few seconds instead of twice a second, pings no longer pile up while the icons are off, and players not met for 30 minutes are forgotten
+- Collectors test: a banner at the top of the screen says the test is running, instead of a long message in the chat. Its button stops the test and brings back the Collectors options
+- A detection ping sent to a player who has just logged out no longer prints "No player named … is currently playing"
 
 ## 1.7.8
 

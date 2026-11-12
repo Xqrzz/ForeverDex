@@ -20,7 +20,7 @@ local SIDE_W, MARGIN, GAP = 300, 16, 6
 local BOARD_W = window:GetWidth() - 16 - SIDE_W - GAP
 local BANNER_W, BANNER_H = BOARD_W - 2 * MARGIN, 214
 local TEXT_X = 116
-local NEWS_H, NEWS_LINES = 214, 6
+local NEWS_H = 214
 local STAT_ROWS, STAT_STEP, STAT_ICON = 6, 34, 24
 local SECTION_PAD = 14
 
@@ -122,20 +122,23 @@ version:SetJustifyH("RIGHT")
 version:SetText(L.HOME_VERSION:format(Home.NEWS_VERSION))
 
 -- One line per change, after a small gold diamond. The text is set once: it only
--- depends on the language, chosen before the modules load.
-local newsWidth = SIDE_W - 16 - 2 * SECTION_PAD - 14
-local previous
-for i = 1, NEWS_LINES do
-    local item = L.HOME_NEWS_LINES[i]
-    if not item then break end
+-- depends on the language, chosen before the modules load. The box keeps its size
+-- whatever the length of the release: each change is cut after NEWS_MAX_LINES lines,
+-- the changes that do not fit are left out, and "See all" lists every one of them.
+local NEWS_X, NEWS_GAP, NEWS_BOTTOM, NEWS_MAX_LINES, MORE_H = SECTION_PAD + 14, 9, 12, 3, 18
+local newsWidth = SIDE_W - 16 - SECTION_PAD - NEWS_X
+local newsItems = {}
+for i, item in ipairs(L.HOME_NEWS_LINES) do
     local line = text(news, "GameFontHighlightSmall", SOFT)
     line:SetWidth(newsWidth)
     line:SetJustifyV("TOP")
     line:SetSpacing(2)
-    if previous then
-        line:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -9)
-    else
+    if line.SetMaxLines then line:SetMaxLines(NEWS_MAX_LINES) end
+    -- Provisional chain, replaced by layoutNews once the lines can be measured.
+    if i == 1 then
         line:SetPoint("TOPLEFT", news.rule, "BOTTOMLEFT", 14, -13)
+    else
+        line:SetPoint("TOPLEFT", newsItems[i - 1].line, "BOTTOMLEFT", 0, -NEWS_GAP)
     end
     line:SetText(item)
     local dot = news:CreateTexture(nil, "ARTWORK")
@@ -143,7 +146,66 @@ for i = 1, NEWS_LINES do
     dot:SetColorTexture(1, 0.82, 0.35)
     if dot.SetRotation then dot:SetRotation(math.rad(45)) end
     dot:SetPoint("CENTER", line, "TOPLEFT", -9, -5)
-    previous = line
+    newsItems[i] = { line = line, dot = dot }
+end
+
+local more = CreateFrame("Button", nil, news)
+more:SetPoint("BOTTOMLEFT", NEWS_X, NEWS_BOTTOM - 2)
+more:SetHeight(MORE_H)
+more:Hide()
+local moreLabel = text(more, "GameFontNormalSmall")
+moreLabel:SetPoint("LEFT")
+moreLabel:SetText(L.HOME_NEWS_ALL:format(#newsItems))
+more:SetWidth(moreLabel:GetStringWidth() + 4)
+more:SetScript("OnEnter", function(self)
+    moreLabel:SetTextColor(1, 1, 1)
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(L.HOME_NEWS .. L.SEPARATOR .. L.HOME_VERSION:format(Home.NEWS_VERSION))
+    for _, item in ipairs(L.HOME_NEWS_LINES) do GameTooltip:AddLine("- " .. item, 1, 1, 1, true) end
+    GameTooltip:Show()
+end)
+more:SetScript("OnLeave", function()
+    moreLabel:SetTextColor(unpack(GOLD))
+    GameTooltip:Hide()
+end)
+
+-- Places the changes from the top of the box and keeps as many as fit. Font strings
+-- only have a height once the client has measured them: until then, it waits for
+-- the next refresh.
+local newsLaidOut
+local function layoutNews()
+    if newsLaidOut then return end
+    local titleHeight = news.title:GetStringHeight()
+    if not titleHeight or titleHeight <= 0 then return end
+    local heights = {}
+    for i, item in ipairs(newsItems) do
+        heights[i] = item.line:GetStringHeight()
+        if not heights[i] or heights[i] <= 0 then return end
+    end
+    local top = 13 + titleHeight + 7 + 1 + 13
+    local function fits(count, reserve)
+        local y = top
+        for i = 1, count do y = y + heights[i] + (i > 1 and NEWS_GAP or 0) end
+        return y <= NEWS_H - NEWS_BOTTOM - reserve
+    end
+    local shown = #newsItems
+    if not fits(shown, 0) then
+        shown = shown - 1
+        while shown > 0 and not fits(shown, MORE_H) do shown = shown - 1 end
+    end
+    local y = top
+    for i, item in ipairs(newsItems) do
+        local visible = i <= shown
+        item.line:SetShown(visible)
+        item.dot:SetShown(visible)
+        if visible then
+            item.line:ClearAllPoints()
+            item.line:SetPoint("TOPLEFT", news, "TOPLEFT", NEWS_X, -y)
+            y = y + heights[i] + NEWS_GAP
+        end
+    end
+    more:SetShown(shown < #newsItems)
+    newsLaidOut = true
 end
 
 -- Statistics ----------------------------------------------------------------------------
@@ -444,6 +506,7 @@ function HomeUI.Refresh()
     greeting:SetText(name and L.HOME_GREETING:format(name) or L.HOME_TAB)
     today:SetText(date(L.HOME_DATE_FORMAT))
     shownDay = date("%Y-%m-%d")
+    layoutNews()
     paintChallenge(Home.Challenge())
     paintStats(Home.Stats())
 end
@@ -455,6 +518,8 @@ local function tick()
     if date("%Y-%m-%d") ~= shownDay then HomeUI.Refresh() else paintCountdown() end
 end
 board:SetScript("OnShow", function()
+    -- The news lines are measured once on screen.
+    if C_Timer and C_Timer.After then C_Timer.After(0, layoutNews) end
     if not ticker and C_Timer and C_Timer.NewTicker then ticker = C_Timer.NewTicker(20, tick) end
 end)
 board:SetScript("OnHide", function()
