@@ -97,11 +97,14 @@ local function tooltipLines(unit)
     return lines
 end
 
+-- Full name of the character playing right now (first name and last name).
+local function playerName()
+    local first, surname = UnitFullName("player")
+    return surname and surname ~= "" and (first .. " " .. surname) or first
+end
+
 local function readOwner(unit)
-    if UnitIsUnit(unit, "pet") then
-        local first, surname = UnitFullName("player")
-        return surname and surname ~= "" and (first .. " " .. surname) or first
-    end
+    if UnitIsUnit(unit, "pet") then return playerName() end
     for _, line in ipairs(tooltipLines(unit)) do
         local owner = ownerFromLine(line)
         if owner then return owner end
@@ -172,6 +175,12 @@ local function save(entry, noThrow)
     entry.capturedAt = time()
     local zone = GetRealZoneText and GetRealZoneText()
     if readable(zone) and zone ~= "" then entry.zone = zone end
+    -- The collection is shared by every character of the account: the one who captured is kept.
+    local capturer = playerName()
+    if readable(capturer) and capturer and capturer ~= "" and capturer ~= UNKNOWNOBJECT then
+        local _, classToken = UnitClass("player")
+        entry.capturedBy, entry.capturedByClass = capturer, classToken
+    end
     ForeverDexDB.cards[entry.key] = entry
     -- A new card is announced on the ball's "click"; a replacement right away.
     if not isNew then Collection.Announce(entry, false) end

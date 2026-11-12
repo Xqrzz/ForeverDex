@@ -212,13 +212,16 @@ for offset = 0, 15 do accents[string.char(0xD0, 0x90 + offset)] = string.char(0x
 for offset = 0, 15 do accents[string.char(0xD0, 0xA0 + offset)] = string.char(0xD1, 0x80 + offset) end
 accents["Ё"] = "е"
 accents["ё"] = "е"
+-- Filter value for cards captured before the capturer was recorded.
+Catalog.UNKNOWN_CAPTURER = "?"
+
 local function normalize(value)
     -- Literal search, insensitive to case and common accents.
     return value:lower():gsub("[\194-\244][\128-\191]+", accents)
 end
 -- Produces the filtered view without changing the collection.
--- filters holds three checked sets: races, classes and sexes. Within a category,
--- one box is enough; across categories, all must match (Orc AND Shaman).
+-- filters holds checked sets: races, classes, sexes and, optionally, capturers. Within a
+-- category, one box is enough; across categories, all must match (Orc AND Shaman).
 -- Empty bonuses have no combination: when filtering, they only remain in the Bonus tab.
 local function allowed(set, value)
     return next(set) == nil or set[value]
@@ -229,6 +232,12 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
     local rows, filled = {}, 0
     local function add(slot, entry)
         local details, description = Catalog.Describe(slot, entry)
+        -- Capturer filter: only filled cards have one, older captures count as unknown.
+        local capturers = filters.capturers
+        if capturers and next(capturers)
+            and not (entry and capturers[entry.capturedBy or Catalog.UNKNOWN_CAPTURER]) then
+            return
+        end
         if slot.pet then
             -- The race, class and sex filters do not apply to pets.
         elseif details then
@@ -242,8 +251,9 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
         local name = entry and entry.name or ""
         local guild, zone = entry and entry.guild or "", entry and entry.zone or ""
         local owner = entry and entry.owner or ""
+        local capturedBy = entry and entry.capturedBy or ""
         local haystack = normalize(slot.race .. " " .. description .. " " .. name .. " " .. guild .. " " .. zone
-            .. " " .. owner)
+            .. " " .. owner .. " " .. capturedBy)
         if haystack:find(query, 1, true) then
             rows[#rows + 1] = {
                 slot = slot, entry = entry, details = details, description = description, name = normalize(name),
