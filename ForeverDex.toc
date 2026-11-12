@@ -23,6 +23,7 @@ CaptureVisuals.lua
 Duel.lua
 Combat.lua
 Presence.lua
+Share.lua
 UI.lua
 AchievementsUI.lua
 ForeverDex.lua

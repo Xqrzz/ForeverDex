@@ -14,6 +14,7 @@
 | `CaptureVisuals.lua` | Capture animation and the notification rising from the bottom of the screen. |
 | `Duel.lua` | Comparison between two ForeverDex users: request, agreement, exchange over whispered addon messages, and the duel screen. |
 | `Presence.lua` | Glowing icon above nearby ForeverDex players: ping and answer over whispered addon messages, icon hung from the nameplates the player already shows (their nameplate settings are never changed), tooltip line, and its settings page with a live preview. |
+| `Share.lua` | Announcements of captures and achievements to other players (guild, group or a custom channel), off by default: channel checks that always refuse the Blizzard channels and /1 /2, message templates with `{fields}`, cooldown, and its settings page. A message is prepared during the player's click and sent when the capture is revealed; a custom channel message leaves at once, since the game may only accept it during a click. |
 | `UI.lua` | Adventure Guide style window: race list, card grid, detail page, tabs and capture. |
 | `ForeverDex.lua` | Initialization once saved data is loaded, game events, slash command and minimap button. |
 
