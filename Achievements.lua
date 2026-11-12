@@ -408,12 +408,15 @@ end
 function Achievements.OnCollectionChanged(_, isNew, noThrow)
     local fresh = Achievements.Check()
     if #fresh == 0 then return end
+    -- Prepared now, while the player's click is still running: see Share.Achievements.
+    local share = ns.Share.Achievements(fresh)
     local delay = 0.5
     if isNew and not noThrow then
         local mode = ns.Settings.Get("animation")
         delay = mode == "full" and 6.5 or mode == "quick" and 3.5 or 0.5
     end
     C_Timer.After(delay, function()
+        share()
         for _, achievement in ipairs(fresh) do
             print(L.CHAT_PREFIX .. L.ACH_EARNED:format(achievement.name))
             if ns.Settings.Get("achievementToast") then showAlert(achievement) end

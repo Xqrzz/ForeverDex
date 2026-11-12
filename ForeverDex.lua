@@ -55,6 +55,7 @@ BINDING_NAME_FOREVERDEX_TOGGLE = L.BINDING_TOGGLE
 -- "/foreverdex collectors" (or "presence") lists the nearby players known to have ForeverDex,
 -- "/foreverdex collectors demo" shows the icon above every friendly player nearby.
 -- "/foreverdex achievements" (or "hf") opens the achievements page.
+-- "/foreverdex share" opens the settings of the announcements to other players.
 SlashCmdList.FOREVERDEX = function(message)
     if message and message:lower():match("^%s*capt") then
         ns.Collection.Capture()
@@ -74,6 +75,8 @@ SlashCmdList.FOREVERDEX = function(message)
         end
     elseif message and message:lower():match("^%s*duel") then
         ns.Duel.ToggleTrace()
+    elseif message and message:lower():match("^%s*share") then
+        ns.Share.OpenSettings()
     elseif message and message:lower():match("^%s*opt") then
         ns.Settings.Open()
     else

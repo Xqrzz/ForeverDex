@@ -33,6 +33,18 @@ local DEFAULTS = {
     presenceRange = 30,        -- detection distance in yards: 10, 30 or 40
     presenceHeight = 0,        -- pixels added to the icon's height above the bar
     presenceDuration = 0,      -- 0 = permanent, otherwise seconds of the ping
+    -- Share: captures and achievements announced to other players (Share.lua).
+    shareCaptures = false,
+    shareCaptureChannel = "guild",     -- guild, group, custom
+    shareCaptureScope = "new",         -- new (first card only), all (replacements too)
+    shareBonus = true,
+    sharePets = true,
+    shareAchievements = false,
+    shareAchievementChannel = "guild", -- guild, group, custom
+    shareAchievementMin = 0,           -- minimum points of an announced achievement
+    shareCustomChannel = "",           -- name of a channel the player joined, never an official one
+    shareCooldown = 30,                -- seconds between two announcements of the same kind
+    shareTag = true,                   -- "[ForeverDex]" in front of the message
 }
 Settings.DEFAULTS = DEFAULTS
 
@@ -294,6 +306,49 @@ local function slider(spot, key, label, low, high, step, format, description)
     return bar
 end
 
+-- One-line text field: label, then the box. The value is saved trimmed on Enter or when
+-- the box loses focus; Escape puts the saved value back.
+local function input(spot, key, label, description, maxLetters)
+    local text = spot.frame:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    text:SetJustifyH("LEFT")
+    text:SetText(label)
+    place(spot, text, 20, 4)
+    local box, native = create("EditBox", spot.frame, "InputBoxTemplate")
+    box:SetSize(214, 22)
+    box:SetAutoFocus(false)
+    box:SetMaxLetters(maxLetters or 64)
+    if not native then box:SetFontObject("ChatFontNormal") end
+    -- The template draws its left border outside the box.
+    place(spot, box, 28, 10)
+    local function commit(self)
+        local value = (self:GetText() or ""):match("^%s*(.-)%s*$")
+        self:SetText(value)
+        if Settings.Get(key) ~= value then Settings.Set(key, value) end
+    end
+    box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    box:SetScript("OnEscapePressed", function(self)
+        self:SetText(Settings.Get(key) or "")
+        self:ClearFocus()
+    end)
+    box:SetScript("OnEditFocusLost", commit)
+    if description then tooltip(box, label, description) end
+    controls[#controls + 1] = function()
+        if not box:HasFocus() then box:SetText(Settings.Get(key) or "") end
+    end
+    return box
+end
+
+-- Small grey text wrapped to the column width, for hints under a group of controls.
+local function note(spot, value, height)
+    local text = spot.frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    text:SetWidth(COLUMN_W - 8)
+    text:SetJustifyH("LEFT")
+    text:SetTextColor(0.75, 0.75, 0.75)
+    text:SetText(value)
+    place(spot, text, height, 4)
+    return text
+end
+
 local function action(spot, label, width, onClick, description)
     local control = CreateFrame("Button", nil, spot.frame, "UIPanelButtonTemplate")
     control:SetSize(width, 24)
@@ -487,7 +542,7 @@ end
 
 Settings.Builder = {
     section = section, checkbox = checkbox, choice = choice, slider = slider,
-    action = action, tooltip = tooltip, place = place,
+    input = input, note = note, action = action, tooltip = tooltip, place = place,
 }
 Settings.Panel = panel
 end)

@@ -102,6 +102,7 @@ local function playerName()
     local first, surname = UnitFullName("player")
     return surname and surname ~= "" and (first .. " " .. surname) or first
 end
+Collection.PlayerName = playerName
 
 local function readOwner(unit)
     if UnitIsUnit(unit, "pet") then return playerName() end
@@ -169,6 +170,10 @@ function Collection.Initialize(onCollectionChanged)
     end
 end
 
+-- Announcements to other players (Share.lua), prepared at the capture and sent
+-- by Collection.Announce, when the capture is revealed.
+local pendingShares = setmetatable({}, { __mode = "k" })
+
 -- noThrow: the capture does not come from a portrait, so no ball throw.
 local function save(entry, noThrow)
     local isNew = ForeverDexDB.cards[entry.key] == nil
@@ -182,6 +187,8 @@ local function save(entry, noThrow)
         entry.capturedBy, entry.capturedByClass = capturer, classToken
     end
     ForeverDexDB.cards[entry.key] = entry
+    -- Prepared now, while the player's click is still running: see Share.Capture.
+    pendingShares[entry] = ns.Share.Capture(entry, isNew)
     -- A new card is announced on the ball's "click"; a replacement right away.
     if not isNew then Collection.Announce(entry, false) end
     onChanged(entry, isNew, noThrow)
@@ -189,8 +196,14 @@ end
 
 -- Pokémon-style capture message, visible only in the player's own chat.
 -- The name takes its class color; the sentence is picked at random.
+-- The announcement to other players, if any, leaves at the same moment.
 local lastLine
 function Collection.Announce(entry, isNew)
+    local share = pendingShares[entry]
+    if share then
+        pendingShares[entry] = nil
+        share()
+    end
     if not ns.Settings.Get("chatMessage") then return end
     local lines = isNew and L.CAPTURE_LINES or L.REPLACE_LINES
     local index = math.random(#lines)
