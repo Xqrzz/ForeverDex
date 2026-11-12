@@ -1,10 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.7.7
 
 - Each new capture remembers which of your characters made it, shown on its detail page as "Captured by"
 - New "Captured by" filter, under Gender, as soon as cards were captured by at least two characters (older captures are listed as Unknown)
 - Search also looks at the capturing character
+- Achievements: 34 ForeverDex achievements for the number of captures, every race and every class seen, each race, class and gender completed, the full journal, the bonus slots and the pets. They are announced with an alert in the style of the game's achievements, its fanfare, and a line in the chat
+- What your collection already deserves is granted silently the first time, without a flood of alerts
+- Achievements page, through a new tab on the right of the window: your points out of the total on a bar, the categories in a column like the races, and the achievements of each one on parchment sheets with their own progress bar, the ones still to earn greyed out. `/fdex achievements` (or `/fdex hf`) and a click on the alert open it too
+- New setting to turn the achievement alert off
+- The cards no longer overlap the carved top edge of the journal background, and its empty scroll bar rail on the right is no longer shown
 
 ## 1.7.6
 

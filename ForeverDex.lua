@@ -9,7 +9,13 @@ events:SetScript("OnEvent", function(self, event, name)
         local saved = ForeverDexDB and ForeverDexDB.settings
         ns.ApplyLanguage(saved and saved.language)
         for _, load in ipairs(ns.Modules) do load() end
-        ns.Collection.Initialize(ns.UI.Refresh)
+        -- Achievements first: the refresh then shows them already unlocked.
+        ns.Collection.Initialize(function(...)
+            ns.Achievements.OnCollectionChanged(...)
+            ns.UI.Refresh(...)
+        end)
+        -- What the collection already deserves is granted without alerts.
+        ns.Achievements.Check(true)
         ns.UI.RestoreView()
         ns.PlaceMinimapButton()
         ns.Settings.ApplyAll()
@@ -48,9 +54,12 @@ BINDING_NAME_FOREVERDEX_TOGGLE = L.BINDING_TOGGLE
 -- "/foreverdex capture" captures the target, like the ball (key binding, macro).
 -- "/foreverdex collectors" (or "presence") lists the nearby players known to have ForeverDex,
 -- "/foreverdex collectors demo" shows the icon above every friendly player nearby.
+-- "/foreverdex achievements" (or "hf") opens the achievements page.
 SlashCmdList.FOREVERDEX = function(message)
     if message and message:lower():match("^%s*capt") then
         ns.Collection.Capture()
+    elseif message and (message:lower():match("^%s*achiev") or message:lower():match("^%s*hf%s*$")) then
+        ns.UI.ShowAchievements()
     elseif message and message:lower():match("^%s*textures") then
         ns.Art.Report()
     elseif message and message:lower():match("^%s*compar") then

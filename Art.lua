@@ -177,6 +177,82 @@ function Art.ProgressBar(parent, width, height, bordered)
     return bar
 end
 
+-- Building blocks shared by the journal and the achievements page ------------------------
+
+-- Sunken panel of the journal (race column, cards): the game's inset frame, or a dark
+-- box with a thin gold border when the client lacks the template.
+function Art.Inset(parent)
+    local ok, frame = pcall(CreateFrame, "Frame", nil, parent, "InsetFrameTemplate")
+    if ok and frame then return frame end
+    frame = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    frame:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8X8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    frame:SetBackdropColor(0.05, 0.04, 0.03, 0.95)
+    frame:SetBackdropBorderColor(0.55, 0.45, 0.3)
+    return frame
+end
+
+-- Painted Adventure Guide background inside an inset, under a light veil. The art ends
+-- with the scroll bar rail of the Adventure Guide (its last 4 %): without a scroll bar,
+-- it looks like the background is cut off, so it is cropped away. Its carved recess
+-- starts about 50 px from the top: content goes below that.
+Art.JOURNAL_RECESS = 58
+function Art.JournalBackground(frame)
+    local art = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
+    art:SetPoint("TOPLEFT", 3, -3)
+    art:SetPoint("BOTTOMRIGHT", -3, 3)
+    Art.Apply(art, Art.JOURNAL_BG)
+    local KEEP = 0.96
+    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("UI-EJ-Classic")
+    local file = info and (info.file or info.filename)
+    if file then
+        local left, right = info.leftTexCoord, info.rightTexCoord
+        art:SetTexture(file)
+        art:SetTexCoord(left, left + (right - left) * KEEP, info.topTexCoord, info.bottomTexCoord)
+    else
+        art:SetTexCoord(0, KEEP, 0, 1)
+    end
+    local veil = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
+    veil:SetAllPoints(art)
+    veil:SetColorTexture(0, 0, 0, 0.3)
+    return art
+end
+
+-- Row of a side list, like the races of the journal: background, selection and hover
+-- borrowed from the Pet Journal, an icon, a gold name, a count and a thin bar.
+function Art.ListRow(parent, width, height)
+    local row = CreateFrame("Button", nil, parent)
+    row:SetSize(width, height)
+    local back = row:CreateTexture(nil, "BACKGROUND")
+    back:SetAllPoints()
+    Art.Apply(back, Art.ROW_BG)
+    row.selected = row:CreateTexture(nil, "BORDER")
+    row.selected:SetAllPoints()
+    Art.Apply(row.selected, Art.ROW_SELECTED)
+    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints()
+    Art.Apply(highlight, Art.ROW_HIGHLIGHT)
+    row.icon = row:CreateTexture(nil, "ARTWORK")
+    row.icon:SetSize(28, 28)
+    row.icon:SetPoint("LEFT", 5, 0)
+    row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    row.name:SetJustifyH("LEFT")
+    row.name:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 7, -1)
+    row.name:SetWidth(width - 76)
+    row.name:SetWordWrap(false)
+    row.count = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    row.count:SetPoint("TOPRIGHT", -6, -7)
+    row.count:SetJustifyH("RIGHT")
+    row.bar = Art.ProgressBar(row, 10, 5)
+    row.bar:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 7, 2)
+    row.bar:SetPoint("RIGHT", -6, 0)
+    return row
+end
+
 -- Crops an image to fill a box without distorting it.
 -- The vertical crop stays slightly above center, where the scenery is.
 local function crop(texture, left, right, top, bottom, sourceWidth, sourceHeight, boxWidth, boxHeight)

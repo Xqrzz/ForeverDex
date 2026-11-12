@@ -9,6 +9,7 @@ local DEFAULTS = {
     animation = "full",       -- full, quick, off
     chatMessage = true,
     toast = true,
+    achievementToast = true,
     sounds = true,
     confirmReplace = true,
     language = "auto",
@@ -314,6 +315,7 @@ choice(left, "animation", L.SETTINGS_ANIMATION, {
 }, L.SETTINGS_ANIMATION_TIP)
 checkbox(left, "chatMessage", L.SETTINGS_CHAT, L.SETTINGS_CHAT_TIP)
 checkbox(left, "toast", L.SETTINGS_TOAST, L.SETTINGS_TOAST_TIP)
+checkbox(left, "achievementToast", L.SETTINGS_ACHIEVEMENTS, L.SETTINGS_ACHIEVEMENTS_TIP)
 checkbox(left, "sounds", L.SETTINGS_SOUNDS, L.SETTINGS_SOUNDS_TIP)
 checkbox(left, "confirmReplace", L.SETTINGS_CONFIRM, L.SETTINGS_CONFIRM_TIP)
 

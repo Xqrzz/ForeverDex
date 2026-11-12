@@ -14,6 +14,9 @@ local INK = { 0.24, 0.13, 0.05 }
 local COVER_COORDS = { 0, 0.68359375, 0, 0.7421875 }
 
 local page, sortMode, viewMode, detailKey, pendingReveal = 1, 1, 1, nil, nil
+-- "collection" (the journal) or "achievements" (the page of AchievementsUI.lua),
+-- switched by the side tabs on the right of the window.
+local mode = "collection"
 local filters = { races = {}, classes = {}, sexes = {}, capturers = {} }
 local refresh, updateTarget
 
@@ -313,8 +316,7 @@ end
 
 -- Race column --------------------------------------------------------------
 
-local sidebar, nativeSidebar = create("Frame", nil, panel, "InsetFrameTemplate", "BackdropTemplate")
-if not nativeSidebar then styleInset(sidebar) end
+local sidebar = Art.Inset(panel)
 sidebar:SetPoint("TOPLEFT", 8, -72)
 sidebar:SetPoint("BOTTOMLEFT", 8, 8)
 sidebar:SetWidth(186)
@@ -324,40 +326,16 @@ local raceRows = { { name = L.ALL_RACES, icon = "Interface\\Icons\\INV_Misc_Book
 for _, race in ipairs(Catalog.races) do raceRows[#raceRows + 1] = race end
 
 for i, filter in ipairs(raceRows) do
-    local row = CreateFrame("Button", nil, sidebar)
-    row:SetSize(172, 38)
+    local row = Art.ListRow(sidebar, 172, 38)
     row:SetPoint("TOPLEFT", 7, -7 - (i - 1) * 40)
     row.filter = filter
-    local back = row:CreateTexture(nil, "BACKGROUND")
-    back:SetAllPoints()
-    Art.Apply(back, Art.ROW_BG)
-    row.selected = row:CreateTexture(nil, "BORDER")
-    row.selected:SetAllPoints()
-    Art.Apply(row.selected, Art.ROW_SELECTED)
-    local highlight = row:CreateTexture(nil, "HIGHLIGHT")
-    highlight:SetAllPoints()
-    Art.Apply(highlight, Art.ROW_HIGHLIGHT)
-
-    row.icon = row:CreateTexture(nil, "ARTWORK")
-    row.icon:SetSize(28, 28)
-    row.icon:SetPoint("LEFT", 5, 0)
     if filter.id and Art.HasAtlas(filter.icon) then
         row.icon:SetAtlas(filter.icon)
     else
         row.icon:SetTexture(filter.id and (filter.fallbackIcon or "Interface\\Icons\\INV_Misc_QuestionMark") or filter.icon)
         row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
-    row.name = text(row, "GameFontNormal")
-    row.name:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 7, -1)
-    row.name:SetWidth(96)
-    row.name:SetWordWrap(false)
     row.name:SetText(filter.name)
-    row.count = text(row, "GameFontHighlightSmall")
-    row.count:SetPoint("TOPRIGHT", -6, -7)
-    row.count:SetJustifyH("RIGHT")
-    row.bar = Art.ProgressBar(row, 10, 5)
-    row.bar:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 7, 2)
-    row.bar:SetPoint("RIGHT", -6, 0)
     row:SetScript("OnClick", function(self)
         -- The list picks a single race; the Filters panel lets you check several.
         wipe(filters.races)
@@ -385,17 +363,10 @@ compare:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 -- Main area ---------------------------------------------------------------
 
-local content, nativeContent = create("Frame", nil, panel, "InsetFrameTemplate", "BackdropTemplate")
-if not nativeContent then styleInset(content) end
+local content = Art.Inset(panel)
 content:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 6, 0)
 content:SetPoint("BOTTOMRIGHT", -8, 8)
-local journalArt = content:CreateTexture(nil, "BACKGROUND", nil, 1)
-journalArt:SetPoint("TOPLEFT", 3, -3)
-journalArt:SetPoint("BOTTOMRIGHT", -3, 3)
-Art.Apply(journalArt, Art.JOURNAL_BG)
-local veil = content:CreateTexture(nil, "BACKGROUND", nil, 2)
-veil:SetAllPoints(journalArt)
-veil:SetColorTexture(0, 0, 0, 0.3)
+Art.JournalBackground(content)
 
 -- Breadcrumb in the style of the Adventure Guide navigation bar.
 local crumbs = {}
@@ -614,8 +585,10 @@ local function openCardMenu(card)
     end)
 end
 
+-- The Adventure Guide art has a carved recess whose top edge sits about 50 px down:
+-- the grid starts below it.
 local grid = CreateFrame("Frame", nil, content)
-grid:SetPoint("TOP", 0, -36)
+grid:SetPoint("TOP", 0, -Art.JOURNAL_RECESS)
 grid:SetSize(COLUMNS * CARD_W + (COLUMNS - 1) * GAP, 3 * CARD_H + 2 * GAP)
 
 local cards = {}
@@ -763,8 +736,8 @@ empty:SetText(L.NO_RESULTS)
 
 -- Pagination: spellbook arrows and mouse wheel.
 local pager = CreateFrame("Frame", nil, content)
-pager:SetPoint("BOTTOMLEFT", 8, 6)
-pager:SetPoint("BOTTOMRIGHT", -8, 6)
+pager:SetPoint("BOTTOMLEFT", 14, 10)
+pager:SetPoint("BOTTOMRIGHT", -14, 10)
 pager:SetHeight(32)
 local results = text(pager, "GameFontNormalSmall", 0.85, 0.75, 0.55)
 results:SetPoint("LEFT", 8, 0)
@@ -1046,7 +1019,7 @@ for i, name in ipairs(tabNames) do
         tab:SetPoint("LEFT", tabs[i - 1], "RIGHT", (not native or tab.LeftActive) and 3 or -15, 0)
     end
     tab:SetScript("OnClick", function(self)
-        viewMode, page, detailKey = self:GetID(), 1, nil
+        mode, viewMode, page, detailKey = "collection", self:GetID(), 1, nil
         Art.Sound("IG_CHARACTER_INFO_TAB")
         refresh()
         updateTarget()
@@ -1077,8 +1050,28 @@ local function updatePortraits(target)
     end
 end
 
+-- Parts of the window that belong to the journal: hidden on the achievements page.
+local journalParts = { sidebar, content, counts, percent, progress, panelCapture, sortButton, filterButton, search }
+
+-- Returns true when the achievements page took the place of the journal.
+local function showMode()
+    local achievements = mode == "achievements"
+    for _, part in ipairs(journalParts) do part:SetShown(not achievements) end
+    if achievements then filterFrame:Hide() end
+    if ns.AchievementsUI then ns.AchievementsUI.SetShown(achievements) end
+    if not achievements then return false end
+    -- No bottom tab is selected while the achievements are shown.
+    if nativeTabs and PanelTemplates_SetTab then
+        PanelTemplates_SetTab(panel, 0)
+    else
+        for _, tab in ipairs(tabs) do tab:SetEnabled(true) end
+    end
+    return true
+end
+
 refresh = function()
     if not ForeverDexDB then return end
+    if showMode() then return end
     local entries = ForeverDexDB.cards
     local view = ForeverDexDB.view
     if view then view.sort, view.tab = sortMode, viewMode end
@@ -1462,5 +1455,18 @@ ns.UI = {
     end,
     UpdateTarget = updateTarget,
     Toggle = function() panel:SetShown(not panel:IsShown()) end,
+    -- For AchievementsUI.lua: the window, the area its page covers, and the mode.
+    Window = panel,
+    PageArea = { sidebar, content },
+    Mode = function() return mode end,
+    SetMode = function(newMode)
+        mode, detailKey = newMode, nil
+        refresh()
+    end,
+    -- Opens the window on the achievements page (achievement alert, /fdex achievements).
+    ShowAchievements = function()
+        mode, detailKey = "achievements", nil
+        if panel:IsShown() then refresh() else panel:Show() end
+    end,
 }
 end)

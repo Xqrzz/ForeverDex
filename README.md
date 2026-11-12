@@ -9,6 +9,7 @@ A collection journal for World of Warcraft: Forever. Meet a player with a funny 
 - **Detail page for each capture**: date, zone, level and guild when the game provides them, and which of your characters made the capture
 - **Search by name, guild or zone**, with filters (race, class, gender, capturing character) and sorting that are remembered between sessions, plus a Favorites tab
 - **Duels**: compare your collection with another ForeverDex user
+- **Achievements**: 34 goals (captures, races, classes, genders, pets…) announced with an achievement-style alert
 - Available in **English, French, German, Spanish, Italian, Portuguese and Russian**, with a language setting independent of the game client
 
 ## Installation
@@ -38,6 +39,7 @@ Open the journal with the minimap icon or `/foreverdex`.
 | `/fdex compare` | Compare collections with your target (works in macros) |
 | `/fdex collectors` | List the nearby players who have ForeverDex (`/fdex presence` also works) |
 | `/fdex collectors demo` | Show the icon above every friendly player nearby, to try it out (nothing is sent) |
+| `/fdex achievements` or `/fdex hf` | Open the achievements page (also the tab on the right of the window) |
 | `/fdex options` | Open the settings |
 
 Capturing the target, comparing collections with it and opening the journal can also be bound to a key or a controller button, under Options → Keybindings → AddOns → ForeverDex.
