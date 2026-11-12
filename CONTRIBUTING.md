@@ -42,6 +42,8 @@ A page replaces the journal in the window: it covers `ns.UI.PageArea`, provides 
 
 ## Releases
 
+The changelog of a release lists only what a player notices: additions, removals, important changes and bug fixes, one short line each. Small adjustments are never detailed: they share one generic last line ("Various interface improvements"). `CHANGELOG.md`, the GitHub release notes and `HOME_NEWS_LINES` in every locale carry the same entries.
+
 Before a release, update `Home.NEWS_VERSION` in `Home.lua` and `HOME_NEWS_LINES` in every locale: they make the news window. `ForeverDexDB.seenVersion` remembers the last version the player logged in with: the login message mentions the news only once after an update.
 
 ## Comparison compatibility

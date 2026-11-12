@@ -444,9 +444,13 @@ ns.Locales.ptBR = {
         "O próximo nome lendário pode estar na fila da casa de leilões agora mesmo.",
     },
     HOME_NEWS_LINES = {
-        "Nova página inicial, a primeira tela de cada sessão: desafio do dia, novidades e estatísticas.",
-        "Desafio do dia: uma raça, uma classe e um gênero para procurar, um novo a cada dia. Nada a ganhar, só uma ideia para a sua caçada.",
-        "Estatísticas num relance: progresso do diário, capturas recentes, classe e terreno de caça favoritos.",
-        "/fdex home abre a página inicial a qualquer momento.",
+        "Nova página inicial, a primeira tela de cada sessão: desafio do dia, estatísticas e novidades da versão (/fdex home).",
+        "Desafio do dia: uma raça, uma classe e um gênero para procurar a cada dia, só por diversão.",
+        "Janela de novidades, aberta pela página inicial ou com /fdex news. Depois de uma atualização, a mensagem de conexão a menciona uma vez.",
+        "Anúncios: a guilda, o grupo ou o canal é verificado de novo logo antes do envio.",
+        "Teste de colecionadores: uma faixa no topo da tela mostra que o teste está em andamento e permite pará-lo.",
+        "Corrigido um erro quando o ícone de colecionadores era colocado em uma placa de nome protegida.",
+        "Corrigida a mensagem “Nenhum jogador chamado… está jogando no momento” causada pela detecção de colecionadores.",
+        "Mais leve em memória e desempenho, e várias melhorias na interface.",
     },
 }

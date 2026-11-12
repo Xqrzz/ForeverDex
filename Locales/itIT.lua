@@ -444,9 +444,13 @@ ns.Locales.itIT = {
         "Il prossimo nome leggendario potrebbe essere in fila alla casa d’aste proprio adesso.",
     },
     HOME_NEWS_LINES = {
-        "Nuova pagina iniziale, la prima schermata di ogni sessione: sfida del giorno, novità e statistiche.",
-        "Sfida del giorno: una razza, una classe e un genere da cercare, una nuova ogni giorno. Niente da vincere, solo un’idea per la tua caccia.",
-        "Statistiche a colpo d’occhio: progressi del diario, catture recenti, classe e terreno di caccia preferiti.",
-        "/fdex home apre la pagina iniziale in qualsiasi momento.",
+        "Nuova pagina iniziale, la prima schermata di ogni sessione: sfida del giorno, statistiche e novità della versione (/fdex home).",
+        "Sfida del giorno: una razza, una classe e un genere da cercare ogni giorno, solo per divertimento.",
+        "Finestra delle novità, aperta dalla pagina iniziale o con /fdex news. Dopo un aggiornamento, il messaggio di accesso la segnala una volta.",
+        "Annunci: la gilda, il gruppo o il canale viene ricontrollato subito prima dell’invio.",
+        "Test dei collezionisti: un banner in cima allo schermo indica che il test è in corso e permette di fermarlo.",
+        "Corretto un errore quando l’icona dei collezionisti veniva posizionata su una barra dei nomi protetta.",
+        "Corretto il messaggio «Nessun giocatore di nome… è attualmente in gioco» causato dal rilevamento dei collezionisti.",
+        "Più leggero in memoria e prestazioni, e vari miglioramenti dell’interfaccia.",
     },
 }

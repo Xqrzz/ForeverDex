@@ -444,9 +444,13 @@ ns.Locales.esES = {
         "Puede que el próximo nombre legendario esté haciendo cola en la casa de subastas ahora mismo.",
     },
     HOME_NEWS_LINES = {
-        "Nueva página de inicio, la primera pantalla de cada sesión: desafío del día, novedades y estadísticas.",
-        "Desafío del día: una raza, una clase y un género que buscar, uno nuevo cada día. Nada que ganar, solo una idea para tu caza.",
-        "Estadísticas de un vistazo: progreso del diario, capturas recientes, clase y terreno de caza favoritos.",
-        "/fdex home abre la página de inicio en cualquier momento.",
+        "Nueva página de inicio, la primera pantalla de cada sesión: desafío del día, estadísticas y novedades de la versión (/fdex home).",
+        "Desafío del día: una raza, una clase y un género que buscar cada día, solo por diversión.",
+        "Ventana de novedades, que se abre desde la página de inicio o con /fdex news. Tras una actualización, el mensaje de conexión la menciona una vez.",
+        "Anuncios: la hermandad, el grupo o el canal se comprueba de nuevo justo antes del envío.",
+        "Prueba de coleccionistas: un aviso en la parte superior de la pantalla indica que la prueba está en curso y permite detenerla.",
+        "Corregido un error cuando el icono de coleccionistas se colocaba en una placa de nombre protegida.",
+        "Corregido el mensaje «No hay ningún jugador llamado…» causado por la detección de coleccionistas.",
+        "Menor consumo de memoria y de rendimiento, y varias mejoras de la interfaz.",
     },
 }

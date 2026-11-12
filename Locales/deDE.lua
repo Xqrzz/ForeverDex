@@ -444,9 +444,13 @@ ns.Locales.deDE = {
         "Der nächste legendäre Name steht vielleicht gerade am Auktionshaus Schlange.",
     },
     HOME_NEWS_LINES = {
-        "Neue Startseite, der erste Bildschirm jeder Sitzung: tägliche Herausforderung, Neuigkeiten und Statistiken.",
-        "Tägliche Herausforderung: jeden Tag eine neue Kombination aus Volk, Klasse und Geschlecht. Nichts zu gewinnen, nur eine Idee für deine Jagd.",
-        "Statistiken auf einen Blick: Fortschritt, neue Fänge, Lieblingsklasse und Jagdgebiet.",
-        "/fdex home öffnet die Startseite jederzeit.",
+        "Neue Startseite, der erste Bildschirm jeder Sitzung: tägliche Herausforderung, Statistiken und Neuigkeiten der Version (/fdex home).",
+        "Tägliche Herausforderung: jeden Tag ein Volk, eine Klasse und ein Geschlecht zum Suchen, einfach zum Spaß.",
+        "Neuigkeiten-Fenster, über die Startseite oder mit /fdex news zu öffnen. Nach einem Update weist die Anmeldenachricht einmal darauf hin.",
+        "Ankündigungen: Gilde, Gruppe oder Kanal werden direkt vor dem Senden erneut geprüft.",
+        "Sammler-Test: Ein Banner oben am Bildschirm zeigt den laufenden Test an und beendet ihn.",
+        "Fehler behoben, wenn das Sammler-Symbol auf einer geschützten Namensplakette platziert wurde.",
+        "Die von der Sammler-Erkennung verursachte Meldung „Es gibt keinen Spieler namens …“ wurde behoben.",
+        "Weniger Speicher- und Leistungsbedarf sowie verschiedene Verbesserungen der Oberfläche.",
     },
 }

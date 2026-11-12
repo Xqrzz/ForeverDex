@@ -9,7 +9,7 @@ ns.Home = Home
 
 -- Release summarized by the "What's new" box. Its lines are translated in each
 -- locale (HOME_NEWS_LINES): update both before a release.
-Home.NEWS_VERSION = "1.8.0"
+Home.NEWS_VERSION = "1.7.9"
 
 local DAY = 86400
 local RECENT = 7 * DAY

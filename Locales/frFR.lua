@@ -444,9 +444,13 @@ ns.Locales.frFR = {
         "Le prochain nom légendaire fait peut-être la queue à l’hôtel des ventes en ce moment même.",
     },
     HOME_NEWS_LINES = {
-        "Nouvelle page d’accueil, premier écran de chaque session : défi du jour, nouveautés et statistiques.",
-        "Défi du jour : une race, une classe et un sexe à chercher, un nouveau chaque jour. Rien à gagner, juste une piste pour votre chasse.",
-        "Statistiques en un coup d’œil : progression du carnet, captures récentes, classe et terrain de chasse favoris.",
-        "/fdex home ouvre la page d’accueil à tout moment.",
+        "Nouvelle page d’accueil, premier écran de chaque session : défi du jour, statistiques et nouveautés de la version (/fdex home).",
+        "Défi du jour : une race, une classe et un sexe à chercher chaque jour, juste pour le plaisir.",
+        "Fenêtre des nouveautés, ouverte depuis la page d’accueil ou avec /fdex news. Après une mise à jour, le message de connexion la signale une fois.",
+        "Annonces : la guilde, le groupe ou le canal est revérifié juste avant l’envoi.",
+        "Test des collectionneurs : un bandeau en haut de l’écran indique que le test est en cours et permet de l’arrêter.",
+        "Correction d’une erreur quand l’icône des collectionneurs se plaçait sur une barre d’info protégée.",
+        "Correction du message « Aucun joueur nommé… ne joue actuellement » causé par la détection des collectionneurs.",
+        "Plus léger en mémoire et en performances, et diverses améliorations de l’interface.",
     },
 }

@@ -447,9 +447,13 @@ ns.Locales.enUS = {
         "The next legendary name might be standing in line at the auction house right now.",
     },
     HOME_NEWS_LINES = {
-        "New home page, the first screen of each session: daily challenge, news and statistics.",
-        "Daily challenge: a race, class and gender to look for, a new one every day. Nothing to win, just an idea for your next hunt.",
-        "Statistics at a glance: journal progress, recent captures, favorite class and hunting ground.",
-        "/fdex home opens the home page at any time.",
+        "New home page, the first screen of each session: daily challenge, statistics and the news of the version (/fdex home).",
+        "Daily challenge: a race, class and gender to look for each day, just for fun.",
+        "News window, opened from the home page or with /fdex news. After an update, the login message mentions it once.",
+        "Announcements: the guild, group or channel is checked again right before sending.",
+        "Collectors test: a banner at the top of the screen shows that the test is running and stops it.",
+        "Fixed an error when the collectors icon was placed on a protected nameplate.",
+        "Fixed the “No player named… is currently playing” message caused by the collectors detection.",
+        "Lighter on memory and performance, and various interface improvements.",
     },
 }
