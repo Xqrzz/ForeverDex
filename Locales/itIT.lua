@@ -41,6 +41,7 @@ ns.Locales.itIT = {
     SETTINGS_DUEL_REQUESTS_TIP = "Quando un altro giocatore ForeverDex vuole confrontare le collezioni.\nChiedi sempre: una finestra ti permette di accettare o rifiutare.\nIgnora tutte: la richiesta viene rifiutata senza finestre né messaggi.",
     SETTINGS_DUEL_COMBAT = "Rifiuta in combattimento",
     SETTINGS_DUEL_COMBAT_TIP = "Le richieste ricevute in combattimento vengono rifiutate senza finestra.",
+    SETTINGS_AFTER_COMBAT = "Le opzioni si apriranno alla fine del combattimento.",
     SETTINGS_INTERFACE = "Interfaccia",
     SETTINGS_MINIMAP_SHOW = "Icona della minimappa",
     SETTINGS_MINIMAP_SHOW_TIP = "Senza l'icona, usa /foreverdex per aprire il libro.",
@@ -364,6 +365,14 @@ ns.Locales.itIT = {
     SHARE_NO_GUILD = "Non sei in una gilda.",
     SHARE_NO_GROUP = "Non sei in un gruppo.",
     SHARE_UNAVAILABLE = "Il canale non è disponibile.",
+    SHARE_CARD = "Condividi",
+    SHARE_CARD_TIP = "Invia questa carta nel canale scelto per le catture (Opzioni → Annunci).",
+    SHARE_SHOW_WAIT = "Aspetta qualche secondo prima di condividere di nuovo.",
+    SHARE_SHOW_LINES = {
+        "Una perla della mia collezione: {name}!",
+        "Guardate cosa c’è nel mio ForeverDex: {name}.",
+        "Orgoglioso proprietario di {name} nel mio ForeverDex.",
+    },
     SHARE_TAG = "[ForeverDex] ",
     SHARE_CAPTURE_LINES = {
         "{name}, scelgo te… no aspetta, ti catturo!",
@@ -444,13 +453,7 @@ ns.Locales.itIT = {
         "Il prossimo nome leggendario potrebbe essere in fila alla casa d’aste proprio adesso.",
     },
     HOME_NEWS_LINES = {
-        "Nuova pagina iniziale, la prima schermata di ogni sessione: sfida del giorno, statistiche e novità della versione (/fdex home).",
-        "Sfida del giorno: una razza, una classe e un genere da cercare ogni giorno, solo per divertimento.",
-        "Finestra delle novità, aperta dalla pagina iniziale o con /fdex news. Dopo un aggiornamento, il messaggio di accesso la segnala una volta.",
-        "Annunci: la gilda, il gruppo o il canale viene ricontrollato subito prima dell’invio.",
-        "Test dei collezionisti: un banner in cima allo schermo indica che il test è in corso e permette di fermarlo.",
-        "Corretto un errore quando l’icona dei collezionisti veniva posizionata su una barra dei nomi protetta.",
-        "Corretto il messaggio «Nessun giocatore di nome… è attualmente in gioco» causato dal rilevamento dei collezionisti.",
-        "Più leggero in memoria e prestazioni, e vari miglioramenti dell’interfaccia.",
+        "Condividi una carta nel canale scelto per le catture: clic destro sulla carta o il pulsante Condividi nella sua pagina.",
+        "Corretta un’azione bloccata all’apertura delle opzioni in combattimento: ora si aprono alla fine del combattimento.",
     },
 }

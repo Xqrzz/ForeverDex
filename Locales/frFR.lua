@@ -41,6 +41,7 @@ ns.Locales.frFR = {
     SETTINGS_DUEL_REQUESTS_TIP = "Quand un autre joueur de ForeverDex veut comparer vos collections.\nToujours demander : une fenêtre te propose d’accepter ou de refuser.\nTout ignorer : la demande est refusée sans fenêtre ni message.",
     SETTINGS_DUEL_COMBAT = "Refuser pendant un combat",
     SETTINGS_DUEL_COMBAT_TIP = "Les demandes reçues en combat sont refusées sans fenêtre.",
+    SETTINGS_AFTER_COMBAT = "Les options s’ouvriront à la fin du combat.",
     SETTINGS_INTERFACE = "Interface",
     SETTINGS_MINIMAP_SHOW = "Icône sur la mini-carte",
     SETTINGS_MINIMAP_SHOW_TIP = "Sans icône, utilise /foreverdex pour ouvrir le carnet.",
@@ -364,6 +365,14 @@ ns.Locales.frFR = {
     SHARE_NO_GUILD = "Tu n’es pas dans une guilde.",
     SHARE_NO_GROUP = "Tu n’es pas en groupe.",
     SHARE_UNAVAILABLE = "Le canal n’est pas disponible.",
+    SHARE_CARD = "Partager",
+    SHARE_CARD_TIP = "Envoie cette carte dans le canal choisi pour les captures (Options → Annonces).",
+    SHARE_SHOW_WAIT = "Attends quelques secondes avant de partager à nouveau.",
+    SHARE_SHOW_LINES = {
+        "Une perle de ma collection : {name} !",
+        "Regardez ce qu’il y a dans mon ForeverDex : {name}.",
+        "Fier propriétaire de {name} dans mon ForeverDex.",
+    },
     SHARE_TAG = "[ForeverDex] ",
     SHARE_CAPTURE_LINES = {
         "{name}, je te choisis… non attends, je te capture !",
@@ -444,13 +453,7 @@ ns.Locales.frFR = {
         "Le prochain nom légendaire fait peut-être la queue à l’hôtel des ventes en ce moment même.",
     },
     HOME_NEWS_LINES = {
-        "Nouvelle page d’accueil, premier écran de chaque session : défi du jour, statistiques et nouveautés de la version (/fdex home).",
-        "Défi du jour : une race, une classe et un sexe à chercher chaque jour, juste pour le plaisir.",
-        "Fenêtre des nouveautés, ouverte depuis la page d’accueil ou avec /fdex news. Après une mise à jour, le message de connexion la signale une fois.",
-        "Annonces : la guilde, le groupe ou le canal est revérifié juste avant l’envoi.",
-        "Test des collectionneurs : un bandeau en haut de l’écran indique que le test est en cours et permet de l’arrêter.",
-        "Correction d’une erreur quand l’icône des collectionneurs se plaçait sur une barre d’info protégée.",
-        "Correction du message « Aucun joueur nommé… ne joue actuellement » causé par la détection des collectionneurs.",
-        "Plus léger en mémoire et en performances, et diverses améliorations de l’interface.",
+        "Partage d’une carte dans le canal choisi pour les captures : clic droit sur la carte, ou bouton Partager sur sa page.",
+        "Correction d’une action bloquée à l’ouverture des options en combat : elles s’ouvrent désormais à la fin du combat.",
     },
 }

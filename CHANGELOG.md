@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.91
+
+- Share a card in the channel chosen for captures: right-click the card, or the Share button on its page
+- Fixed a blocked action when opening the options during combat: they now open when combat ends
+
 ## 1.7.9
 
 - New home page, the first screen of each session: daily challenge, statistics and the news of the version (`/fdex home`)

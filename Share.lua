@@ -300,6 +300,36 @@ function Share.Achievements(list)
     return schedule(choice, chatType, target, achievementText(kept))
 end
 
+-- Shares a card of the collection on demand (card menu, detail page), in the channel
+-- chosen for captures. Sent at once, during the player's click: a custom channel only
+-- accepts it then. A few seconds between two shares, so a double click sends one.
+local SHOW_COOLDOWN = 5
+local lastShow
+function Share.Show(entry, slot)
+    if not entry or not entry.name or not slot then return end
+    local chatType, target = destination(Settings.Get("shareCaptureChannel"))
+    if not chatType then
+        print(L.CHAT_PREFIX .. L.SHARE_SKIPPED:format(target))
+        return
+    end
+    local now = GetTime()
+    if lastShow and now - lastShow < SHOW_COOLDOWN then
+        print(L.CHAT_PREFIX .. L.SHARE_SHOW_WAIT)
+        return
+    end
+    -- A pet carries its family, without an article: the game does not give its gender.
+    local name = entry.name
+    if slot.pet and entry.family and entry.family ~= "" then
+        name = ("%s (%s)"):format(name, entry.family)
+    end
+    local text = fill(pick(L.SHARE_SHOW_LINES), { name = name })
+    if safeSend(finish(text), chatType, target) then
+        lastShow = now
+    else
+        print(L.CHAT_PREFIX .. L.SHARE_SKIPPED:format(L.SHARE_UNAVAILABLE))
+    end
+end
+
 -- Preview: the message is shown to the player only, with where it would go.
 local function preview(channelKey, text)
     local choice = Settings.Get(channelKey)

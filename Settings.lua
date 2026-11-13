@@ -495,7 +495,25 @@ local function watchWindow()
     end)
 end
 
-local function openCategory(id)
+-- The options window is protected in combat: the request waits for the end of combat.
+local pendingId, openCategory
+local combatWatcher = CreateFrame("Frame")
+combatWatcher:SetScript("OnEvent", function(self)
+    self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+    local id = pendingId
+    pendingId = nil
+    if id then openCategory(id) end
+end)
+
+function openCategory(id)
+    if InCombatLockdown() then
+        if not pendingId then
+            DEFAULT_CHAT_FRAME:AddMessage(L.CHAT_PREFIX .. L.SETTINGS_AFTER_COMBAT)
+        end
+        pendingId = id
+        combatWatcher:RegisterEvent("PLAYER_REGEN_ENABLED")
+        return
+    end
     local menuShown = GameMenuFrame and GameMenuFrame:IsShown()
     local windowShown = SettingsPanel and SettingsPanel:IsShown()
     if not windowShown then strayMenu = not menuShown end

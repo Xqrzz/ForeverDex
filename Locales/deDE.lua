@@ -41,6 +41,7 @@ ns.Locales.deDE = {
     SETTINGS_DUEL_REQUESTS_TIP = "Wenn ein anderer ForeverDex-Spieler Sammlungen vergleichen möchte.\nImmer fragen: Ein Fenster lässt dich annehmen oder ablehnen.\nAlle ignorieren: Die Anfrage wird ohne Fenster und ohne Nachricht abgelehnt.",
     SETTINGS_DUEL_COMBAT = "Im Kampf ablehnen",
     SETTINGS_DUEL_COMBAT_TIP = "Im Kampf erhaltene Anfragen werden ohne Fenster abgelehnt.",
+    SETTINGS_AFTER_COMBAT = "Die Optionen öffnen sich nach dem Kampf.",
     SETTINGS_INTERFACE = "Oberfläche",
     SETTINGS_MINIMAP_SHOW = "Minimap-Symbol",
     SETTINGS_MINIMAP_SHOW_TIP = "Ohne das Symbol öffnest du das Buch mit /foreverdex.",
@@ -364,6 +365,14 @@ ns.Locales.deDE = {
     SHARE_NO_GUILD = "Du bist in keiner Gilde.",
     SHARE_NO_GROUP = "Du bist in keiner Gruppe.",
     SHARE_UNAVAILABLE = "Der Kanal ist nicht verfügbar.",
+    SHARE_CARD = "Teilen",
+    SHARE_CARD_TIP = "Sendet diese Karte in den für Fänge gewählten Kanal (Optionen → Ankündigungen).",
+    SHARE_SHOW_WAIT = "Warte ein paar Sekunden, bevor du erneut teilst.",
+    SHARE_SHOW_LINES = {
+        "Ein Juwel meiner Sammlung: {name}!",
+        "Seht, was in meinem ForeverDex steckt: {name}.",
+        "Stolzer Besitzer von {name} in meinem ForeverDex.",
+    },
     SHARE_TAG = "[ForeverDex] ",
     SHARE_CAPTURE_LINES = {
         "{name}, ich wähle dich… nein warte, ich fange dich!",
@@ -444,13 +453,7 @@ ns.Locales.deDE = {
         "Der nächste legendäre Name steht vielleicht gerade am Auktionshaus Schlange.",
     },
     HOME_NEWS_LINES = {
-        "Neue Startseite, der erste Bildschirm jeder Sitzung: tägliche Herausforderung, Statistiken und Neuigkeiten der Version (/fdex home).",
-        "Tägliche Herausforderung: jeden Tag ein Volk, eine Klasse und ein Geschlecht zum Suchen, einfach zum Spaß.",
-        "Neuigkeiten-Fenster, über die Startseite oder mit /fdex news zu öffnen. Nach einem Update weist die Anmeldenachricht einmal darauf hin.",
-        "Ankündigungen: Gilde, Gruppe oder Kanal werden direkt vor dem Senden erneut geprüft.",
-        "Sammler-Test: Ein Banner oben am Bildschirm zeigt den laufenden Test an und beendet ihn.",
-        "Fehler behoben, wenn das Sammler-Symbol auf einer geschützten Namensplakette platziert wurde.",
-        "Die von der Sammler-Erkennung verursachte Meldung „Es gibt keinen Spieler namens …“ wurde behoben.",
-        "Weniger Speicher- und Leistungsbedarf sowie verschiedene Verbesserungen der Oberfläche.",
+        "Teile eine Karte im für Fänge gewählten Kanal: Rechtsklick auf die Karte oder die Schaltfläche Teilen auf ihrer Seite.",
+        "Blockierte Aktion beim Öffnen der Optionen im Kampf behoben: Sie öffnen sich jetzt nach dem Kampf.",
     },
 }

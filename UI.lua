@@ -579,6 +579,9 @@ local function openCardMenu(card)
             end)
             item:SetEnabled(free)
         end
+        root:CreateButton(L.SHARE_CARD, function()
+            ns.Share.Show(entry, row.slot)
+        end)
         root:CreateDivider()
         root:CreateButton(L.DELETE_CARD, function()
             StaticPopup_Show("FOREVERDEX_DELETE", entry.name, nil, key)
@@ -943,6 +946,19 @@ remove:SetScript("OnEnter", function(self)
 end)
 remove:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
+-- Sharing in the channel chosen for captures (Options → Announcements).
+local share = button(detail, L.SHARE_CARD, 110, function()
+    ns.Share.Show(detail.entry, detail.slot)
+end)
+share:SetPoint("RIGHT", remove, "LEFT", -8, 0)
+share:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:SetText(L.SHARE_CARD)
+    GameTooltip:AddLine(L.SHARE_CARD_TIP, 1, 1, 1, true)
+    GameTooltip:Show()
+end)
+share:SetScript("OnLeave", function() GameTooltip:Hide() end)
+
 local function showDetail(slot, perRace, filled)
     local entries = ForeverDexDB.cards
     local entry = entries[slot.key]
@@ -950,6 +966,7 @@ local function showDetail(slot, perRace, filled)
     local combination, description = Catalog.Describe(slot, entry)
     detail.slot, detail.entry, detail.combination, detail.description = slot, entry, combination, description
     remove:SetShown(entry ~= nil)
+    share:SetShown(entry ~= nil)
     paintPlate(detail.plate, combination, entry)
 
     local facts = {}

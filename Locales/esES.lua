@@ -41,6 +41,7 @@ ns.Locales.esES = {
     SETTINGS_DUEL_REQUESTS_TIP = "Cuando otro jugador de ForeverDex quiere comparar colecciones.\nPreguntar siempre: una ventana te permite aceptar o rechazar.\nIgnorar todas: la solicitud se rechaza sin ventana ni mensaje.",
     SETTINGS_DUEL_COMBAT = "Rechazar en combate",
     SETTINGS_DUEL_COMBAT_TIP = "Las solicitudes recibidas en combate se rechazan sin ventana.",
+    SETTINGS_AFTER_COMBAT = "Las opciones se abrirán al terminar el combate.",
     SETTINGS_INTERFACE = "Interfaz",
     SETTINGS_MINIMAP_SHOW = "Icono del minimapa",
     SETTINGS_MINIMAP_SHOW_TIP = "Sin el icono, usa /foreverdex para abrir el libro.",
@@ -364,6 +365,14 @@ ns.Locales.esES = {
     SHARE_NO_GUILD = "No estás en una hermandad.",
     SHARE_NO_GROUP = "No estás en un grupo.",
     SHARE_UNAVAILABLE = "El canal no está disponible.",
+    SHARE_CARD = "Compartir",
+    SHARE_CARD_TIP = "Envía esta carta al canal elegido para las capturas (Opciones → Anuncios).",
+    SHARE_SHOW_WAIT = "Espera unos segundos antes de volver a compartir.",
+    SHARE_SHOW_LINES = {
+        "Una joya de mi colección: ¡{name}!",
+        "Mirad lo que hay en mi ForeverDex: {name}.",
+        "Orgulloso dueño de {name} en mi ForeverDex.",
+    },
     SHARE_TAG = "[ForeverDex] ",
     SHARE_CAPTURE_LINES = {
         "{name}, te elijo… no, espera, ¡te capturo!",
@@ -444,13 +453,7 @@ ns.Locales.esES = {
         "Puede que el próximo nombre legendario esté haciendo cola en la casa de subastas ahora mismo.",
     },
     HOME_NEWS_LINES = {
-        "Nueva página de inicio, la primera pantalla de cada sesión: desafío del día, estadísticas y novedades de la versión (/fdex home).",
-        "Desafío del día: una raza, una clase y un género que buscar cada día, solo por diversión.",
-        "Ventana de novedades, que se abre desde la página de inicio o con /fdex news. Tras una actualización, el mensaje de conexión la menciona una vez.",
-        "Anuncios: la hermandad, el grupo o el canal se comprueba de nuevo justo antes del envío.",
-        "Prueba de coleccionistas: un aviso en la parte superior de la pantalla indica que la prueba está en curso y permite detenerla.",
-        "Corregido un error cuando el icono de coleccionistas se colocaba en una placa de nombre protegida.",
-        "Corregido el mensaje «No hay ningún jugador llamado…» causado por la detección de coleccionistas.",
-        "Menor consumo de memoria y de rendimiento, y varias mejoras de la interfaz.",
+        "Comparte una carta en el canal elegido para las capturas: clic derecho en la carta o el botón Compartir de su página.",
+        "Corregida una acción bloqueada al abrir las opciones en combate: ahora se abren al terminar el combate.",
     },
 }

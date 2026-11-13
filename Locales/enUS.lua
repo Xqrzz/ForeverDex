@@ -41,6 +41,7 @@ ns.Locales.enUS = {
     SETTINGS_DUEL_REQUESTS_TIP = "When another ForeverDex player wants to compare collections.\nAlways ask: a window lets you accept or decline.\nIgnore all: the request is declined with no window and no message.",
     SETTINGS_DUEL_COMBAT = "Decline during combat",
     SETTINGS_DUEL_COMBAT_TIP = "Requests received in combat are declined without a popup.",
+    SETTINGS_AFTER_COMBAT = "Options will open after combat.",
     SETTINGS_INTERFACE = "Interface",
     SETTINGS_MINIMAP_SHOW = "Minimap icon",
     SETTINGS_MINIMAP_SHOW_TIP = "Without the icon, use /foreverdex to open the book.",
@@ -367,6 +368,14 @@ ns.Locales.enUS = {
     SHARE_NO_GUILD = "You are not in a guild.",
     SHARE_NO_GROUP = "You are not in a group.",
     SHARE_UNAVAILABLE = "The channel is not available.",
+    SHARE_CARD = "Share",
+    SHARE_CARD_TIP = "Sends this card in the channel chosen for captures (Options → Announcements).",
+    SHARE_SHOW_WAIT = "Wait a few seconds before sharing again.",
+    SHARE_SHOW_LINES = {
+        "Gem of my collection: {name}!",
+        "Look what my ForeverDex holds: {name}.",
+        "Proud owner of {name} in my ForeverDex.",
+    },
     SHARE_TAG = "[ForeverDex] ",
     SHARE_CAPTURE_LINES = {
         "{name}, I choose… no wait, I caught you!",
@@ -447,13 +456,7 @@ ns.Locales.enUS = {
         "The next legendary name might be standing in line at the auction house right now.",
     },
     HOME_NEWS_LINES = {
-        "New home page, the first screen of each session: daily challenge, statistics and the news of the version (/fdex home).",
-        "Daily challenge: a race, class and gender to look for each day, just for fun.",
-        "News window, opened from the home page or with /fdex news. After an update, the login message mentions it once.",
-        "Announcements: the guild, group or channel is checked again right before sending.",
-        "Collectors test: a banner at the top of the screen shows that the test is running and stops it.",
-        "Fixed an error when the collectors icon was placed on a protected nameplate.",
-        "Fixed the “No player named… is currently playing” message caused by the collectors detection.",
-        "Lighter on memory and performance, and various interface improvements.",
+        "Share a card in the channel chosen for captures: right-click the card, or the Share button on its page.",
+        "Fixed a blocked action when opening the options during combat: they now open when combat ends.",
     },
 }
