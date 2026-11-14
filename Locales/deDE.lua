@@ -465,9 +465,9 @@ ns.Locales.deDE = {
         "Der nächste legendäre Name steht vielleicht gerade am Auktionshaus Schlange.",
     },
     HOME_NEWS_LINES = {
-        "Die Sammler-Symbole belasten die Leistung deutlich weniger, selbst in einer vollen Stadt.",
-        "Suchen und Blättern im Buch reagieren schneller.",
-        "Unscharfer goldener Rahmen hinter den Duell- und Kampfbildschirmen behoben.",
+        "Fange Gilden mit einem Rechtsklick auf den Ball am Porträt und hänge ihre Banner auf der neuen Gildenseite auf.",
+        "Volle Controller-Unterstützung: Das Steuerkreuz bewegt sich durch das Fenster, Select wechselt den Fokus.",
+        "Favoritenkarten sind geschützt, und das Fenster weicht im Kampf zur Seite.",
     },
     BINDING_CAPTURE_GUILD = "Gilde des Ziels fangen",
     LEFT_CLICK_CAPTURE = "Linksklick: Charakter fangen",

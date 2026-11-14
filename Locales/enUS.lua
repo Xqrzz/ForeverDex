@@ -468,9 +468,9 @@ ns.Locales.enUS = {
         "The next legendary name might be standing in line at the auction house right now.",
     },
     HOME_NEWS_LINES = {
-        "The collectors icons are much lighter on performance, even in a crowded city.",
-        "Searching the journal and turning its pages are more responsive.",
-        "Fixed a blurred gold frame behind the duel and combat screens.",
+        "Capture guilds with a right-click on the portrait ball and hang their banners on the new Guilds page.",
+        "Full controller support: the D-pad moves through the window, Select switches the focus.",
+        "Favorite cards are protected, and the window steps aside during combat.",
     },
     BINDING_CAPTURE_GUILD = "Capture target's guild",
     LEFT_CLICK_CAPTURE = "Left-click: capture the character",

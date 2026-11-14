@@ -465,9 +465,9 @@ ns.Locales.frFR = {
         "Le prochain nom légendaire fait peut-être la queue à l’hôtel des ventes en ce moment même.",
     },
     HOME_NEWS_LINES = {
-        "Les icônes des collectionneurs pèsent bien moins sur les performances, même dans une ville bondée.",
-        "La recherche et le changement de page du carnet sont plus réactifs.",
-        "Correction d’un cadre doré flou derrière les écrans de duel et de combat.",
+        "Capture les guildes d’un clic droit sur la boule du portrait et accroche leurs étendards dans le nouvel onglet Guildes.",
+        "Prise en charge complète de la manette : la croix parcourt la fenêtre, Select change le focus.",
+        "Les cartes en favori sont protégées, et la fenêtre s’efface pendant les combats.",
     },
     BINDING_CAPTURE_GUILD = "Capturer la guilde de la cible",
     LEFT_CLICK_CAPTURE = "Clic gauche : capturer le personnage",

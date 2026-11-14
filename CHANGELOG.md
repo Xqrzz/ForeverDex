@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.0
+
+- Guilds: capture a player's guild on its own with a right-click on the portrait ball, and collect its banner on the new Guilds page, in Alliance or Horde colors and in the order you choose
+- Guilds can be shared in chat and come with their own achievements
+- Favorite cards are protected: they can no longer be deleted or replaced by a capture
+- Compare collections from the guild member list
+- Controller support: the whole window, the filters and the duel screens can be used with the D-pad, with button hints; Select switches the focus between the window and your character, and the game menu gets a ForeverDex button
+- The window closes during combat and reopens afterwards
+- The bottom tabs only show in the journal
+- Fixed a blocked action when using the ForeverDex menus with a controller
+
 ## 1.7.92
 
 - The collectors icons are much lighter on performance, even in a crowded city

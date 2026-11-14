@@ -465,9 +465,9 @@ ns.Locales.itIT = {
         "Il prossimo nome leggendario potrebbe essere in fila alla casa d’aste proprio adesso.",
     },
     HOME_NEWS_LINES = {
-        "Le icone dei collezionisti pesano molto meno sulle prestazioni, anche in una città affollata.",
-        "La ricerca e il cambio di pagina del diario sono più reattivi.",
-        "Corretta una cornice dorata sfocata dietro le schermate di duello e di combattimento.",
+        "Cattura le gilde con un clic destro sulla sfera del ritratto e appendi i loro stendardi nella nuova pagina Gilde.",
+        "Supporto completo al controller: la croce direzionale scorre la finestra, Select cambia il focus.",
+        "Le carte preferite sono protette, e la finestra si fa da parte durante i combattimenti.",
     },
     BINDING_CAPTURE_GUILD = "Cattura la gilda del bersaglio",
     LEFT_CLICK_CAPTURE = "Clic sinistro: cattura il personaggio",

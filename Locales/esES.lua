@@ -465,9 +465,9 @@ ns.Locales.esES = {
         "Puede que el próximo nombre legendario esté haciendo cola en la casa de subastas ahora mismo.",
     },
     HOME_NEWS_LINES = {
-        "Los iconos de coleccionistas pesan mucho menos en el rendimiento, incluso en una ciudad abarrotada.",
-        "La búsqueda y el cambio de página del diario responden más rápido.",
-        "Corregido un marco dorado borroso detrás de las pantallas de duelo y de combate.",
+        "Captura hermandades con un clic derecho en la bola del retrato y cuelga sus estandartes en la nueva página Hermandades.",
+        "Compatibilidad total con mando: la cruceta recorre la ventana, Select cambia el foco.",
+        "Las cartas favoritas están protegidas, y la ventana se aparta durante los combates.",
     },
     BINDING_CAPTURE_GUILD = "Capturar la hermandad del objetivo",
     LEFT_CLICK_CAPTURE = "Clic izquierdo: capturar al personaje",

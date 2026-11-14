@@ -465,9 +465,9 @@ ns.Locales.ptBR = {
         "O próximo nome lendário pode estar na fila da casa de leilões agora mesmo.",
     },
     HOME_NEWS_LINES = {
-        "Os ícones de colecionadores pesam muito menos no desempenho, mesmo numa cidade lotada.",
-        "A busca e a troca de página do diário respondem mais rápido.",
-        "Corrigida uma moldura dourada borrada atrás das telas de duelo e de combate.",
+        "Capture guildas com um clique direito na bola do retrato e pendure os estandartes na nova página Guildas.",
+        "Suporte completo a controle: o direcional percorre a janela, Select troca o foco.",
+        "As cartas favoritas estão protegidas, e a janela se afasta durante os combates.",
     },
     BINDING_CAPTURE_GUILD = "Capturar a guilda do alvo",
     LEFT_CLICK_CAPTURE = "Clique esquerdo: capturar o personagem",
