@@ -557,11 +557,11 @@ local function paintStar(star, entry)
 end
 
 local function openCardMenu(card)
-    local row = card.row
+    local row = card and card.row
     if not row or not row.entry or row.slot.key == pendingReveal then return end
-    if not MenuUtil or not MenuUtil.CreateContextMenu then return end
     local entry, key = row.entry, row.slot.key
-    MenuUtil.CreateContextMenu(card, function(_, root)
+    -- The game's menu with the mouse, ForeverDex's own one with the controller.
+    ns.PopupMenu.Open(card, function(_, root)
         root:CreateButton(entry.favorite and L.FAVORITE_REMOVE or L.FAVORITE_ADD, function()
             Collection.ToggleFavorite(entry)
         end)
@@ -582,9 +582,16 @@ local function openCardMenu(card)
             Share.Show(entry, row.slot)
         end)
         root:CreateDivider()
-        root:CreateButton(L.DELETE_CARD, function()
+        local delete = root:CreateButton(L.DELETE_CARD, function()
             StaticPopup_Show("FOREVERDEX_DELETE", entry.name, nil, key)
         end)
+        -- A favorite cannot be deleted: it has to leave the favorites first.
+        if entry.favorite then
+            delete:SetEnabled(false)
+            if delete.SetTooltip then
+                delete:SetTooltip(function(tooltip) GameTooltip_SetTitle(tooltip, L.DELETE_FAVORITE) end)
+            end
+        end
     end)
 end
 
@@ -937,10 +944,13 @@ local remove = button(detail, L.DELETE_CARD, 150, function()
     StaticPopup_Show("FOREVERDEX_DELETE", entry.name, nil, detail.slot.key)
 end)
 remove:SetPoint("BOTTOMRIGHT", -16, 12)
+-- A favorite is protected: the tooltip still explains why the button is off.
+remove:SetMotionScriptsWhileDisabled(true)
 remove:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     GameTooltip:SetText(L.DELETE_CARD)
-    GameTooltip:AddLine(L.DELETE_TOOLTIP, 1, 1, 1, true)
+    local favorite = detail.entry and detail.entry.favorite
+    GameTooltip:AddLine(favorite and L.DELETE_FAVORITE or L.DELETE_TOOLTIP, 1, 1, 1, true)
     GameTooltip:Show()
 end)
 remove:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -965,6 +975,7 @@ local function showDetail(slot, perRace, filled)
     local combination, description = Catalog.Describe(slot, entry)
     detail.slot, detail.entry, detail.combination, detail.description = slot, entry, combination, description
     remove:SetShown(entry ~= nil)
+    remove:SetEnabled(not (entry and entry.favorite))
     share:SetShown(entry ~= nil)
     paintPlate(detail.plate, combination, entry)
 
@@ -1103,6 +1114,7 @@ local function addSideTab(index, tabMode, label, paint)
     })
     tab:SetBackdropColor(0.08, 0.06, 0.04, 0.95)
     tab.mode = tabMode
+    tab.index = index
     tab.icon = tab:CreateTexture(nil, "ARTWORK")
     tab.icon:SetPoint("TOPLEFT", 7, -7)
     tab.icon:SetPoint("BOTTOMRIGHT", -7, 7)
@@ -1148,6 +1160,8 @@ local function showMode()
     if mode ~= "collection" and not pages[mode] then mode = "collection" end
     local journal = mode == "collection"
     for _, part in ipairs(journalParts) do part:SetShown(journal) end
+    -- The bottom tabs only sort the journal: the other pages hide them.
+    for _, tab in ipairs(tabs) do tab:SetShown(journal) end
     if not journal then filterFrame:Hide() end
     -- Hide first, then show: two pages never overlap, even for a moment.
     for name, handler in pairs(pages) do
@@ -1155,14 +1169,7 @@ local function showMode()
     end
     if pages[mode] then pages[mode].SetShown(true) end
     for _, tab in ipairs(sideTabs) do paintSideTab(tab) end
-    if journal then return false end
-    -- No bottom tab is selected while a page is shown.
-    if nativeTabs and PanelTemplates_SetTab then
-        PanelTemplates_SetTab(panel, 0)
-    else
-        for _, tab in ipairs(tabs) do tab:SetEnabled(true) end
-    end
-    return true
+    return not journal
 end
 
 -- Checked filters as text, to tell whether the query must run again.
@@ -1186,7 +1193,10 @@ local lastTarget
 
 refresh = function()
     if not ForeverDexDB then return end
-    if showMode() then return end
+    if showMode() then
+        ns.Gamepad.Refresh()
+        return
+    end
     local entries = ForeverDexDB.cards
     local view = ForeverDexDB.view
     if view then view.sort, view.tab = sortMode, viewMode end
@@ -1263,6 +1273,7 @@ refresh = function()
         setCrumbs({ { L.HOME, (activeFilters() > 0 or viewMode ~= 1) and home or nil }, { section } })
     end
     updatePortraits(lastTarget)
+    ns.Gamepad.Refresh()
 end
 
 local function isSortSelected(choice)
@@ -1275,10 +1286,16 @@ local function selectSort(choice)
 end
 
 -- The radio options of the Blizzard menu represent a single active sort.
-sortButton:SetupMenu(function(_, menu)
+local function sortMenu(_, menu)
     for choice, name in ipairs(sortNames) do
         menu:CreateRadio(name, isSortSelected, selectSort, choice)
     end
+end
+sortButton:SetupMenu(sortMenu)
+-- With the controller, ForeverDex's own menu replaces the game's (PopupMenu.lua).
+ns.PopupMenu.AttachDropdown(sortButton, sortMenu, function()
+    sortButton:SetDefaultText(sortNames[sortMode])
+    if sortButton.GenerateMenu then sortButton:GenerateMenu() end
 end)
 -- The query waits for a short pause in the typing; text set by the code (cleared
 -- filters) is applied at once.
@@ -1306,6 +1323,8 @@ panel:HookScript("OnHide", function() Art.Sound("IG_SPELLBOOK_CLOSE") end)
 -- Capture from the target portrait (PortraitCapture.lua) ------------------------------
 
 local PortraitCapture = ns.PortraitCapture
+-- Pages that follow the target too (the Guilds page and its capture button).
+local targetListeners = {}
 
 updateTarget = function()
     local anchored = PortraitCapture.Attach()
@@ -1323,7 +1342,10 @@ updateTarget = function()
     end
     -- The card for this combination is held by another player.
     local holder = current and not alreadySaved and current or nil
-    PortraitCapture.Update(anchored, entry or pet, current, alreadySaved, holder)
+    local guild, guildOwned
+    if entry and ns.Guilds then guild, guildOwned = ns.Guilds.TargetState() end
+    PortraitCapture.Update(anchored, entry or pet, current, alreadySaved, holder, guild, guildOwned)
+    for _, listener in ipairs(targetListeners) do listener(guild, guildOwned) end
     compare:SetEnabled(ns.Duel ~= nil and ns.Duel.CanRequest())
     if viewMode == 4 then
         local slot, label
@@ -1343,6 +1365,26 @@ Settings.OnChange(function(key)
     if key == nil or key == "portraitButton" or key == "ownedMarker" then updateTarget() end
 end)
 panel:HookScript("OnHide", updateTarget)
+
+-- Combat: the window steps aside as the fight starts and comes back, on the same page,
+-- once it is over. Opened and closed again by hand during the fight, it stays closed.
+local reopenAfterCombat = false
+local combatWatch = CreateFrame("Frame")
+combatWatch:RegisterEvent("PLAYER_REGEN_DISABLED")
+combatWatch:RegisterEvent("PLAYER_REGEN_ENABLED")
+combatWatch:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_REGEN_DISABLED" then
+        if panel:IsShown() then
+            reopenAfterCombat = true
+            panel:Hide()
+        end
+    elseif reopenAfterCombat then
+        reopenAfterCombat = false
+        if not panel:IsShown() then panel:Show() end
+    end
+end)
+-- Opened again by hand during the fight: nothing left to reopen afterwards.
+panel:HookScript("OnShow", function() reopenAfterCombat = false end)
 
 local function visibleCard(key)
     for _, card in ipairs(cards) do
@@ -1378,37 +1420,51 @@ local function showWindow(newMode, key)
     if panel:IsShown() then refresh() else panel:Show() end
 end
 
+-- Where a throw starts: the clicked marker's center, read before the refresh hides
+-- it. A frame attached to a secure frame (ElvUI) can hide its position: the ball
+-- then starts from the cursor, which has just clicked on it.
+local function throwStart(origin)
+    local x1, y1 = ns.CaptureVisuals.Center(origin)
+    if origin and not x1 then
+        local cursorX, cursorY = GetCursorPosition()
+        local uiScale = UIParent:GetEffectiveScale()
+        x1, y1 = cursorX / uiScale, cursorY / uiScale
+    end
+    return x1, y1
+end
+
+-- The ball lands on the target portrait, at its size. Without a visible target
+-- frame, it falls back onto the given frame (a card, a banner) or the target frame.
+-- Then it flies home to the minimap icon.
+local function throwBall(x1, y1, fallback, options)
+    local Visuals = ns.CaptureVisuals
+    local region = PortraitCapture.Region()
+    local landing = (region and region:IsVisible() and region) or fallback
+    local x2, y2, size = Visuals.Center(landing)
+    if not x2 then x2, y2, size = Visuals.Center(PortraitCapture.Host()) end
+    local home = ns.MinimapButton
+    local hx, hy, homeSize = Visuals.Center(home and home:IsVisible() and home)
+    options.fromX, options.fromY, options.toX, options.toY, options.size = x1, y1, x2, y2, size
+    options.homeX, options.homeY, options.homeSize = hx, hy, homeSize
+    options.onHome = function()
+        if home and home.Flash then home:Flash() end
+    end
+    Visuals.Play(options)
+end
+
 ns.UI = {
     RestoreView = restoreView,
     Refresh = function(entry, isNew, noThrow)
-        local Visuals = ns.CaptureVisuals
         -- The starting point is read before the refresh, which hides the ball.
         local origin = not noThrow and ((PortraitCapture.Ball:IsVisible() and PortraitCapture.Ball) or (panelCapture:IsVisible() and panelCapture))
-        local x1, y1 = Visuals.Center(origin)
-        -- A frame attached to a secure frame (ElvUI) can hide its position:
-        -- the ball then starts from the cursor, which has just clicked on it.
-        if origin and not x1 then
-            local cursorX, cursorY = GetCursorPosition()
-            local uiScale = UIParent:GetEffectiveScale()
-            x1, y1 = cursorX / uiScale, cursorY / uiScale
-        end
+        local x1, y1 = throwStart(origin)
         if isNew and x1 then pendingReveal = entry.key end
         collectionVersion = collectionVersion + 1
         refresh()
         updateTarget()
         if not isNew then return end
         local card = visibleCard(entry.key)
-        -- The ball lands on the target portrait, at its size. Without a visible
-        -- target frame, it falls back onto the card or below the button.
-        local region = PortraitCapture.Region()
-        local landing = (region and region:IsVisible() and region) or card
-        local x2, y2, size = Visuals.Center(landing)
-        if not x2 then x2, y2, size = Visuals.Center(PortraitCapture.Host()) end
-        local home = ns.MinimapButton
-        local hx, hy, homeSize = Visuals.Center(home and home:IsVisible() and home)
-        Visuals.Play({
-            fromX = x1, fromY = y1, toX = x2, toY = y2, size = size,
-            homeX = hx, homeY = hy, homeSize = homeSize,
+        throwBall(x1, y1, card, {
             entry = entry,
             onReveal = function()
                 if pendingReveal ~= entry.key then return end
@@ -1418,10 +1474,27 @@ ns.UI = {
                     card.flashAnimation:Play()
                 end
             end,
-            onHome = function()
-                if home and home.Flash then home:Flash() end
-            end,
         })
+    end,
+    -- Guild capture (GuildsUI.lua): the guild ball leaves the portrait ball or orb that
+    -- was clicked, else the given button. getLanding() gives the frame to land on when
+    -- no target frame is visible; onReveal runs on the "click" of the ball.
+    -- Returns false when there is nothing to throw from (no animation).
+    ThrowGuild = function(guild, button, getLanding, onReveal)
+        local ball, orb = PortraitCapture.Ball, PortraitCapture.Orb
+        local origin = (ball:IsVisible() and ball:IsMouseOver() and ball) or (orb:IsVisible() and orb:IsMouseOver() and orb)
+            or (button and button:IsVisible() and button) or (ball:IsVisible() and ball) or (orb:IsVisible() and orb)
+        local x1, y1 = throwStart(origin or nil)
+        updateTarget()
+        throwBall(x1, y1, getLanding and getLanding(), { guild = guild, onReveal = onReveal })
+        return x1 ~= nil
+    end,
+    OnTargetChanged = function(listener) targetListeners[#targetListeners + 1] = listener end,
+    -- Opens the journal searching for a text (a guild name, from the Guilds page).
+    ShowSearch = function(query)
+        clearFilters()
+        search:SetText(query or "")
+        showWindow("collection")
     end,
     UpdateTarget = updateTarget,
     Toggle = function() panel:SetShown(not panel:IsShown()) end,
@@ -1450,4 +1523,76 @@ ns.UI = {
         showWindow("collection", key)
     end,
 }
+-- Controller (Gamepad.lua) -------------------------------------------------------------------
+
+-- Side tabs from the top: the shoulders go through them.
+local function cycleTabs(step)
+    local ordered = {}
+    for _, tab in ipairs(sideTabs) do ordered[#ordered + 1] = tab end
+    table.sort(ordered, function(a, b) return a.index < b.index end)
+    local at = 1
+    for i, tab in ipairs(ordered) do
+        if tab.mode == mode then at = i end
+    end
+    local nextTab = ordered[(at - 1 + step) % #ordered + 1]
+    if nextTab then nextTab:Click() end
+end
+
+ns.Gamepad.Attach(panel, {
+    mode = function() return mode end,
+    tabs = cycleTabs,
+    -- The triggers turn the journal pages (the other pages register their own).
+    pages = function(step)
+        local handler = pages[mode]
+        if handler and handler.TurnPage then
+            handler.TurnPage(step)
+        elseif mode == "collection" and not detailKey then
+            local control = step < 0 and previous or nextPage
+            if control:IsEnabled() then control:Click() end
+        end
+    end,
+    close = function() panel:Hide() end,
+})
+
+-- Journal: the cards, the race column, the bottom tabs and the header buttons; on a
+-- card's page, its buttons. X makes a card a favorite, Y opens its menu.
+ns.Gamepad.RegisterPage("collection", function()
+    local targets = {}
+    local function favorite(entry)
+        return { L.PAD_FAVORITE, function()
+            Art.Sound("IG_MAINMENU_OPTION_CHECKBOX_ON")
+            Collection.ToggleFavorite(entry)
+        end }
+    end
+    if detail:IsShown() then
+        local entry = detail.entry
+        local x = entry and favorite(entry) or nil
+        for _, control in ipairs({ back, share, remove }) do
+            targets[#targets + 1] = { frame = control, X = x }
+        end
+        if bannerStar:IsShown() then targets[#targets + 1] = { frame = bannerStar, X = x } end
+        return { targets = targets, default = back, back = function() back:Click() end }
+    end
+    for _, card in ipairs(cards) do
+        if card:IsShown() and card.row then
+            local entry = card.row.entry
+            targets[#targets + 1] = {
+                frame = card,
+                X = entry and favorite(entry) or nil,
+                Y = entry and { L.PAD_OPTIONS, openCardMenu } or nil,
+            }
+        end
+    end
+    for _, row in ipairs(raceButtons) do targets[#targets + 1] = { frame = row, A = { L.PAD_SELECT } } end
+    for _, tab in ipairs(tabs) do targets[#targets + 1] = { frame = tab, A = { L.PAD_SELECT } } end
+    targets[#targets + 1] = { frame = compare }
+    targets[#targets + 1] = { frame = panelCapture }
+    targets[#targets + 1] = { frame = sortButton, A = { L.PAD_SORT, function()
+        ns.PopupMenu.ShowBelow(sortButton, sortMenu, function()
+            sortButton:SetDefaultText(sortNames[sortMode])
+            if sortButton.GenerateMenu then sortButton:GenerateMenu() end
+        end)
+    end } }
+    return { targets = targets, default = cards[1] }
+end)
 end)

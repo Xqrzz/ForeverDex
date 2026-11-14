@@ -65,10 +65,13 @@ SLASH_FOREVERDEX2 = "/fdex"
 -- Names of the key bindings declared in Bindings.xml.
 BINDING_HEADER_FOREVERDEX = "ForeverDex"
 BINDING_NAME_FOREVERDEX_CAPTURE = L.BINDING_CAPTURE
+BINDING_NAME_FOREVERDEX_CAPTURE_GUILD = L.BINDING_CAPTURE_GUILD
 BINDING_NAME_FOREVERDEX_COMPARE = L.BINDING_COMPARE
 BINDING_NAME_FOREVERDEX_TOGGLE = L.BINDING_TOGGLE
 -- "/foreverdex compare" offers the comparison to the target (usable in a macro).
 -- "/foreverdex capture" captures the target, like the ball (key binding, macro).
+-- "/foreverdex guild" captures the target's guild only, like a right-click on the ball.
+-- "/foreverdex guilds" opens the Guilds page.
 -- "/foreverdex collectors" (or "presence") lists the nearby players known to have ForeverDex,
 -- "/foreverdex collectors demo" shows the icon above every friendly player nearby.
 -- "/foreverdex home" opens the home page (daily challenge, news, statistics).
@@ -78,6 +81,10 @@ BINDING_NAME_FOREVERDEX_TOGGLE = L.BINDING_TOGGLE
 SlashCmdList.FOREVERDEX = function(message)
     if message and message:lower():match("^%s*capt") then
         ns.Collection.Capture()
+    elseif message and message:lower():match("^%s*guilds%s*$") then
+        ns.UI.Show("guilds")
+    elseif message and message:lower():match("^%s*guild%s*$") then
+        ns.Guilds.Capture()
     elseif message and message:lower():match("^%s*home%s*$") then
         ns.UI.Show("home")
     elseif message and message:lower():match("^%s*news%s*$") then
@@ -214,6 +221,75 @@ function minimapButton:Flash()
     bounce:Stop()
     glowAnimation:Play()
     bounce:Play()
+end
+
+-- Game menu (Escape, or Start with the controller): a ForeverDex button right under
+-- "AddOns", as EllesmereUI does it on this client. It is a button of our own with the
+-- menu's template, placed each time the menu lays out: the game's own buttons and
+-- their list are never touched. Shown in controller mode only, and never in combat.
+local menuButton
+if GameMenuFrame and GameMenuFrame.buttonPool and GameMenuFrame.Layout then
+    menuButton = CreateFrame("Button", "ForeverDexGameMenuButton", GameMenuFrame, "MainMenuFrameButtonTemplate")
+    menuButton:SetSize(200, 35)
+    menuButton:SetText("ForeverDex")
+    menuButton:Hide()
+    menuButton:SetScript("OnClick", function()
+        if InCombatLockdown() then return end
+        HideUIPanel(GameMenuFrame)
+        ns.UI.Show(ns.UI.Mode() or "home")
+    end)
+
+    local GAP, STEP = 4, 39
+    -- The menu grows down to its lowest button, whoever added it.
+    local function fitHeight()
+        local top, lowest = GameMenuFrame:GetTop(), nil
+        for button in GameMenuFrame.buttonPool:EnumerateActive() do
+            local bottom = button:GetBottom()
+            if bottom and (not lowest or bottom < lowest) then lowest = bottom end
+        end
+        local own = menuButton:IsShown() and menuButton:GetBottom()
+        if own and (not lowest or own < lowest) then lowest = own end
+        if top and lowest then GameMenuFrame:SetHeight(top - lowest + 26) end
+    end
+
+    hooksecurefunc(GameMenuFrame, "Layout", function()
+        -- Only in controller mode: with the mouse, the minimap icon is at hand and
+        -- the menu stays exactly the game's.
+        if InCombatLockdown() or not ns.PopupMenu.GamepadActive() then
+            menuButton:Hide()
+            return
+        end
+        -- Under "AddOns", else under the last button.
+        local anchor, last
+        for button in GameMenuFrame.buttonPool:EnumerateActive() do
+            if button:GetText() == ADDONS then anchor = button end
+            local bottom = button:GetBottom()
+            if bottom and (not last or bottom < last:GetBottom()) then last = button end
+        end
+        anchor = anchor or last
+        if not anchor then return end
+        local width, height = anchor:GetSize()
+        if width and width > 0 then menuButton:SetSize(width, height) end
+        -- The buttons under the anchor move down by one row to make room.
+        local anchorBottom = anchor:GetBottom()
+        if anchorBottom then
+            for button in GameMenuFrame.buttonPool:EnumerateActive() do
+                local top = button:GetTop()
+                if button ~= anchor and top and top < anchorBottom + 2 then
+                    local point, relative, relativePoint, x, y = button:GetPoint(1)
+                    if point then
+                        button:ClearAllPoints()
+                        button:SetPoint(point, relative, relativePoint, x, (y or 0) - STEP)
+                    end
+                end
+            end
+        end
+        menuButton:ClearAllPoints()
+        menuButton:SetPoint("TOP", anchor, "BOTTOM", 0, -GAP)
+        menuButton:Show()
+        -- Once every addon has placed its buttons (EllesmereUI adds some too).
+        C_Timer.After(0, fitHeight)
+    end)
 end
 
 ns.MinimapButton = minimapButton

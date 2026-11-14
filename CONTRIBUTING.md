@@ -10,10 +10,12 @@
 | `Comm.lua` | Addon messages (`ns.Comm`): the single prefix, whispers, and the dispatch of each message to the file that handles its type (first letter). |
 | `Locale.lua`, `Locales/` | Strings for each language. A missing string falls back to English. Also holds `ns.Module`: the other files register their code with it and run at `ADDON_LOADED`, once the saved language is known. |
 | `Art.lua` | Client textures, atlases and sounds, with a fallback when an atlas is missing. |
+| `PopupMenu.lua` | Menus opened by ForeverDex (card and banner menus, dropdowns): the game's menus with the mouse, a small menu of its own with the controller, where an addon's game menu cannot close without a blocked protected action. |
 | `Settings.lua` | Settings panel and default values. |
 | `Catalog.lua` | Playable combinations, card themes, search, filters and sorting. |
 | `Collection.lua` | Reading the target, saved data migration, adding and replacing cards. |
-| `CaptureVisuals.lua` | Capture animation and the notification rising from the bottom of the screen. |
+| `Guilds.lua` | Guild captures (right-click on the portrait ball): reading the target's guild, the ordered list in `ForeverDexDB.guilds`, moving and removing guilds, faction colors and crests. |
+| `CaptureVisuals.lua` | Capture animation and the notification rising from the bottom of the screen, for a card (capture ball) or a guild (guild ball). |
 | `Duel.lua` | Comparison between two ForeverDex users: request, agreement, exchange over whispered addon messages, and the duel screen. |
 | `PresenceIcon.lua` | The glowing icon of the collectors: its layers, its looping animation groups, its arrival and departure, and the icon choices. Shared by the nameplates and the options preview. |
 | `Presence.lua` | Nearby ForeverDex players: ping and answer messages (`P`, `H`), the icon hung from the nameplates the player already shows (their nameplate settings are never changed), the tooltip line and the in-game test. It keeps `Icon.look` up to date from the settings. |
@@ -21,13 +23,14 @@
 | `Share.lua` | Announcements of captures and achievements to other players (guild, group or a custom channel), off by default: channel checks that always refuse the Blizzard channels and /1 /2, message templates with `{fields}`, cooldown, and its settings page. A message is prepared during the player's click and sent when the capture is revealed; a custom channel message leaves at once, since the game may only accept it during a click. |
 | `Home.lua` | Data of the home page, without any frame: the daily challenge (drawn from the date among the missing combinations, kept until midnight), the statistics, and the version whose news the home page offers. |
 | `News.lua` | Window listing the changes of the release, built on its first opening: from the banner of the home page, `/fdex news`, or the login message after an update. |
-| `PortraitCapture.lua` | Capture ball and "already collected" orb on the target frame (Blizzard, ElvUI or another interface). `UI.lua` tells it what the target is worth. |
+| `PortraitCapture.lua` | Capture ball (left-click: the character, right-click: its guild) and "already collected" orb, which turns into the guild ball while only the guild is left to capture, on the target frame (Blizzard, ElvUI or another interface). `UI.lua` tells it what the target is worth. |
 | `UI.lua` | Adventure Guide style window: race list, card grid, detail page, tabs and capture. Also the registry of the pages that replace the journal (`ns.UI.RegisterPage`) and their side tabs (`ns.UI.AddSideTab`). |
 | `HomeUI.lua` | Home page, the first one shown in each session: daily challenge, news and statistics. |
 | `AchievementsUI.lua` | Achievements page. |
+| `GuildsUI.lua` | Guilds page: one banner per guild in its faction color, faction filter, drag and drop to reorder. |
 | `ForeverDex.lua` | Initialization once saved data is loaded, game events, slash command and minimap button. |
 
-`Media/` holds the capture orb (`Ball.tga`, a single image so it can rotate), the addon icons, and the soft halo and ring of the presence icon (`Glow.tga`, `Ring.tga`).
+`Media/` holds the capture orb (`Ball.tga`, a single image so it can rotate) and the guild ball (`GuildBall.tga`), the guild banner (`Banner.tga` and `BannerTrim.tga`, white so they can be tinted, and `BannerRod.tga`: the game has no blank banner), the addon icons, and the soft halo and ring of the presence icon (`Glow.tga`, `Ring.tga`).
 
 ## Saved data
 

@@ -7,8 +7,11 @@ ns.CaptureVisuals = CaptureVisuals
 -- The ball is a single addon texture: unlike a drawing made of several
 -- pieces, it can rotate during the throw and the shakes.
 local BALL = "Interface\\AddOns\\ForeverDex\\Media\\Ball"
+-- Purple ball with a gold crystal, thrown by a right-click: it captures the guild only.
+local GUILD_BALL = "Interface\\AddOns\\ForeverDex\\Media\\GuildBall"
 local DISC = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 CaptureVisuals.BALL = BALL
+CaptureVisuals.GUILD_BALL = GUILD_BALL
 
 -- The badge only grows by 3 pixels: snapped to the pixel grid, it would step
 -- through 4 sizes instead of growing smoothly. A bias above 0 implies snapping.
@@ -444,8 +447,19 @@ toast:SetScript("OnClick", function()
     toast:Hide()
 end)
 
+local function playToast()
+    toastAnimation:Stop()
+    glowAnimation:Stop()
+    shineAnimation:Stop()
+    toast:Show()
+    toastAnimation:Play()
+    glowAnimation:Play()
+    shineAnimation:Play()
+end
+
 local function showToast(entry)
     if not Settings.Get("toast") then return end
+    toastTitle:SetText(L.NEW_CARD)
     local catalog = ns.Catalog
     local combination = catalog.byKey[entry.combination or entry.key]
     local slot = catalog.slotByKey[entry.key]
@@ -474,14 +488,28 @@ local function showToast(entry)
     fillFrom, fillTo, fillElapsed = math.max(0, count - 1), count, 0
     toastBar:SetValue(fillFrom)
     toastCount:SetText(("%d / %d"):format(count, #list))
+    playToast()
+end
 
-    toastAnimation:Stop()
-    glowAnimation:Stop()
-    shineAnimation:Stop()
-    toast:Show()
-    toastAnimation:Play()
-    glowAnimation:Play()
-    shineAnimation:Play()
+-- Guild notification: faction crest, guild name, faction and the member it was
+-- captured on, and a bar toward the next round number of guilds.
+local function showGuildToast(guild)
+    if not Settings.Get("toast") then return end
+    local Guilds = ns.Guilds
+    toastTitle:SetText(L.NEW_GUILD)
+    toastName:SetText(("<%s>"):format(guild.name))
+    local faction = Guilds.FactionName(guild.faction)
+    toastCombo:SetText(guild.member and L.GUILD_TOAST_LINE:format(faction, guild.member) or faction)
+    local r, g, b = unpack(Guilds.Color(guild.faction))
+    toastCombo:SetTextColor(math.min(1, r + 0.35), math.min(1, g + 0.35), math.min(1, b + 0.35))
+    Guilds.PaintCrest(toastIcon, guild.faction)
+    local count = Guilds.Count()
+    local goal = Guilds.Milestone(count)
+    toastBar:SetMinMaxValues(0, goal)
+    fillFrom, fillTo, fillElapsed = math.max(0, count - 1), count, 0
+    toastBar:SetValue(fillFrom)
+    toastCount:SetText(("%d / %d"):format(count, goal))
+    playToast()
 end
 
 -- Playback --------------------------------------------------------------------------------
@@ -489,6 +517,15 @@ end
 -- Each playback gets a number: a new capture cancels the sounds and
 -- steps scheduled by the previous one.
 local playback = 0
+-- The thrown ball, its flight home and its trail all use the ball of the click.
+local function useBall(file)
+    if ball.ballFile == file then return end
+    ball.ballFile = file
+    Art.SmoothTexture(ball, file)
+    Art.SmoothTexture(homingBall, file)
+    for _, ghost in ipairs(trail) do Art.SmoothTexture(ghost.texture, file) end
+end
+
 local function at(delay, token, action)
     C_Timer.After(delay, function()
         if token == playback then action() end
@@ -496,21 +533,29 @@ local function at(delay, token, action)
 end
 
 -- options: from (x, y), to (x, y, ball size), home (x, y, minimap
--- icon size), entry, onReveal, onHome.
+-- icon size), entry, onReveal, onHome. A guild capture passes guild instead of
+-- entry: its own ball, chat line and notification.
 function CaptureVisuals.Play(options)
     playback = playback + 1
     local token = playback
     -- One capture can interrupt another, for example from chat.
     stopHoming()
     effect:Hide()
-    local entry = options.entry
+    local entry, guild = options.entry, options.guild
+    useBall(guild and GUILD_BALL or BALL)
+    local function announce()
+        if guild then ns.Guilds.Announce(guild) else Collection.Announce(entry, true) end
+    end
+    local function notify()
+        if guild then showGuildToast(guild) else showToast(entry) end
+    end
     local mode = Settings.Get("animation")
     if not options.fromX or mode == "off" then
         -- No animation (or no visible starting point): everything happens at once.
         if options.onReveal then options.onReveal() end
-        Collection.Announce(entry, true)
+        announce()
         if options.onHome then options.onHome() end
-        showToast(entry)
+        notify()
         return
     end
     local quick = mode == "quick"
@@ -536,7 +581,7 @@ function CaptureVisuals.Play(options)
     end
     at(CLICK - shift, token, function()
         Art.Sound("IG_QUEST_LIST_COMPLETE")
-        Collection.Announce(entry, true)
+        announce()
         if options.onReveal then options.onReveal() end
     end)
     at(FLY - shift, token, function()
@@ -544,7 +589,7 @@ function CaptureVisuals.Play(options)
         launchHoming(x2, y2, size, options.homeX, options.homeY, options.homeSize, function()
             Art.Sound("LOOTWINDOWCOINSOUND")
             if options.onHome then options.onHome() end
-        end, function() showToast(entry) end)
+        end, notify)
     end)
 end
 end)

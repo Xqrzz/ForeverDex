@@ -17,9 +17,12 @@ Locales\itIT.lua
 Locales\ptBR.lua
 Locales\ruRU.lua
 Art.lua
+PopupMenu.lua
+Gamepad.lua
 Settings.lua
 Catalog.lua
 Collection.lua
+Guilds.lua
 Achievements.lua
 Home.lua
 News.lua
@@ -34,4 +37,5 @@ PortraitCapture.lua
 UI.lua
 HomeUI.lua
 AchievementsUI.lua
+GuildsUI.lua
 ForeverDex.lua

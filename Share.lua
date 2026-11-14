@@ -281,6 +281,23 @@ function Share.Capture(entry, isNew)
     return schedule(choice, chatType, target, captureText(entry, kind))
 end
 
+-- Prepares the announcement of a guild capture (Guilds.lua): same switch, channel and
+-- cooldown as the captures of characters, with its own lines.
+function Share.CaptureGuild(guild)
+    if not Settings.Get("shareCaptures") or not guild or not guild.name then return NOOP end
+    local choice = Settings.Get("shareCaptureChannel")
+    local chatType, target = destination(choice)
+    if not chatType then
+        warn(target)
+        return NOOP
+    end
+    if not ready("capture") then return NOOP end
+    local text = finish(fill(pick(L.SHARE_GUILD_CAPTURE_LINES), {
+        guild = "<" .. guild.name .. ">", count = ns.Guilds.Count(),
+    }))
+    return schedule(choice, chatType, target, text)
+end
+
 -- Prepares the announcement of the achievements earned together (one message for
 -- all of them). Returns the function to call with their alert (always a function).
 function Share.Achievements(list)
@@ -305,8 +322,7 @@ end
 -- accepts it then. A few seconds between two shares, so a double click sends one.
 local SHOW_COOLDOWN = 5
 local lastShow
-function Share.Show(entry, slot)
-    if not entry or not entry.name or not slot then return end
+local function showText(text)
     local chatType, target = destination(Settings.Get("shareCaptureChannel"))
     if not chatType then
         print(L.CHAT_PREFIX .. L.SHARE_SKIPPED:format(target))
@@ -317,17 +333,27 @@ function Share.Show(entry, slot)
         print(L.CHAT_PREFIX .. L.SHARE_SHOW_WAIT)
         return
     end
-    -- A pet carries its family, without an article: the game does not give its gender.
-    local name = entry.name
-    if slot.pet and entry.family and entry.family ~= "" then
-        name = ("%s (%s)"):format(name, entry.family)
-    end
-    local text = fill(pick(L.SHARE_SHOW_LINES), { name = name })
     if safeSend(finish(text), chatType, target) then
         lastShow = now
     else
         print(L.CHAT_PREFIX .. L.SHARE_SKIPPED:format(L.SHARE_UNAVAILABLE))
     end
+end
+
+function Share.Show(entry, slot)
+    if not entry or not entry.name or not slot then return end
+    -- A pet carries its family, without an article: the game does not give its gender.
+    local name = entry.name
+    if slot.pet and entry.family and entry.family ~= "" then
+        name = ("%s (%s)"):format(name, entry.family)
+    end
+    showText(fill(pick(L.SHARE_SHOW_LINES), { name = name }))
+end
+
+-- Shares a guild of the Guilds page (banner menu), the same way.
+function Share.ShowGuild(guild)
+    if not guild or not guild.name then return end
+    showText(fill(pick(L.SHARE_GUILD_SHOW_LINES), { guild = "<" .. guild.name .. ">" }))
 end
 
 -- Preview: the message is shown to the player only, with where it would go.

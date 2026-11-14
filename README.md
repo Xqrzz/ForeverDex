@@ -8,10 +8,11 @@ A collection journal for World of Warcraft: Forever. Meet a player with a funny 
 - **Capture from the target portrait** or by right-clicking a name in chat, with a full capture animation (which can be shortened or turned off)
 - **Detail page for each capture**: date, zone, level and guild when the game provides them, and which of your characters made the capture
 - **Search by name, guild or zone**, with filters (race, class, gender, capturing character) and sorting that are remembered between sessions, plus a Favorites tab
+- **Guilds**: capture a player's guild on its own and hang its banner, in Alliance or Horde colors, on the Guilds page; drag the banners to arrange them as you like
 - **Duels**: compare your collection with another ForeverDex user
 - **Announcements** (optional): share your captures and achievements with your guild, group or a custom channel
 - **Home page**: a daily challenge (a combination to look for, just for fun), the latest news and a few statistics about your collection
-- **Achievements**: 34 goals (captures, races, classes, genders, pets…) announced with an achievement-style alert
+- **Achievements**: 40 goals (captures, races, classes, genders, pets, guilds…) announced with an achievement-style alert
 - Available in **English, French, German, Spanish, Italian, Portuguese and Russian**, with a language setting independent of the game client
 
 ## Installation
@@ -27,12 +28,13 @@ Install it with your addon manager once it is available on CurseForge, or manual
 Open the journal with the minimap icon or `/foreverdex`. Each session starts on the home page; the side tabs on the right switch between the home page, the journal and the achievements.
 
 - **Capture a player:** target them and click the ball on their portrait, or right-click their name in chat and choose **Add to ForeverDex**. Captures from chat do not include level or guild.
+- **Capture a guild:** right-click the ball on a player's portrait (or click the purple ball that replaces the orb when you already have the player). Only the guild is captured: the character's card is not touched. The **Guilds** tab on the right of the window shows a banner for each one; drag a banner onto another to move it, right-click it to share it in chat or for more options, click it to see its members in your journal.
 - **Card already taken?** You can replace it or add the new character as a bonus.
 - **Fill a bonus slot:** open the **Bonus** tab, target a player and choose **Add as bonus**.
 - **Capture a pet:** target a hunter's pet and click the ball. Its name, family and owner go into the **Pets** tab.
 - **Manage a card:** right-click it to add it to your favorites, move it to or from the bonus cards, or delete it.
 - **Spot other collectors:** a glowing ForeverDex icon appears on the nameplate of nearby friendly players who have the addon too (friendly nameplates must be on, Shift+V), and their tooltip says they have ForeverDex. Pick the icon (capture orb, spark of light or a raid marker), the detection distance (10, 30 or 40 yards), its glow, opacity, size and whether it stays or only pings for a few seconds under Options → AddOns → ForeverDex → Collectors, with a live preview. You can also stop showing yourself to others.
-- **Announce your captures:** under Options → AddOns → ForeverDex → Announcements (or `/fdex share`), turn on the announcements of your captures and achievements to your guild, your group or a custom channel you joined. Off by default; Blizzard channels (General, Trade…) are never used.
+- **Announce your captures:** under Options → AddOns → ForeverDex → Announcements (or `/fdex share`), turn on the announcements of your captures (characters and guilds) and achievements to your guild, your group or a custom channel you joined. Off by default; Blizzard channels (General, Trade…) are never used.
 - **Compare collections:** right-click a player portrait, a party or raid member, or a name in chat, then choose **Compare our captures**. With a controller, use the **Compare collections with target** key binding instead.
 
 | Command | Action |
@@ -41,6 +43,8 @@ Open the journal with the minimap icon or `/foreverdex`. Each session starts on 
 | `/fdex home` | Open the home page: daily challenge, news and statistics |
 | `/fdex news` | List the changes of the latest version |
 | `/fdex capture` | Capture your target (works in macros) |
+| `/fdex guild` | Capture your target's guild (works in macros) |
+| `/fdex guilds` | Open the Guilds page |
 | `/fdex compare` | Compare collections with your target (works in macros) |
 | `/fdex collectors` | List the nearby players who have ForeverDex (`/fdex presence` also works) |
 | `/fdex collectors demo` | Show the icon above every friendly player nearby, to try it out (nothing is sent) |
@@ -48,7 +52,7 @@ Open the journal with the minimap icon or `/foreverdex`. Each session starts on 
 | `/fdex share` | Open the Announcements settings |
 | `/fdex options` | Open the settings |
 
-Capturing the target, comparing collections with it and opening the journal can also be bound to a key or a controller button, under Options → Keybindings → AddOns → ForeverDex.
+Capturing the target or its guild, comparing collections with it and opening the journal can also be bound to a key or a controller button, under Options → Keybindings → AddOns → ForeverDex.
 
 Settings are also available under Options → AddOns → ForeverDex, or by right-clicking the minimap icon.
 

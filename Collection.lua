@@ -229,6 +229,11 @@ StaticPopupDialogs["FOREVERDEX_REPLACE"] = {
 function Collection.Delete(key)
     local entry = ForeverDexDB.cards[key]
     if not entry then return end
+    -- Last guard: a favorite became so while the confirmation was open.
+    if entry.favorite then
+        print(L.CHAT_PREFIX .. L.DELETE_FAVORITE)
+        return
+    end
     ForeverDexDB.cards[key] = nil
     print(L.DELETED:format(entry.name))
     onChanged(entry, false)
@@ -254,10 +259,28 @@ StaticPopupDialogs["FOREVERDEX_DELETE"] = {
     OnAccept = function(_, key) Collection.Delete(key) end,
 }
 
+-- The card is a favorite: it is never replaced. The new character can still go to
+-- a bonus slot, when one is free.
+StaticPopupDialogs["FOREVERDEX_FAVORITE_HELD"] = {
+    text = L.FAVORITE_HELD_PROMPT,
+    button1 = L.ADD_BONUS,
+    button2 = CANCEL,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    OnAccept = function(_, data) Collection.SaveAsBonus(data.entry, data.noThrow) end,
+}
+
 local function place(entry, noThrow)
     local current = ForeverDexDB.cards[entry.key]
     if not current then
         save(entry, noThrow)
+    elseif current.id ~= entry.id and current.favorite then
+        if Collection.FindBonusSlot(entry) then
+            StaticPopup_Show("FOREVERDEX_FAVORITE_HELD", current.name, entry.name, { entry = entry, noThrow = noThrow })
+        else
+            print(L.CHAT_PREFIX .. L.FAVORITE_HELD:format(current.name))
+        end
     elseif current.id ~= entry.id and not Settings.Get("confirmReplace") then
         save(entry, noThrow)
     elseif current.id ~= entry.id then
@@ -414,7 +437,8 @@ end
 
 if Menu and Menu.ModifyMenu then
     Menu.ModifyMenu("MENU_UNIT_FRIEND", function(_, root, context)
-        if not chatSenderGUID(context) then return end
+        -- With the controller, an addon entry blocks the menu's protected actions (Duel.lua).
+        if ns.PopupMenu.GamepadActive() or not chatSenderGUID(context) then return end
         root:CreateDivider()
         root:CreateButton(L.CHAT_CAPTURE, function() captureFromChat(context) end)
     end)

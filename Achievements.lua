@@ -53,6 +53,19 @@ local function measure(cards)
         end
     end
     stats.pets = Catalog.Filled(cards, Catalog.petSlots)
+    -- Guilds: how many, of which factions, and the most members of one of them in
+    -- the journal.
+    local guilds = ForeverDexDB and ForeverDexDB.guilds or {}
+    stats.guilds, stats.alliance, stats.horde, stats.guildMembers = #guilds, 0, 0, 0
+    local members = {}
+    for _, entry in pairs(cards) do
+        if entry.guild then members[entry.guild] = (members[entry.guild] or 0) + 1 end
+    end
+    for _, guild in ipairs(guilds) do
+        if guild.faction == "Alliance" then stats.alliance = stats.alliance + 1 end
+        if guild.faction == "Horde" then stats.horde = stats.horde + 1 end
+        stats.guildMembers = math.max(stats.guildMembers, members[guild.name] or 0)
+    end
     return stats
 end
 
@@ -158,6 +171,32 @@ for _, need in ipairs({ 1, 10, 30, 60 }) do
         progress = function(stats) return stats.pets, need end,
     })
 end
+
+local GUILD_ICON = "Interface\\Icons\\INV_Shirt_GuildTabard_01"
+category("guilds", L.ACH_CAT_GUILDS, { texture = GUILD_ICON })
+local GUILD_POINTS = { [1] = 5, [10] = 10, [25] = 10, [50] = 25 }
+for _, need in ipairs({ 1, 10, 25, 50 }) do
+    add({
+        id = "guilds" .. need, name = L.ACH_GUILDS[need], points = GUILD_POINTS[need],
+        description = need == 1 and L.ACH_GUILDS_FIRST or L.ACH_GUILDS_DESC:format(need),
+        icon = { texture = GUILD_ICON },
+        progress = function(stats) return stats.guilds, need end,
+    })
+end
+add({
+    id = "guildsBothFactions", name = L.ACH_GUILDS_FACTIONS, description = L.ACH_GUILDS_FACTIONS_DESC, points = 10,
+    icon = { texture = "Interface\\Icons\\INV_BannerPVP_01" },
+    progress = function(stats)
+        return (stats.alliance > 0 and 1 or 0) + (stats.horde > 0 and 1 or 0), 2
+    end,
+})
+local GUILD_MEMBERS = 3
+add({
+    id = "guildMembers", name = L.ACH_GUILD_MEMBERS, points = 10,
+    description = L.ACH_GUILD_MEMBERS_DESC:format(GUILD_MEMBERS),
+    icon = { texture = "Interface\\Icons\\INV_BannerPVP_02" },
+    progress = function(stats) return stats.guildMembers, GUILD_MEMBERS end,
+})
 
 Achievements.list = list
 Achievements.categories = categories
@@ -423,6 +462,11 @@ function Achievements.OnCollectionChanged(_, isNew, noThrow)
         end
     end)
 end
+
+-- A guild capture is checked the same way, its alert also waiting for the throw.
+ns.Guilds.OnChanged(function(guild, isNew)
+    Achievements.OnCollectionChanged(guild, isNew, false)
+end)
 
 -- State of every achievement, for the achievements page: in list order, each row
 -- with have / need (capped) and earned (time of unlock, 0 when granted at the first

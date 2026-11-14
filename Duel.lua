@@ -168,16 +168,61 @@ local function requestFromChat(context)
     startRequest(name, realm, nil, combination)
 end
 
--- Controller mode: the portrait menu opened with the controller does not accept any
--- addon entry. Its protected actions, such as Follow, are then blocked and the
--- controller buttons lock up. Controller players compare with the key binding instead.
-local function gamepadActive()
-    if C_GamePad and C_GamePad.IsEnabled and C_GamePad.IsEnabled() then return true end
-    return GetCVarBool ~= nil and GetCVarBool("GamePadEnable") == true
+-- From the guild member list, the player has no unit either: the menu gives their
+-- name (and their GUID on recent clients). A guildmate shares the player's faction.
+-- Forever whispers "First-Surname". The guild list (and the GUID of a guildmate) can
+-- give "First Surname" with the server's internal realm on top, which is not part of
+-- the name: the whisper address is rebuilt from the name alone.
+local function whisperName(name, realm)
+    -- "First Surname-Realm": the realm goes, then the space becomes the separator.
+    local full = name:match("^(%S+%s+[^%-]+)%-") or name
+    local first, surname = full:match("^(%S+)%s+(.+)$")
+    if first then return first .. "-" .. surname end
+    if full:find("-", 1, true) then return full end
+    -- A single word: the realm field holds the surname on Forever, unless it is the
+    -- server's own name.
+    local own = GetNormalizedRealmName and GetNormalizedRealmName()
+    if not readable(realm) or type(realm) ~= "string" or realm == ""
+        or (own and realm:gsub("[%s%-]", "") == own) then
+        return full
+    end
+    return full, realm
 end
 
--- Right-click on a player portrait, a party member or a name in chat. With the
--- controller already on at login, the portrait menus are not touched at all.
+local function guildMember(context)
+    if not context then return end
+    -- The Communities window also lists offline members: they could not answer.
+    local member, presence = context.clubMemberInfo, Enum and Enum.ClubMemberPresence
+    if type(member) == "table" and presence and member.presence == presence.Offline then return end
+    local guid = context.guid or (type(member) == "table" and member.guid)
+    if readable(guid) and type(guid) == "string" and guid:find("^Player%-") then
+        local own = UnitGUID("player")
+        if readable(own) and guid == own then return end
+        local _, class, _, race, sex, name, realm = GetPlayerInfoByGUID(guid)
+        if readable(name) and type(name) == "string" and name ~= "" then
+            local combination
+            if readable(class) and readable(race) and readable(sex) then
+                combination = Catalog.SlotForFiles(race, class, sex, UnitFactionGroup("player"))
+            end
+            local address, addressRealm = whisperName(name, realm)
+            return address, addressRealm, combination
+        end
+    end
+    local name = context.name
+    if not readable(name) or type(name) ~= "string" or name == "" then return end
+    if shortName(name) == UnitName("player") then return end
+    return whisperName(name, context.server)
+end
+
+-- Controller mode: a game menu holding an addon entry cannot run its protected actions
+-- (Follow, or closing the menu itself, which updates the controller bindings): they
+-- are blocked and the controller buttons lock up. In that mode no entry is added to
+-- any menu; controller players compare with the key binding instead.
+local gamepadActive = ns.PopupMenu.GamepadActive
+
+-- Right-click on a player portrait, a party member, a name in chat (guild chat
+-- included) or a guild member in the guild window. With the controller already on at
+-- login, the portrait menus are not touched at all.
 if Menu and Menu.ModifyMenu then
     if not gamepadActive() then
         for _, tag in ipairs({ "MENU_UNIT_PLAYER", "MENU_UNIT_PARTY", "MENU_UNIT_RAID_PLAYER" }) do
@@ -192,9 +237,21 @@ if Menu and Menu.ModifyMenu then
     end
     -- In chat, the option follows "Add to ForeverDex", already preceded by a separator.
     Menu.ModifyMenu("MENU_UNIT_FRIEND", function(_, root, context)
-        if not Collection.ChatSenderGUID(context) then return end
+        if gamepadActive() or not Collection.ChatSenderGUID(context) then return end
         root:CreateButton(L.COMPARE_MENU, function() requestFromChat(context) end)
     end)
+    -- Guild window: the classic member list, and the Communities window of recent
+    -- clients. Offline members have no menu entry: they could not answer.
+    for _, tag in ipairs({ "MENU_UNIT_GUILD", "MENU_UNIT_COMMUNITIES_GUILD_MEMBER", "MENU_UNIT_COMMUNITIES_WOW_MEMBER" }) do
+        Menu.ModifyMenu(tag, function(_, root, context)
+            if gamepadActive() or not guildMember(context) then return end
+            root:CreateDivider()
+            root:CreateButton(L.COMPARE_MENU, function()
+                local name, realm, combination = guildMember(context)
+                if name then startRequest(name, realm, nil, combination) end
+            end)
+        end)
+    end
 end
 
 StaticPopupDialogs["FOREVERDEX_DUEL"] = {

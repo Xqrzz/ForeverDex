@@ -207,12 +207,13 @@ local function choice(spot, key, label, options, description)
     if native and menu.SetupMenu then
         local function isSelected(value) return Settings.Get(key) == value end
         local function select(value) Settings.Set(key, value) end
-        menu:SetupMenu(function(_, root)
+        local function generator(_, root)
             for _, option in ipairs(options) do
                 root:CreateRadio(option[2], isSelected, select, option[1])
             end
-        end)
-        controls[#controls + 1] = function()
+        end
+        menu:SetupMenu(generator)
+        local function update()
             if menu.GenerateMenu then menu:GenerateMenu() end
             for _, option in ipairs(options) do
                 if option[1] == Settings.Get(key) and menu.SetDefaultText then
@@ -220,6 +221,9 @@ local function choice(spot, key, label, options, description)
                 end
             end
         end
+        -- With the controller, ForeverDex's own menu replaces the game's (PopupMenu.lua).
+        ns.PopupMenu.AttachDropdown(menu, generator, update)
+        controls[#controls + 1] = update
     else
         -- Client without modern menus: a button that cycles through the choices.
         local cycle = CreateFrame("Button", nil, spot.frame, "UIPanelButtonTemplate")

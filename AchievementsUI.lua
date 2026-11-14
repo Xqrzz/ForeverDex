@@ -223,7 +223,7 @@ end
 
 -- Side tab and registration: UI.lua shows this page in place of the journal --------------
 
-UI.AddSideTab(3, "achievements", L.ACH_TAB, function(icon)
+UI.AddSideTab(4, "achievements", L.ACH_TAB, function(icon)
     icon:SetTexture(ACHIEVEMENT .. "UI-Achievement-Shields")
     icon:SetTexCoord(0, 0.5, 0, 0.45)
 end)
