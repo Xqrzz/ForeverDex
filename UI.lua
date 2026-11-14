@@ -1477,13 +1477,13 @@ ns.UI = {
         })
     end,
     -- Guild capture (GuildsUI.lua): the guild ball leaves the portrait ball or orb that
-    -- was clicked, else the given button. getLanding() gives the frame to land on when
+    -- was clicked, else the given fallback button. getLanding() gives the frame to land on when
     -- no target frame is visible; onReveal runs on the "click" of the ball.
     -- Returns false when there is nothing to throw from (no animation).
-    ThrowGuild = function(guild, button, getLanding, onReveal)
+    ThrowGuild = function(guild, fallback, getLanding, onReveal)
         local ball, orb = PortraitCapture.Ball, PortraitCapture.Orb
         local origin = (ball:IsVisible() and ball:IsMouseOver() and ball) or (orb:IsVisible() and orb:IsMouseOver() and orb)
-            or (button and button:IsVisible() and button) or (ball:IsVisible() and ball) or (orb:IsVisible() and orb)
+            or (fallback and fallback:IsVisible() and fallback) or (ball:IsVisible() and ball) or (orb:IsVisible() and orb)
         local x1, y1 = throwStart(origin or nil)
         updateTarget()
         throwBall(x1, y1, getLanding and getLanding(), { guild = guild, onReveal = onReveal })
