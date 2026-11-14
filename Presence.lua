@@ -101,12 +101,20 @@ readLook()
 
 -- Icon ------------------------------------------------------------------------------
 --
--- Layers from back to front: halo, rotating star, ping wave, the icon itself.
--- Animate() draws one frame of it; the same object serves the nameplates and the preview.
+-- Layers from back to front: halo, rotating star, ping wave, the icon itself, a glint.
+-- The endless motions (float, breathing, rotation, waves, glint) are animation groups
+-- the game runs by itself. Lua only drives the arrival (fade and pop), the departure
+-- and the timer of a ping: a permanent icon costs nothing once it has arrived.
+-- The same object serves the nameplates and the preview.
 
-local active = {} -- icons being animated
--- Runs the animation, only while an icon is animated: hidden otherwise, it costs nothing.
+local active = {} -- icons shown, arriving, steady or leaving
+local moving = {} -- icons Lua still has to move: arriving, leaving, or on a timer
+-- Runs while an icon is moving: hidden otherwise, it costs nothing.
 local driver
+
+local FADE_IN, FADE_OUT, POP = 0.35, 0.8, 0.35
+local WAVE_PERIOD = 2.4
+local sin, max, min, pi = math.sin, math.max, math.min, math.pi
 
 local function layer(frame, file, drawLayer, sublevel, blend)
     local texture = frame:CreateTexture(nil, drawLayer, nil, sublevel)
@@ -128,115 +136,227 @@ local function setIconTexture(icon, choice)
     if choice[4] == "ADD" then core:SetVertexColor(GOLD[1], GOLD[2], GOLD[3], 1) end
 end
 
+local function loop(icon, region, looping)
+    local group = region:CreateAnimationGroup()
+    group:SetLooping(looping)
+    icon.loops[#icon.loops + 1] = group
+    return group
+end
+
+local function animation(group, kind, duration, order, smoothing)
+    local step = group:CreateAnimation(kind)
+    step:SetDuration(duration)
+    step:SetOrder(order or 1)
+    if smoothing then step:SetSmoothing(smoothing) end
+    return step
+end
+
+local function scaleTo(step, factor)
+    if step.SetScaleFrom then
+        step:SetScaleFrom(1, 1)
+        step:SetScaleTo(factor, factor)
+    else
+        step:SetScale(factor, factor)
+    end
+end
+
 function Presence.CreateIcon(parent)
     local frame = CreateFrame("Frame", nil, parent)
     frame:SetSize(1, 1)
     frame:Hide()
-    local icon = { frame = frame }
-    icon.halo = layer(frame, MEDIA .. "Glow", "BACKGROUND", 0)
-    icon.star = layer(frame, "Interface\\Cooldown\\star4", "BACKGROUND", 1)
-    icon.wave = layer(frame, MEDIA .. "Ring", "BORDER", 0)
-    icon.core = layer(frame, MEDIA .. "Ball", "ARTWORK", 0, "BLEND")
-    icon.glint = layer(frame, MEDIA .. "Glow", "OVERLAY", 1)
-    -- Gold light; each layer's own alpha (SetAlpha) is animated.
+    -- The layers sit on body, which floats: one translation moves them all.
+    local body = CreateFrame("Frame", nil, frame)
+    body:SetSize(1, 1)
+    body:SetPoint("CENTER")
+    local icon = { frame = frame, body = body, loops = {} }
+    icon.halo = layer(body, MEDIA .. "Glow", "BACKGROUND", 0)
+    icon.star = layer(body, "Interface\\Cooldown\\star4", "BACKGROUND", 1)
+    icon.wave = layer(body, MEDIA .. "Ring", "BORDER", 0)
+    icon.core = layer(body, MEDIA .. "Ball", "ARTWORK", 0, "BLEND")
+    icon.glint = layer(body, MEDIA .. "Glow", "OVERLAY", 1)
+    -- Gold light; each layer's alpha is animated.
     for _, texture in ipairs({ icon.halo, icon.star, icon.wave, icon.glint }) do
         texture:SetVertexColor(GOLD[1], GOLD[2], GOLD[3], 1)
         texture:SetAlpha(0)
     end
+
+    -- Slow float, up and down.
+    icon.float = animation(loop(icon, body, "BOUNCE"), "Translation", pi / 1.8, 1, "IN_OUT")
+
+    -- Halo breathing behind the icon.
+    local breath = loop(icon, icon.halo, "BOUNCE")
+    scaleTo(animation(breath, "Scale", pi / 2.6, 1, "IN_OUT"), 2.55 / 2.3)
+    icon.haloFade = animation(breath, "Alpha", pi / 2.6, 1, "IN_OUT")
+
+    -- Slowly turning star, its light pulsing on its own rhythm.
+    animation(loop(icon, icon.star, "REPEAT"), "Rotation", 4 * pi):SetDegrees(360)
+    icon.starFade = animation(loop(icon, icon.star, "BOUNCE"), "Alpha", pi / 1.7, 1, "IN_OUT")
+
+    -- A wave every 2.4 s, stronger the first time.
+    local wave = loop(icon, icon.wave, "REPEAT")
+    scaleTo(animation(wave, "Scale", WAVE_PERIOD), 2.7 / 0.9)
+    icon.waveFade = animation(wave, "Alpha", WAVE_PERIOD)
+    icon.waveFade:SetToAlpha(0)
+    wave:SetScript("OnLoop", function()
+        icon.waveFade:SetFromAlpha(min(1, (icon.glow or 1) * 0.55))
+    end)
+
+    -- Small glint passing over the icon every few seconds.
+    local glint = loop(icon, icon.glint, "REPEAT")
+    icon.glintIn = animation(glint, "Alpha", 0.35, 1, "IN")
+    icon.glintIn:SetFromAlpha(0)
+    icon.glintOut = animation(glint, "Alpha", 0.35, 2, "OUT")
+    icon.glintOut:SetToAlpha(0)
+    local rest = animation(glint, "Alpha", 2 * pi / 1.3 - 0.7, 3)
+    rest:SetFromAlpha(0)
+    rest:SetToAlpha(0)
     return icon
+end
+
+-- Strata and level of the icon; body stays just in front of its frame.
+local function setLayer(icon, strata, level)
+    if strata then icon.frame:SetFrameStrata(strata) end
+    icon.frame:SetFrameLevel(level)
+    icon.body:SetFrameLevel(level + 1)
+end
+
+local function startLoops(icon, arriving)
+    icon.waveFade:SetFromAlpha(min(1, icon.glow * 0.55 * (arriving and 1.6 or 1)))
+    for _, group in ipairs(icon.loops) do
+        group:Stop()
+        group:Play()
+    end
+end
+
+local function stopLoops(icon)
+    for _, group in ipairs(icon.loops) do group:Stop() end
+end
+
+-- Applies the current look (icon, size, glow, opacity) to an icon.
+local function restyle(icon)
+    setIconTexture(icon, icon.forced or look.icon)
+    local size = 30 * look.size * (icon.scale or 1)
+    local glow = look.intensity
+    local steady = icon.settled and not icon.leaving
+    if steady then icon.frame:SetAlpha(look.alpha) end
+    if icon.size == size and icon.glow == glow and icon.lookSize == look.size then return end
+    icon.size, icon.glow, icon.lookSize = size, glow, look.size
+
+    local amplitude = 2.5 * look.size
+    icon.body:ClearAllPoints()
+    icon.body:SetPoint("CENTER", icon.frame, "CENTER", 0, -amplitude)
+    icon.float:SetOffset(0, 2 * amplitude)
+
+    if steady then icon.core:SetSize(size, size) end
+    icon.halo:SetSize(size * 2.3, size * 2.3)
+    icon.haloFade:SetFromAlpha(min(1, glow * 0.45))
+    icon.haloFade:SetToAlpha(min(1, glow * 0.7))
+    icon.star:SetSize(size * 2.1, size * 2.1)
+    icon.starFade:SetFromAlpha(min(1, glow * 0.25))
+    icon.starFade:SetToAlpha(min(1, glow * 0.55))
+    icon.wave:SetSize(size * 0.9, size * 0.9)
+    icon.glint:SetSize(size * 0.9, size * 0.9)
+    icon.glint:ClearAllPoints()
+    icon.glint:SetPoint("CENTER", icon.body, "CENTER", size * 0.18, size * 0.18)
+    icon.glintIn:SetToAlpha(min(1, glow * 0.8))
+    icon.glintOut:SetFromAlpha(min(1, glow * 0.8))
+    -- Animations read their values when they start: the loops start over.
+    if icon.frame:IsShown() then startLoops(icon, false) end
+end
+
+-- Restyles every icon shown, after a change of settings.
+local function restyleAll()
+    for icon in pairs(active) do restyle(icon) end
+end
+
+local function hide(icon)
+    active[icon], moving[icon] = nil, nil
+    icon.frame:Hide()
+    icon.leaving = nil
+    stopLoops(icon)
 end
 
 -- Starts the icon: duration 0 = stays until Stop, otherwise fades out after it.
 local function play(icon, duration)
-    local now = GetTime()
-    if not (icon.frame:IsShown() and icon.leaving == nil and active[icon]) then icon.start = now end
+    local fresh = not (icon.frame:IsShown() and icon.leaving == nil and active[icon])
     icon.duration = duration or 0
     icon.leaving = nil
-    icon.phase = icon.phase or math.random() * 6
     active[icon] = true
-    icon.frame:Show()
+    if fresh then
+        icon.start, icon.settled = GetTime(), nil
+        icon.frame:SetAlpha(0)
+    end
+    restyle(icon)
+    if fresh then
+        icon.frame:Show()
+        startLoops(icon, true)
+    end
+    moving[icon] = true
     if driver then driver:Show() end
 end
 
 -- Fades out, then hides.
 local function stop(icon, immediate)
     if immediate then
-        active[icon] = nil
-        icon.frame:Hide()
-        icon.leaving = nil
+        hide(icon)
         return
     end
-    if active[icon] and not icon.leaving then icon.leaving = GetTime() end
+    if active[icon] and not icon.leaving then
+        icon.leaving = GetTime()
+        moving[icon] = true
+        if driver then driver:Show() end
+    end
 end
 
-local FADE_IN, FADE_OUT, POP = 0.35, 0.8, 0.35
-local sin, max, min = math.sin, math.max, math.min
+-- Size of the icon while it pops in.
+local function pop(t)
+    if t >= POP then return 1 end
+    return 0.6 + 0.4 * sin(t / POP * pi / 2) + 0.12 * sin(t / POP * pi)
+end
 
--- One frame of the icon. Returns false once it has faded out.
+-- One frame of a moving icon. Returns false once it has faded out, nil once Lua has
+-- nothing more to do for it, true otherwise.
 local function animate(icon, now)
     local t = now - icon.start
-    local envelope = min(1, t / FADE_IN)
     if icon.duration > 0 and not icon.leaving and t > icon.duration then icon.leaving = now end
     if icon.leaving then
-        envelope = envelope * max(0, 1 - (now - icon.leaving) / FADE_OUT)
+        local envelope = min(1, t / FADE_IN) * max(0, 1 - (now - icon.leaving) / FADE_OUT)
         if envelope <= 0 then return false end
+        icon.frame:SetAlpha(look.alpha * envelope)
+        local size = icon.size * pop(t)
+        icon.core:SetSize(size, size)
+        return true
     end
-    setIconTexture(icon, icon.forced or look.icon)
-
-    local size = 30 * look.size * (icon.scale or 1)
-    local glow = look.intensity
-    local phase = t + icon.phase
-    -- Pop on arrival, then a slow float.
-    local pop = t < POP and (0.6 + 0.4 * sin(t / POP * math.pi / 2) + 0.12 * sin(t / POP * math.pi)) or 1
-    local bob = sin(phase * 1.8) * 2.5 * look.size
-    icon.frame:SetAlpha(look.alpha * envelope)
-
-    local core = icon.core
-    core:SetSize(size * pop, size * pop)
-    core:ClearAllPoints()
-    core:SetPoint("CENTER", icon.frame, "CENTER", 0, bob)
-
-    -- Halo breathing behind the icon.
-    local breath = 0.5 + 0.5 * sin(phase * 2.6)
-    icon.halo:SetSize(size * (2.3 + 0.25 * breath), size * (2.3 + 0.25 * breath))
-    icon.halo:SetPoint("CENTER", icon.frame, "CENTER", 0, bob)
-    icon.halo:SetAlpha(min(1, glow * (0.45 + 0.25 * breath)))
-
-    -- Slowly turning star.
-    icon.star:SetSize(size * 2.1, size * 2.1)
-    icon.star:SetPoint("CENTER", icon.frame, "CENTER", 0, bob)
-    if icon.star.SetRotation then icon.star:SetRotation(phase * 0.5) end
-    icon.star:SetAlpha(min(1, glow * (0.25 + 0.3 * (0.5 + 0.5 * sin(phase * 1.7 + 1)))))
-
-    -- A wave every 2.4 s, and a stronger one when the icon arrives.
-    local cycle = (t % 2.4) / 2.4
-    local waveSize = size * (0.9 + 1.8 * cycle)
-    icon.wave:SetSize(waveSize, waveSize)
-    icon.wave:SetPoint("CENTER", icon.frame, "CENTER", 0, bob)
-    local arrival = t < 2.4 and 1.6 or 1
-    icon.wave:SetAlpha(min(1, glow * 0.55 * arrival * (1 - cycle)))
-
-    -- Small glint passing over the icon.
-    local glint = max(0, sin(phase * 1.3)) ^ 8
-    icon.glint:SetSize(size * 0.9, size * 0.9)
-    icon.glint:SetPoint("CENTER", icon.frame, "CENTER", size * 0.18, bob + size * 0.18)
-    icon.glint:SetAlpha(min(1, glow * 0.8 * glint))
-    return true
+    if t < FADE_IN or t < POP then
+        icon.frame:SetAlpha(look.alpha * min(1, t / FADE_IN))
+        local size = icon.size * pop(t)
+        icon.core:SetSize(size, size)
+        return true
+    end
+    if not icon.settled then
+        icon.settled = true
+        icon.frame:SetAlpha(look.alpha)
+        icon.core:SetSize(icon.size, icon.size)
+    end
+    -- A ping still waits for its end; a permanent icon is left to its animations.
+    if icon.duration > 0 then return true end
+    return nil
 end
 
 driver = CreateFrame("Frame")
 driver:Hide()
 driver:SetScript("OnUpdate", function(self)
     local now = GetTime()
-    for icon in pairs(active) do
-        if not animate(icon, now) then
-            active[icon] = nil
-            icon.frame:Hide()
-            icon.leaving = nil
+    for icon in pairs(moving) do
+        local state = animate(icon, now)
+        if state == false then
+            hide(icon)
             if icon.onDone then icon.onDone(icon) end
+        elseif state == nil then
+            moving[icon] = nil
         end
     end
-    if next(active) == nil then self:Hide() end
+    if next(moving) == nil then self:Hide() end
 end)
 
 -- Game settings ---------------------------------------------------------------------
@@ -394,8 +514,7 @@ local function place(icon, plate)
     local height = look.height
     if restricted(plate) or blizzardBarShown(plate) then
         icon.frame:SetPoint("CENTER", plate, "CENTER", 0, BLIZZARD_OFFSET + height)
-        icon.frame:SetFrameStrata(plate:GetFrameStrata())
-        icon.frame:SetFrameLevel(plate:GetFrameLevel() + 10)
+        setLayer(icon, plate:GetFrameStrata(), plate:GetFrameLevel() + 10)
         return
     end
     local okMeasure, top, level, strata = pcall(measure, plate)
@@ -406,8 +525,7 @@ local function place(icon, plate)
     local offset = BLIZZARD_OFFSET
     if top and centerY then offset = top - centerY + 30 * look.size * 0.6 end
     icon.frame:SetPoint("CENTER", plate, "CENTER", 0, offset + height)
-    icon.frame:SetFrameStrata(strata)
-    icon.frame:SetFrameLevel(math.max(plate:GetFrameLevel() + 10, level + 5))
+    setLayer(icon, strata, math.max(plate:GetFrameLevel() + 10, level + 5))
 end
 
 -- Measuring a nameplate addon's bar walks its frames: the icon only does it when it
@@ -552,18 +670,22 @@ local function pingNext(now)
     send(look.announce and "P" or "P\tq", entry.address)
 end
 
+local prune -- below
+
 local function heard(who, address)
     local entry = known[who] or {}
     known[who] = entry
     entry.has, entry.checked, entry.asking = true, GetTime(), nil
     entry.address = address or entry.address
     updatePlayer(who)
+    -- Answers keep arriving while the icons are off and the ticker stopped.
+    prune(GetTime())
 end
 
 -- Forgets the players not met for a long time, so that a session in town does not
 -- keep every name it ever saw. Those still on a plate or in the queue are kept.
 local lastPrune = 0
-local function prune(now)
+prune = function(now)
     if now - lastPrune < PRUNE_EVERY then return end
     lastPrune = now
     local onPlate = {}
@@ -659,10 +781,16 @@ end
 
 -- Events ----------------------------------------------------------------------------
 
+-- The ticker only runs while the icons are on: answering the pings of other players
+-- needs no ticker, it follows their messages.
 local ticker
-local function startTicker()
-    if ticker then return end
-    ticker = C_Timer.NewTicker(TICK, tick)
+local function syncTicker()
+    if look.show and not ticker then
+        ticker = C_Timer.NewTicker(TICK, tick)
+    elseif not look.show and ticker then
+        ticker:Cancel()
+        ticker = nil
+    end
 end
 
 local events = CreateFrame("Frame")
@@ -720,7 +848,8 @@ Settings.OnChange(function(key)
         for unit in pairs(icons) do release(unit) end
         for _, entry in pairs(known) do entry.shown = nil end
     end
-    startTicker()
+    syncTicker()
+    restyleAll()
     updateAll()
     if Presence.RefreshPreview then Presence.RefreshPreview() end
 end)
@@ -784,7 +913,7 @@ function Presence.ToggleDemo()
     readLook()
     for unit in pairs(icons) do release(unit) end
     wipe(demoKnown)
-    startTicker()
+    syncTicker()
     scanPlates()
     updateAll()
     showBanner(demo)
@@ -856,7 +985,7 @@ end
 
 local preview = Presence.CreateIcon(stage)
 preview.frame:SetPoint("TOP", stage, "TOP", 0, -40)
-preview.frame:SetFrameLevel(stage:GetFrameLevel() + 20)
+setLayer(preview, nil, stage:GetFrameLevel() + 20)
 
 local nameLabel = stage:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 nameLabel:SetPoint("TOP", stage, "TOP", 0, -70)

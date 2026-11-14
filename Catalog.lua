@@ -227,11 +227,45 @@ local function allowed(set, value)
     return next(set) == nil or set[value]
 end
 
+-- What the search reads of each card, normalized once and kept until the card changes:
+-- the search box runs the query on every letter typed. The language only changes with
+-- a reload, so the names of races and classes stay valid.
+local searchCache = {} -- [slot] = { entry, its fields below, details, description, ... }
+local CACHED_FIELDS = { "name", "guild", "zone", "owner", "capturedBy", "combination", "family" }
+
+local function searchable(slot, entry)
+    local cached = searchCache[slot]
+    if cached and cached.entry == entry then
+        local same = true
+        if entry then
+            for _, field in ipairs(CACHED_FIELDS) do
+                if cached[field] ~= entry[field] then same = false break end
+            end
+        end
+        if same then return cached end
+    end
+    cached = { entry = entry }
+    if entry then
+        for _, field in ipairs(CACHED_FIELDS) do cached[field] = entry[field] end
+    end
+    local details, description = Catalog.Describe(slot, entry)
+    local name = entry and entry.name or ""
+    cached.details, cached.description = details, description
+    cached.haystack = normalize(slot.race .. " " .. description .. " " .. name .. " " .. (cached.guild or "")
+        .. " " .. (cached.zone or "") .. " " .. (cached.owner or "") .. " " .. (cached.capturedBy or ""))
+    cached.name = normalize(name)
+    cached.race = normalize((details or slot).race)
+    cached.class = normalize((details or slot).class)
+    searchCache[slot] = cached
+    return cached
+end
+
 function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
     local query = normalize(searchText):match("^%s*(.-)%s*$")
     local rows, filled = {}, 0
     local function add(slot, entry)
-        local details, description = Catalog.Describe(slot, entry)
+        local card = searchable(slot, entry)
+        local details = card.details
         -- Capturer filter: only filled cards have one, older captures count as unknown.
         local capturers = filters.capturers
         if capturers and next(capturers)
@@ -248,16 +282,10 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
         elseif viewMode ~= 4 and (next(filters.races) or next(filters.classes) or next(filters.sexes)) then
             return
         end
-        local name = entry and entry.name or ""
-        local guild, zone = entry and entry.guild or "", entry and entry.zone or ""
-        local owner = entry and entry.owner or ""
-        local capturedBy = entry and entry.capturedBy or ""
-        local haystack = normalize(slot.race .. " " .. description .. " " .. name .. " " .. guild .. " " .. zone
-            .. " " .. owner .. " " .. capturedBy)
-        if haystack:find(query, 1, true) then
+        if query == "" or card.haystack:find(query, 1, true) then
             rows[#rows + 1] = {
-                slot = slot, entry = entry, details = details, description = description, name = normalize(name),
-                race = normalize((details or slot).race), class = normalize((details or slot).class),
+                slot = slot, entry = entry, details = details, description = card.description,
+                name = card.name, race = card.race, class = card.class,
             }
         end
     end

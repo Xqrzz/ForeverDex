@@ -19,6 +19,9 @@ local page, sortMode, viewMode, detailKey, pendingReveal = 1, 1, 1, nil, nil
 -- session opens on the home page; the window then stays where it was left.
 local mode = "home"
 local filters = { races = {}, classes = {}, sexes = {}, capturers = {} }
+-- Raised by every change of the collection (ns.UI.Refresh): what is computed from the
+-- cards is kept until it moves, so that turning a page does not query everything again.
+local collectionVersion = 0
 local refresh, updateTarget
 
 -- A template missing from this client must not prevent the addon from loading.
@@ -223,7 +226,10 @@ capturerHeading:SetPoint("TOPLEFT", 294, CAPTURER_TOP + 20)
 capturerHeading:SetText(L.FILTER_CAPTURER)
 local capturerChecks, capturerSignature = {}, nil
 
+local capturersVersion
 local function updateCapturers()
+    if capturersVersion == collectionVersion then return end
+    capturersVersion = collectionVersion
     local UNKNOWN = Catalog.UNKNOWN_CAPTURER
     local names, classes = {}, {}
     for _, entry in pairs(ForeverDexDB.cards) do
@@ -1166,6 +1172,25 @@ local function showMode()
     return true
 end
 
+-- Checked filters as text, to tell whether the query must run again.
+local function filterSignature()
+    local parts = {}
+    for name, set in pairs(filters) do
+        for value, on in pairs(set) do
+            if on then parts[#parts + 1] = name .. "=" .. tostring(value) end
+        end
+    end
+    table.sort(parts)
+    return table.concat(parts, ",")
+end
+
+-- Last query and what it was made from: a new page, a card opened or closed, or the
+-- reveal of a capture reuse it.
+local lastQuery = {}
+-- Target (player or pet) last read by updateTarget, which runs on every change of target,
+-- of its name or of its portrait. Reading a pet scans its tooltip: the refresh reuses it.
+local lastTarget
+
 refresh = function()
     if not ForeverDexDB then return end
     if showMode() then return end
@@ -1173,7 +1198,13 @@ refresh = function()
     local view = ForeverDexDB.view
     if view then view.sort, view.tab = sortMode, viewMode end
     updateFilterPanel()
-    local rows, filled = Catalog.Query(entries, search:GetText(), viewMode, sortMode, filters)
+    local key = table.concat({ collectionVersion, search:GetText(), viewMode, sortMode, filterSignature() }, "|")
+    if lastQuery.key ~= key or lastQuery.entries ~= entries then
+        lastQuery.key, lastQuery.entries = key, entries
+        lastQuery.rows, lastQuery.filled = Catalog.Query(entries, search:GetText(), viewMode, sortMode, filters)
+        lastQuery.perRace = Catalog.RaceProgress(entries)
+    end
+    local rows, filled = lastQuery.rows, lastQuery.filled
     local pages = math.max(1, math.ceil(#rows / PAGE_SIZE))
     page = math.max(1, math.min(page, pages))
     local total = #Catalog.slots
@@ -1181,7 +1212,7 @@ refresh = function()
     percent:SetText(L.PERCENT:format(math.floor(filled / total * 100 + 0.5)))
     progress:SetValue(filled)
 
-    local perRace = Catalog.RaceProgress(entries)
+    local perRace = lastQuery.perRace
     local raceName
     for _, row in ipairs(raceButtons) do
         local id = row.filter.id
@@ -1238,7 +1269,7 @@ refresh = function()
     else
         setCrumbs({ { L.HOME, (activeFilters() > 0 or viewMode ~= 1) and home or nil }, { section } })
     end
-    updatePortraits(Collection.ReadTarget() or Collection.ReadPet())
+    updatePortraits(lastTarget)
 end
 
 local function isSortSelected(mode)
@@ -1256,10 +1287,22 @@ sortButton:SetupMenu(function(_, menu)
         menu:CreateRadio(name, isSortSelected, selectSort, mode)
     end
 end)
-search:HookScript("OnTextChanged", function(self)
+-- The query waits for a short pause in the typing; text set by the code (cleared
+-- filters) is applied at once.
+local searchTimer
+search:HookScript("OnTextChanged", function(self, userInput)
     if not nativeSearch then placeholder:SetShown(self:GetText() == "") end
     page, detailKey = 1, nil
-    refresh()
+    if searchTimer then searchTimer:Cancel() end
+    searchTimer = nil
+    if not userInput or not C_Timer.NewTimer then
+        refresh()
+        return
+    end
+    searchTimer = C_Timer.NewTimer(0.15, function()
+        searchTimer = nil
+        refresh()
+    end)
 end)
 panel:HookScript("OnShow", function()
     Art.Sound("IG_SPELLBOOK_OPEN")
@@ -1433,7 +1476,8 @@ updateTarget = function()
     local entry = Collection.ReadTarget()
     -- A hunter pet has no fixed card: only a pet already in the collection counts as saved.
     local pet = not entry and Collection.ReadPet() or nil
-    updatePortraits(entry or pet)
+    lastTarget = entry or pet
+    updatePortraits(lastTarget)
     local current = entry and ForeverDexDB.cards[entry.key]
     local alreadySaved = current and current.id == entry.id
     if pet then
@@ -1528,6 +1572,7 @@ ns.UI = {
             x1, y1 = cursorX / uiScale, cursorY / uiScale
         end
         if isNew and x1 then pendingReveal = entry.key end
+        collectionVersion = collectionVersion + 1
         refresh()
         updateTarget()
         if not isNew then return end

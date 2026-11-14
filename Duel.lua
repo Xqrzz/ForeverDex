@@ -651,21 +651,21 @@ local function paintSide(side, display, combination, unit, total)
     side.target = total
 end
 
--- Scores count up from zero during the entrance.
-local countElapsed, counting = 0, true
+-- Scores count up from zero during the entrance. The count runs only until the scores
+-- reach their value: the window then has no OnUpdate left while it stays open.
+local countElapsed = 0
 local sides = { mine, theirs }
-window:SetScript("OnUpdate", function(_, delta)
-    if not counting then return end
+local function count(self, delta)
     countElapsed = countElapsed + delta
     local fraction = math.max(0, math.min(1, (countElapsed - 0.5) / 0.9))
-    counting = fraction < 1
+    if fraction >= 1 then self:SetScript("OnUpdate", nil) end
     fraction = 1 - (1 - fraction) ^ 3
     for _, side in ipairs(sides) do
         local value = math.floor((side.target or 0) * fraction + 0.5)
         side.score:SetText(value)
         side.bar:SetValue(value)
     end
-end)
+end
 
 -- What Combat.lua needs from the duel screen.
 Duel.Window, Duel.Arena, Duel.VsFrame = window, arena, vsFrame
@@ -692,7 +692,8 @@ function Duel.Show(partner, cards)
 
     local animated = ns.Settings.Get("duelAnimation")
     -- Without animation, scores show their final value directly.
-    countElapsed, counting = animated and 0 or 2, true
+    countElapsed = animated and 0 or 2
+    window:SetScript("OnUpdate", count)
     window:Show()
     for _, group in ipairs({ mine.intro, theirs.intro, slam }) do
         group:Stop()

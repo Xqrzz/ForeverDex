@@ -26,8 +26,16 @@ events:SetScript("OnEvent", function(self, event, name)
         self:UnregisterEvent("ADDON_LOADED")
         self:RegisterEvent("PLAYER_ENTERING_WORLD")
         self:RegisterEvent("PLAYER_TARGET_CHANGED")
-        self:RegisterEvent("UNIT_NAME_UPDATE")
-        self:RegisterEvent("UNIT_PORTRAIT_UPDATE")
+        -- Only the target matters: the game then does not send these events for the
+        -- crowds of a city. The handler still checks the unit, in case of a client
+        -- without RegisterUnitEvent.
+        for _, unitEvent in ipairs({ "UNIT_NAME_UPDATE", "UNIT_PORTRAIT_UPDATE" }) do
+            if self.RegisterUnitEvent then
+                self:RegisterUnitEvent(unitEvent, "target")
+            else
+                self:RegisterEvent(unitEvent)
+            end
+        end
         self:RegisterEvent("PLAYER_REGEN_ENABLED")
         self:RegisterEvent("PLAYER_REGEN_DISABLED")
     elseif event == "PLAYER_ENTERING_WORLD" and not self.greeted then
