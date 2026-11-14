@@ -528,6 +528,12 @@ ns.Locales.frFR = {
     PAD_TABS = "Onglets",
     PAD_PAGES = "Pages",
     PAD_SORT = "Trier",
+    PAD_CHECK = "Cocher",
+    PAD_UNCHECK = "Décocher",
+    PAD_FILTERS = "Filtres",
+    PAD_MOVE = "Déplacer",
+    PAD_DROP = "Poser",
+    PAD_CANCEL = "Annuler",
     PAD_FOCUS_CHARACTER = "Personnage",
     PAD_FOCUS_WINDOW = "Fenêtre ForeverDex",
 }

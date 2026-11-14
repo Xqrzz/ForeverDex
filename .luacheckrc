@@ -23,7 +23,7 @@ globals = {
 -- Read from the game.
 read_globals = {
     "ACCEPT", "ADDONS", "BackdropTemplateMixin", "CANCEL", "CLASS_ICON_TCOORDS", "C_AddOns", "C_CVar",
-    "C_ChatInfo", "C_CreatureInfo", "C_GamePad", "C_GuildInfo", "C_NamePlate", "C_Texture", "C_Timer",
+    "C_ChatInfo", "C_CreatureInfo", "C_GamePad", "C_GuildInfo", "C_InputInterfaceStyle", "C_NamePlate", "C_Texture", "C_Timer",
     "C_TooltipInfo", "ChatFrame_AddMessageEventFilter", "CheckInteractDistance", "CreateColor",
     "CreateFrame", "DECLINE", "DEFAULT_CHAT_FRAME", "EJ_GetInstanceForMap", "EJ_GetInstanceInfo",
     "ERR_CHAT_PLAYER_NOT_FOUND_S", "Enum", "EnumerateFrames", "EnumerateServerChannels",

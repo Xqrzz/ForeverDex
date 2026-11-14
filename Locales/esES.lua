@@ -528,6 +528,12 @@ ns.Locales.esES = {
     PAD_TABS = "Pestañas",
     PAD_PAGES = "Páginas",
     PAD_SORT = "Ordenar",
+    PAD_CHECK = "Marcar",
+    PAD_UNCHECK = "Desmarcar",
+    PAD_FILTERS = "Filtros",
+    PAD_MOVE = "Mover",
+    PAD_DROP = "Soltar",
+    PAD_CANCEL = "Cancelar",
     PAD_FOCUS_CHARACTER = "Personaje",
     PAD_FOCUS_WINDOW = "Ventana de ForeverDex",
 }

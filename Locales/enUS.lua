@@ -531,6 +531,12 @@ ns.Locales.enUS = {
     PAD_TABS = "Tabs",
     PAD_PAGES = "Pages",
     PAD_SORT = "Sort",
+    PAD_CHECK = "Check",
+    PAD_UNCHECK = "Uncheck",
+    PAD_FILTERS = "Filters",
+    PAD_MOVE = "Move",
+    PAD_DROP = "Set down",
+    PAD_CANCEL = "Cancel",
     PAD_FOCUS_CHARACTER = "Character",
     PAD_FOCUS_WINDOW = "ForeverDex window",
 }

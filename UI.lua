@@ -1558,6 +1558,19 @@ ns.Gamepad.Attach(panel, {
 -- card's page, its buttons. X makes a card a favorite, Y opens its menu.
 ns.Gamepad.RegisterPage("collection", function()
     local targets = {}
+    -- Filters panel open: its checkboxes and its reset button; B closes it.
+    if filterFrame:IsShown() then
+        for _, check in ipairs(filterChecks) do
+            if check:IsShown() then
+                targets[#targets + 1] = { frame = check, A = { check:GetChecked() and L.PAD_UNCHECK or L.PAD_CHECK } }
+            end
+        end
+        targets[#targets + 1] = { frame = filterReset }
+        return {
+            targets = targets, default = filterChecks[1],
+            back = function() filterFrame:Hide() end, backLabel = L.PAD_CLOSE,
+        }
+    end
     local function favorite(entry)
         return { L.PAD_FAVORITE, function()
             Art.Sound("IG_MAINMENU_OPTION_CHECKBOX_ON")
@@ -1587,6 +1600,7 @@ ns.Gamepad.RegisterPage("collection", function()
     for _, tab in ipairs(tabs) do targets[#targets + 1] = { frame = tab, A = { L.PAD_SELECT } } end
     targets[#targets + 1] = { frame = compare }
     targets[#targets + 1] = { frame = panelCapture }
+    targets[#targets + 1] = { frame = filterButton }
     targets[#targets + 1] = { frame = sortButton, A = { L.PAD_SORT, function()
         ns.PopupMenu.ShowBelow(sortButton, sortMenu, function()
             sortButton:SetDefaultText(sortNames[sortMode])

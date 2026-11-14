@@ -528,6 +528,12 @@ ns.Locales.deDE = {
     PAD_TABS = "Reiter",
     PAD_PAGES = "Seiten",
     PAD_SORT = "Sortieren",
+    PAD_CHECK = "Ankreuzen",
+    PAD_UNCHECK = "Abwählen",
+    PAD_FILTERS = "Filter",
+    PAD_MOVE = "Verschieben",
+    PAD_DROP = "Ablegen",
+    PAD_CANCEL = "Abbrechen",
     PAD_FOCUS_CHARACTER = "Charakter",
     PAD_FOCUS_WINDOW = "ForeverDex-Fenster",
 }

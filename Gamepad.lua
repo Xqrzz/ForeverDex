@@ -14,10 +14,13 @@ ns.Gamepad = Gamepad
 -- window shows the buttons and what they do right now.
 --
 -- Each page tells what can be chosen: Gamepad.RegisterPage(mode, provider), where
--- provider() returns { targets = { target… }, back = function, default = frame }.
--- A target is { frame = f, A = { label, action }, X = …, Y = … }; without A, A clicks
--- the frame. The ForeverDex menu (PopupMenu.lua) and the ForeverDex dialogs take the
--- buttons first while they are open. The sticks are left to the game: the character
+-- provider() returns { targets = { target… }, back = function, default = frame,
+-- direction = function }. A target is { frame = f, A = { label, action }, X = …,
+-- Y = … }; without A, A clicks the frame, and noA = true leaves A unused (a sheet that
+-- only shows its tooltip). direction(dir), when given, takes the D-pad over (moving a
+-- banner) and returns the frame to choose next; backLabel names what B does then.
+-- The ForeverDex menu (PopupMenu.lua) and the ForeverDex dialogs take the buttons first
+-- while they are open. The sticks are left to the game: the character
 -- can still move with the window open.
 
 local REPEAT_DELAY, REPEAT_EVERY = 0.35, 0.12
@@ -229,6 +232,7 @@ local function act(face)
         action[2](target.frame)
         return true
     end
+    if face == "A" and target.noA then return false end
     if face == "A" and target.frame.Click then
         target.frame:Click()
         return true
@@ -257,7 +261,13 @@ local function press(button)
     end
     if DIRECTIONS[button] then
         refreshTargets()
-        move(DIRECTIONS[button])
+        if current.direction then
+            local nextFocus = current.direction(DIRECTIONS[button])
+            refreshTargets()
+            if nextFocus then setFocus(nextFocus) end
+        else
+            move(DIRECTIONS[button])
+        end
         return true
     end
     local face = FACE[button]
@@ -271,7 +281,7 @@ local function press(button)
         return true
     end
     if button == "PADLSHOULDER" or button == "PADRSHOULDER" then
-        options.tabs(button == "PADLSHOULDER" and -1 or 1)
+        if options.tabs then options.tabs(button == "PADLSHOULDER" and -1 or 1) end
         return true
     end
     if button == "PADLTRIGGER" or button == "PADRTRIGGER" then
@@ -364,12 +374,15 @@ updateHints = function()
         if target then
             local text = target.frame.GetText and target.frame:GetText()
             local label = target.A and target.A[1] or (text and text ~= "" and text) or L.PAD_OPEN
-            parts[#parts + 1] = hint("PAD1", label)
+            if not target.noA then parts[#parts + 1] = hint("PAD1", label) end
             if target.X then parts[#parts + 1] = hint("PAD3", target.X[1]) end
             if target.Y then parts[#parts + 1] = hint("PAD4", target.Y[1]) end
         end
-        parts[#parts + 1] = hint("PAD2", current and current.back and L.PAD_BACK or L.PAD_CLOSE)
-        parts[#parts + 1] = glyph("PADLSHOULDER") .. glyph("PADRSHOULDER") .. " " .. L.PAD_TABS
+        local backLabel = current and (current.backLabel or (current.back and L.PAD_BACK))
+        parts[#parts + 1] = hint("PAD2", backLabel or L.PAD_CLOSE)
+        if options.tabs then
+            parts[#parts + 1] = glyph("PADLSHOULDER") .. glyph("PADRSHOULDER") .. " " .. (options.tabsLabel or L.PAD_TABS)
+        end
         if options.pages then parts[#parts + 1] = glyph("PADLTRIGGER") .. glyph("PADRTRIGGER") .. " " .. L.PAD_PAGES end
         parts[#parts + 1] = hint(FOCUS_BUTTON, L.PAD_FOCUS_CHARACTER)
     end
@@ -380,29 +393,51 @@ end
 
 -- Public -------------------------------------------------------------------------------------
 
+-- Several windows can be driven (the journal, the duel screen): the one shown last
+-- has the buttons, and the previous one gets them back when it closes.
+local attached = {} -- [frame] = opts
+local stack = {}    -- shown windows, the last one on top
+
+local function topWindow()
+    for i = #stack, 1, -1 do
+        if stack[i]:IsShown() then return stack[i] end
+        table.remove(stack, i)
+    end
+end
+
 local function update()
-    local on = window and window:IsShown() and PopupMenu.GamepadActive()
-    -- Each opening of the window gives it the focus.
+    local top = topWindow()
+    if top ~= window then
+        leave(focus)
+        focus = nil
+        window, options = top, top and attached[top]
+        if window then
+            hints:SetParent(window)
+            hints:SetFrameStrata(window:GetFrameStrata())
+            hints:ClearAllPoints()
+            hints:SetPoint("TOP", window, "BOTTOM", 0, -(options.hintsOffset or 30))
+        end
+    end
+    local on = window ~= nil and PopupMenu.GamepadInterface()
+    -- Each opening of a window gives it the focus.
     if not capturing then focused = true end
     setCapture(on and true or false)
     if capturing then refreshTargets() end
 end
 
--- window: the main window. opts: mode() → current page name, tabs(step), pages(step)
--- (optional), close().
+-- frame: a window to drive. opts: mode() → name of its page now, close(), and
+-- optionally tabs(step) with tabsLabel, pages(step), hintsOffset (room under the
+-- window for its bottom tabs).
 function Gamepad.Attach(frame, opts)
-    window, options = frame, opts
-    hints:SetParent(frame)
-    hints:SetFrameStrata(frame:GetFrameStrata())
-    hints:ClearAllPoints()
-    -- Under the bottom tabs of the window.
-    hints:SetPoint("TOP", frame, "BOTTOM", 0, -30)
-    frame:HookScript("OnShow", update)
-    frame:HookScript("OnHide", function()
-        leave(focus)
-        focus = nil
-        setCapture(false)
+    attached[frame] = opts
+    frame:HookScript("OnShow", function(self)
+        for i = #stack, 1, -1 do
+            if stack[i] == self then table.remove(stack, i) end
+        end
+        stack[#stack + 1] = self
+        update()
     end)
+    frame:HookScript("OnHide", function() update() end)
 end
 
 function Gamepad.RegisterPage(mode, provider)
@@ -425,6 +460,8 @@ events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("CVAR_UPDATE")
 pcall(events.RegisterEvent, events, "GAME_PAD_ACTIVE_CHANGED")
+-- Forever: the interface switches between controller and mouse as the player uses them.
+pcall(events.RegisterEvent, events, "INPUT_DEVICE_INTERFACE_TRANSITION")
 events:SetScript("OnEvent", function(_, event)
     if event == "PLAYER_REGEN_DISABLED" then
         setCapture(false)

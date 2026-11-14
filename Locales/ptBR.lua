@@ -528,6 +528,12 @@ ns.Locales.ptBR = {
     PAD_TABS = "Abas",
     PAD_PAGES = "Páginas",
     PAD_SORT = "Ordenar",
+    PAD_CHECK = "Marcar",
+    PAD_UNCHECK = "Desmarcar",
+    PAD_FILTERS = "Filtros",
+    PAD_MOVE = "Mover",
+    PAD_DROP = "Soltar",
+    PAD_CANCEL = "Cancelar",
     PAD_FOCUS_CHARACTER = "Personagem",
     PAD_FOCUS_WINDOW = "Janela do ForeverDex",
 }

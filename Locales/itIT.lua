@@ -528,6 +528,12 @@ ns.Locales.itIT = {
     PAD_TABS = "Schede",
     PAD_PAGES = "Pagine",
     PAD_SORT = "Ordina",
+    PAD_CHECK = "Seleziona",
+    PAD_UNCHECK = "Deseleziona",
+    PAD_FILTERS = "Filtri",
+    PAD_MOVE = "Sposta",
+    PAD_DROP = "Posa",
+    PAD_CANCEL = "Annulla",
     PAD_FOCUS_CHARACTER = "Personaggio",
     PAD_FOCUS_WINDOW = "Finestra di ForeverDex",
 }

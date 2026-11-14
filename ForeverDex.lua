@@ -255,7 +255,7 @@ if GameMenuFrame and GameMenuFrame.buttonPool and GameMenuFrame.Layout then
     hooksecurefunc(GameMenuFrame, "Layout", function()
         -- Only in controller mode: with the mouse, the minimap icon is at hand and
         -- the menu stays exactly the game's.
-        if InCombatLockdown() or not ns.PopupMenu.GamepadActive() then
+        if InCombatLockdown() or not ns.PopupMenu.GamepadInterface() then
             menuButton:Hide()
             return
         end

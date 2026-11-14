@@ -240,4 +240,19 @@ function AchievementsUI.SetShown(shown)
     end
 end
 UI.RegisterPage("achievements", AchievementsUI)
+
+-- Controller (Gamepad.lua): the categories, then the sheets of the one shown (their
+-- tooltip gives the details; A has nothing to do on them).
+ns.Gamepad.RegisterPage("achievements", function()
+    local targets = {}
+    for _, row in ipairs(categoryRows) do targets[#targets + 1] = { frame = row, A = { L.PAD_SELECT } } end
+    for _, sheet in ipairs(sheets) do
+        if sheet:IsShown() then targets[#targets + 1] = { frame = sheet, noA = true } end
+    end
+    local first
+    for _, row in ipairs(categoryRows) do
+        if row.group.id == selected then first = row end
+    end
+    return { targets = targets, default = first }
+end)
 end)

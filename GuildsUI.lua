@@ -607,6 +607,94 @@ Guilds.OnChanged(function(guild, isNew)
     end)
 end)
 
+-- Controller (Gamepad.lua) -------------------------------------------------------------------
+--
+-- The banners, the faction column and the capture button can be chosen. A shows the
+-- guild's members, Y opens its menu and X picks the banner up: the D-pad then carries
+-- it through the list (turning the page at its edges), A sets it down, B puts it back.
+
+local carrying -- { id, from }: the banner being moved and its place before
+
+local function cellOf(id)
+    for _, cell in ipairs(cells) do
+        if cell:IsShown() and cell.guild and cell.guild.id == id then return cell end
+    end
+end
+
+local STEPS = { left = -1, right = 1, up = -COLUMNS, down = COLUMNS }
+
+-- Moves the carried banner one place (or one row) among the banners shown, and keeps
+-- it in sight. Returns its cell, for the gold frame.
+local function carry(direction)
+    local rows = visibleGuilds()
+    local at
+    for index, guild in ipairs(rows) do
+        if guild.id == carrying.id then at = index end
+    end
+    if not at then return end
+    local to = math.max(1, math.min(#rows, at + STEPS[direction]))
+    if to ~= at then
+        local target = Guilds.Find(rows[to].id)
+        if target then Guilds.Move(carrying.id, target) end
+        page = math.ceil(to / PAGE_SIZE)
+        refresh()
+    end
+    return cellOf(carrying.id)
+end
+
+local function stopCarrying(restore)
+    if not carrying then return end
+    local moved = carrying
+    carrying = nil
+    if restore then
+        Guilds.Move(moved.id, moved.from)
+    else
+        Art.Sound("IG_ABILITY_ICON_DROP", "IG_MAINMENU_OPTION_CHECKBOX_ON")
+    end
+    refresh()
+    return cellOf(moved.id)
+end
+
+function GuildsUI.TurnPage(step)
+    if carrying then return end
+    if (step < 0 and previous:IsEnabled()) or (step > 0 and nextPage:IsEnabled()) then turnPage(step) end
+end
+
+ns.Gamepad.RegisterPage("guilds", function()
+    local targets = {}
+    if carrying then
+        local cell = cellOf(carrying.id)
+        if cell then
+            targets[1] = { frame = cell, A = { L.PAD_DROP, function() stopCarrying(false) end } }
+        end
+        return {
+            targets = targets, default = cell,
+            direction = carry,
+            back = function() stopCarrying(true) end,
+            backLabel = L.PAD_CANCEL,
+        }
+    end
+    for _, cell in ipairs(cells) do
+        if cell:IsShown() and cell.guild then
+            local guild = cell.guild
+            local members = Guilds.MemberCount(guild) > 0
+            targets[#targets + 1] = {
+                frame = cell,
+                A = members and { L.GUILD_SHOW_MEMBERS, function() UI.ShowSearch(guild.name) end } or nil,
+                noA = not members,
+                X = { L.PAD_MOVE, function()
+                    carrying = { id = guild.id, from = Guilds.Find(guild.id) }
+                    Art.Sound("IG_ABILITY_ICON_DROP", "IG_MAINMENU_OPTION_CHECKBOX_ON")
+                end },
+                Y = { L.PAD_OPTIONS, openMenu },
+            }
+        end
+    end
+    for _, row in ipairs(filterRows) do targets[#targets + 1] = { frame = row, A = { L.PAD_SELECT } } end
+    targets[#targets + 1] = { frame = captureButton }
+    return { targets = targets, default = targets[1] and targets[1].frame }
+end)
+
 -- Side tab and registration: UI.lua shows this page in place of the journal --------------
 
 UI.AddSideTab(3, "guilds", L.GUILD_TAB, function(icon)
@@ -626,6 +714,8 @@ function GuildsUI.SetShown(shown)
         refresh()
     else
         stopDrag()
+        -- Leaving the page while carrying a banner sets it down where it is.
+        carrying = nil
     end
 end
 UI.RegisterPage("guilds", GuildsUI)

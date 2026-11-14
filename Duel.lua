@@ -744,4 +744,42 @@ function Duel.Show(partner, cards)
     duelSound("RAID_WARNING", "READY_CHECK")
     C_Timer.After(0.65, function() duelSound("IG_QUEST_LIST_COMPLETE") end)
 end
+
+-- Controller (Gamepad.lua) --------------------------------------------------------------------
+--
+-- The duel screen is driven like the journal: the shoulders go through the filters (all,
+-- shared, mine, theirs), the triggers turn the pages, the D-pad reaches the filters and the
+-- fight button. During a fight, Combat.lua says what can be chosen (Duel.CombatPad).
+
+local function fighting()
+    return Duel.CombatPad ~= nil and Duel.CombatPad() ~= nil
+end
+
+ns.Gamepad.Attach(window, {
+    mode = function() return "duel" end,
+    close = function() window:Hide() end,
+    tabs = function(step)
+        if fighting() then return end
+        state.filter, state.page = (state.filter - 1 + step) % #filters + 1, 1
+        duelSound("IG_CHARACTER_INFO_TAB")
+        render()
+    end,
+    tabsLabel = L.PAD_FILTERS,
+    pages = function(step)
+        if Duel.CombatPages and Duel.CombatPages(step) then return end
+        local control = step < 0 and previous or nextPage
+        if control:IsEnabled() then control:Click() end
+    end,
+    hintsOffset = 6,
+})
+
+ns.Gamepad.RegisterPage("duel", function()
+    local combat = Duel.CombatPad and Duel.CombatPad()
+    if combat then return combat end
+    local targets = {}
+    for _, filter in ipairs(filters) do targets[#targets + 1] = { frame = filter, A = { L.PAD_SELECT } } end
+    local start = Duel.StartButton
+    if start then targets[#targets + 1] = { frame = start } end
+    return { targets = targets, default = start and start:IsEnabled() and start or nil }
+end)
 end)

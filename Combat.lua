@@ -1037,4 +1037,46 @@ end
 window:HookScript("OnHide", function()
     if fight then forward.close() end
 end)
+
+-- Controller (Gamepad.lua, through Duel.lua) --------------------------------------------------
+
+Duel.StartButton = start
+
+-- During a fight: the champions of the picker (A chooses one, Y sends it at once), then
+-- the buttons of the moment (confirm, votes, rematch, leave). B leaves or gives up.
+function Duel.CombatPad()
+    if not stage:IsShown() then return end
+    local targets = {}
+    if picker:IsShown() then
+        for _, cell in ipairs(cells) do
+            if cell:IsShown() and cell.key then
+                targets[#targets + 1] = {
+                    frame = cell, A = { L.PAD_SELECT },
+                    Y = { L.COMBAT_CONFIRM, function(self)
+                        pickKey = self.key
+                        forward.confirm()
+                    end },
+                }
+            end
+        end
+    end
+    for _, control in ipairs({ confirm, voteMine, voteTheirs, rematch, leave, giveUp }) do
+        targets[#targets + 1] = { frame = control }
+    end
+    local back = (leave:IsShown() and leave) or (giveUp:IsShown() and giveUp) or nil
+    return {
+        targets = targets,
+        default = (picker:IsShown() and targets[1] and targets[1].frame) or (rematch:IsShown() and rematch) or nil,
+        back = back and function() back:Click() end,
+        backLabel = back and back:GetText(),
+    }
+end
+
+-- The triggers turn the picker's pages during a fight. Returns true when they did.
+function Duel.CombatPages(step)
+    if not (stage:IsShown() and picker:IsShown()) then return false end
+    local control = step < 0 and previousPage or nextPage
+    if control:IsEnabled() then control:Click() end
+    return true
+end
 end)

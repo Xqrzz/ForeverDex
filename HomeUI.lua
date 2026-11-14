@@ -505,4 +505,12 @@ function HomeUI.SetShown(shown)
     if shown then HomeUI.Refresh() end
 end
 UI.RegisterPage("home", HomeUI)
+
+-- Controller (Gamepad.lua): the daily challenge card, its button and the news.
+ns.Gamepad.RegisterPage("home", function()
+    return {
+        targets = { { frame = banner }, { frame = open }, { frame = newsButton } },
+        default = banner,
+    }
+end)
 end)

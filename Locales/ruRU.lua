@@ -528,6 +528,12 @@ ns.Locales.ruRU = {
     PAD_TABS = "Вкладки",
     PAD_PAGES = "Страницы",
     PAD_SORT = "Сортировка",
+    PAD_CHECK = "Отметить",
+    PAD_UNCHECK = "Снять отметку",
+    PAD_FILTERS = "Фильтры",
+    PAD_MOVE = "Переместить",
+    PAD_DROP = "Поставить",
+    PAD_CANCEL = "Отмена",
     PAD_FOCUS_CHARACTER = "Персонаж",
     PAD_FOCUS_WINDOW = "Окно ForeverDex",
 }

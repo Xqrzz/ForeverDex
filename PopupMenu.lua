@@ -18,6 +18,19 @@ function PopupMenu.GamepadActive()
     return GetCVarBool ~= nil and GetCVarBool("GamePadEnable") == true
 end
 
+-- The interface currently drawn for the controller. On Forever, the controller setting
+-- stays on when the player takes the mouse again: only the interface style switches
+-- (as EllesmereUI reads it). What the player sees (the gold frame, the button hints,
+-- the game menu button) follows this; the menus keep the wider check above, since the
+-- controller code of the game runs as soon as the setting is on.
+function PopupMenu.GamepadInterface()
+    local style, types = C_InputInterfaceStyle, Enum and Enum.InputDeviceInterfaceType
+    if style and style.GetCurrentStyle and types and types.Gamepad then
+        return style.GetCurrentStyle() == types.Gamepad
+    end
+    return PopupMenu.GamepadActive()
+end
+
 local ROW_H, PADDING, MIN_WIDTH = 20, 10, 140
 
 local frame = CreateFrame("Frame", "ForeverDexPopupMenu", UIParent, "BackdropTemplate")
