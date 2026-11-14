@@ -1,6 +1,6 @@
 local _, ns = ...
 ns.Module(function()
-local L, Art = ns.L, ns.Art
+local L, Art, Util = ns.L, ns.Art, ns.Util
 local Settings = {}
 ns.Settings = Settings
 
@@ -97,9 +97,7 @@ panel:Hide()
 local controls = {}
 
 local function create(frameType, parent, template)
-    local ok, frame = pcall(CreateFrame, frameType, nil, parent, template)
-    if ok and frame then return frame, true end
-    return CreateFrame(frameType, nil, parent), false
+    return Util.CreateFrame(frameType, nil, parent, template)
 end
 
 local TOP = -84

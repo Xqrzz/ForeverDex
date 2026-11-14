@@ -1,6 +1,6 @@
 local _, ns = ...
 ns.Module(function()
-local L, Catalog = ns.L, ns.Catalog
+local L, Catalog, Achievements = ns.L, ns.Catalog, ns.Achievements
 local Home = {}
 ns.Home = Home
 
@@ -153,8 +153,8 @@ function Home.Stats(now)
     stats.hunter, stats.hunterCount = top(hunters)
     stats.hunterClass = stats.hunter and hunterClasses[stats.hunter]
 
-    if ns.Achievements and ns.Achievements.State then
-        local state = ns.Achievements.State()
+    if Achievements and Achievements.State then
+        local state = Achievements.State()
         stats.achievements = { done = state.done, total = #state.rows, points = state.points }
     end
     return stats

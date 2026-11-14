@@ -1,15 +1,10 @@
 local _, ns = ...
 ns.Module(function()
-local L, Catalog = ns.L, ns.Catalog
+local L, Catalog, Settings, Util = ns.L, ns.Catalog, ns.Settings, ns.Util
 local Collection = {}
 ns.Collection = Collection
 local onChanged
-
-local function readable(value)
-    -- The client can mark a value as secret, notably in combat.
-    -- This must be checked before any comparison or concatenation.
-    return (not issecretvalue or not issecretvalue(value)) and value ~= nil
-end
+local readable = Util.Readable
 
 local function setCharacterName(entry, firstName, surname)
     entry.firstName = firstName
@@ -204,7 +199,7 @@ function Collection.Announce(entry, isNew)
         pendingShares[entry] = nil
         share()
     end
-    if not ns.Settings.Get("chatMessage") then return end
+    if not Settings.Get("chatMessage") then return end
     local lines = isNew and L.CAPTURE_LINES or L.REPLACE_LINES
     local index = math.random(#lines)
     if #lines > 1 and index == lastLine then index = index % #lines + 1 end
@@ -263,7 +258,7 @@ local function place(entry, noThrow)
     local current = ForeverDexDB.cards[entry.key]
     if not current then
         save(entry, noThrow)
-    elseif current.id ~= entry.id and not ns.Settings.Get("confirmReplace") then
+    elseif current.id ~= entry.id and not Settings.Get("confirmReplace") then
         save(entry, noThrow)
     elseif current.id ~= entry.id then
         StaticPopup_Show("FOREVERDEX_REPLACE", current.name, entry.name, { entry = entry, noThrow = noThrow })

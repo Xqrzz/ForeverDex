@@ -1,6 +1,6 @@
 local _, ns = ...
 ns.Module(function()
-local L, Catalog, Art = ns.L, ns.Catalog, ns.Art
+local L, Catalog, Art, Settings = ns.L, ns.Catalog, ns.Art, ns.Settings
 local Achievements = {}
 ns.Achievements = Achievements
 
@@ -351,7 +351,7 @@ end
 -- The fanfare the game plays for an achievement. Its name varies between clients.
 local fanfare
 local function playFanfare()
-    if not PlaySound or not ns.Settings.Get("sounds") then return end
+    if not PlaySound or not Settings.Get("sounds") then return end
     if fanfare == nil then
         fanfare = false
         for key, id in pairs(SOUNDKIT or {}) do
@@ -412,14 +412,14 @@ function Achievements.OnCollectionChanged(_, isNew, noThrow)
     local share = ns.Share.Achievements(fresh)
     local delay = 0.5
     if isNew and not noThrow then
-        local mode = ns.Settings.Get("animation")
+        local mode = Settings.Get("animation")
         delay = mode == "full" and 6.5 or mode == "quick" and 3.5 or 0.5
     end
     C_Timer.After(delay, function()
         share()
         for _, achievement in ipairs(fresh) do
             print(L.CHAT_PREFIX .. L.ACH_EARNED:format(achievement.name))
-            if ns.Settings.Get("achievementToast") then showAlert(achievement) end
+            if Settings.Get("achievementToast") then showAlert(achievement) end
         end
     end)
 end

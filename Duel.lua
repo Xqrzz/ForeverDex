@@ -1,6 +1,6 @@
 local _, ns = ...
 ns.Module(function()
-local L, Catalog, Collection, Art = ns.L, ns.Catalog, ns.Collection, ns.Art
+local L, Catalog, Collection, Art, Settings, Util = ns.L, ns.Catalog, ns.Collection, ns.Art, ns.Settings, ns.Util
 local Duel = {}
 ns.Duel = Duel
 
@@ -20,23 +20,15 @@ ns.Duel = Duel
 -- Anything new goes through either a new message type (unknown types are
 -- ignored) or fields added after a tab, which readers ignore.
 
-local PREFIX, CHUNK, TIMEOUT = "ForeverDex", 220, 25
+local CHUNK, TIMEOUT = 220, 25
 
-local function readable(value)
-    return (not issecretvalue or not issecretvalue(value)) and value ~= nil
-end
+local readable, shortName = Util.Readable, Util.ShortName
 
-C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
+-- Messages go through Comm.lua, which owns the prefix.
+local send = ns.Comm.Whisper
 
-local function send(message, target)
-    return C_ChatInfo.SendAddonMessage(PREFIX, message, "WHISPER", target)
-end
-
--- First name only: on Forever, the game does not always write the rest of the name the
--- same way. It is used to recognize a player; replies go to the address received.
-local function shortName(name)
-    return name:match("^[^%-%s]+") or name
-end
+-- A player is recognized by their short name (Util.ShortName); replies go to the
+-- address received.
 
 -- The player's combination and full name, sent with each request.
 local function identity()
@@ -227,11 +219,8 @@ StaticPopupDialogs["FOREVERDEX_DUEL"] = {
     end,
 }
 
-local events = CreateFrame("Frame")
-events:RegisterEvent("CHAT_MSG_ADDON")
-events:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
-    if not readable(prefix) or prefix ~= PREFIX then return end
-    if not ForeverDexDB or not readable(sender) or not readable(text) then return end
+ns.Comm.On("QANDC", function(text, sender)
+    if not ForeverDexDB then return end
     local who = shortName(sender)
     local kind, body = text:sub(1, 1), text:sub(2)
 
@@ -240,7 +229,7 @@ events:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
         -- "Ignore all" and the block after a refusal show strictly nothing here;
         -- the requester simply gets a refusal, so they do not have to wait.
         local now = GetTime()
-        if ns.Settings.Get("duelRequests") == "refuse" or now < (blocked[who] or 0) then
+        if Settings.Get("duelRequests") == "refuse" or now < (blocked[who] or 0) then
             send("N", sender)
             return
         end
@@ -248,7 +237,7 @@ events:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
         if StaticPopup_Visible and StaticPopup_Visible("FOREVERDEX_DUEL") then return end
         local inCombat = (InCombatLockdown and InCombatLockdown())
             or (UnitAffectingCombat and UnitAffectingCombat("player"))
-        if ns.Settings.Get("duelCombatRefuse") and inCombat then
+        if Settings.Get("duelCombatRefuse") and inCombat then
             blocked[who] = now + BLOCK_TIME
             send("N", sender)
             print(L.DUEL_AUTO_REFUSED:format(display or who))
@@ -295,11 +284,7 @@ end)
 local ROWS, ROW_H = 11, 28
 local BLUE, RED = { 0.25, 0.55, 1 }, { 1, 0.3, 0.22 }
 
-local function create(frameType, name, parent, template, fallback)
-    local ok, frame = pcall(CreateFrame, frameType, name, parent, template)
-    if ok and frame then return frame, true end
-    return CreateFrame(frameType, name, parent, fallback), false
-end
+local create = Util.CreateFrame
 
 local function horizontal(texture, r, g, b, leftAlpha, rightAlpha)
     texture:SetColorTexture(1, 1, 1, 1)
@@ -349,7 +334,7 @@ arena:SetPoint("BOTTOMRIGHT", -8, 8)
 local backdrop = arena:CreateTexture(nil, "BACKGROUND", nil, 1)
 backdrop:SetPoint("TOPLEFT", 3, -3)
 backdrop:SetPoint("BOTTOMRIGHT", -3, 3)
-Art.Apply(backdrop, Art.JOURNAL_BG)
+Art.JournalInterior(backdrop)
 local veil = arena:CreateTexture(nil, "BACKGROUND", nil, 2)
 veil:SetAllPoints(backdrop)
 veil:SetColorTexture(0, 0, 0, 0.55)
@@ -431,8 +416,8 @@ burst:SetBlendMode("ADD")
 burst:SetSize(170, 170)
 burst:SetPoint("CENTER")
 burst:SetVertexColor(1, 0.75, 0.3, 0.35)
-ns.Settings.OnChange(function(key)
-    if key == nil or key == "duelVsBurst" then burst:SetShown(ns.Settings.Get("duelVsBurst")) end
+Settings.OnChange(function(key)
+    if key == nil or key == "duelVsBurst" then burst:SetShown(Settings.Get("duelVsBurst")) end
 end)
 local vsText = vsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
 Art.Font(vsText, 48, "THICKOUTLINE")
@@ -511,13 +496,13 @@ for i = 1, ROWS do
 end
 
 local function duelSound(...)
-    if ns.Settings.Get("duelSounds") then Art.Sound(...) end
+    if Settings.Get("duelSounds") then Art.Sound(...) end
 end
 
 local READY = "Interface\\RaidFrame\\ReadyCheck-Ready"
 local MISSING = "Interface\\RaidFrame\\ReadyCheck-NotReady"
 
-local function paintName(fontString, mark, wash, entry, color)
+local function paintName(fontString, mark, wash, entry)
     wash:SetShown(entry ~= nil)
     mark:SetTexture(entry and READY or MISSING)
     mark:SetAlpha(entry and 1 or 0.35)
@@ -620,8 +605,8 @@ render = function()
             row.label:SetText(("#%03d  %s"):format(slot.index, description))
             widest = math.max(widest, row.label:GetStringWidth())
             Art.ClassIcon(row.classIcon, combination and combination.token)
-            paintName(row.leftName, row.leftMark, row.leftWash, item.own, BLUE)
-            paintName(row.rightName, row.rightMark, row.rightWash, item.other, RED)
+            paintName(row.leftName, row.leftMark, row.leftWash, item.own)
+            paintName(row.rightName, row.rightMark, row.rightWash, item.other)
         end
     end
     -- Icons share one position; the widest line of the page centers the column.
@@ -690,7 +675,7 @@ function Duel.Show(partner, cards)
     local targeted = target and partner.display and target.name == partner.display
     paintSide(theirs, partner.display or "?", partner.combination, targeted and "target" or nil, counts.theirsTotal)
 
-    local animated = ns.Settings.Get("duelAnimation")
+    local animated = Settings.Get("duelAnimation")
     -- Without animation, scores show their final value directly.
     countElapsed = animated and 0 or 2
     window:SetScript("OnUpdate", count)

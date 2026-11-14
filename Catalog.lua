@@ -1,6 +1,6 @@
 local _, ns = ...
 ns.Module(function()
-local L = ns.L
+local L, Art = ns.L, ns.Art
 local Catalog = {}
 ns.Catalog = Catalog
 
@@ -41,7 +41,7 @@ local function raceIcon(theme, sex)
     local suffix = sex == 3 and "female" or "male"
     local own = ("raceicon-%s-%s"):format(theme[1], suffix)
     local borrowed = ("raceicon-%s-%s"):format(theme[6]:lower(), suffix)
-    if ns.Art.HasAtlas(own) or not ns.Art.HasAtlas(borrowed) then return own end
+    if Art.HasAtlas(own) or not Art.HasAtlas(borrowed) then return own end
     return borrowed
 end
 
@@ -272,15 +272,16 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
             and not (entry and capturers[entry.capturedBy or Catalog.UNKNOWN_CAPTURER]) then
             return
         end
-        if slot.pet then
-            -- The race, class and sex filters do not apply to pets.
-        elseif details then
-            if not (allowed(filters.races, details.raceID) and allowed(filters.classes, details.token)
-                and allowed(filters.sexes, details.sexID)) then
+        -- The race, class and sex filters do not apply to pets.
+        if not slot.pet then
+            if details then
+                if not (allowed(filters.races, details.raceID) and allowed(filters.classes, details.token)
+                    and allowed(filters.sexes, details.sexID)) then
+                    return
+                end
+            elseif viewMode ~= 4 and (next(filters.races) or next(filters.classes) or next(filters.sexes)) then
                 return
             end
-        elseif viewMode ~= 4 and (next(filters.races) or next(filters.classes) or next(filters.sexes)) then
-            return
         end
         if query == "" or card.haystack:find(query, 1, true) then
             rows[#rows + 1] = {

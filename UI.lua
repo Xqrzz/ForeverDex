@@ -1,6 +1,6 @@
 local _, ns = ...
 ns.Module(function()
-local L, Catalog, Collection, Art = ns.L, ns.Catalog, ns.Collection, ns.Art
+local L, Catalog, Collection, Art, Settings, Share, Util = ns.L, ns.Catalog, ns.Collection, ns.Art, ns.Settings, ns.Share, ns.Util
 
 -- Layout inspired by the Adventure Guide: portrait frame, race list on
 -- the left, grid of "instance buttons" on the right, tabs at the bottom.
@@ -24,14 +24,7 @@ local filters = { races = {}, classes = {}, sexes = {}, capturers = {} }
 local collectionVersion = 0
 local refresh, updateTarget
 
--- A template missing from this client must not prevent the addon from loading.
-local function create(frameType, name, parent, template, fallback)
-    if template then
-        local ok, frame = pcall(CreateFrame, frameType, name, parent, template)
-        if ok and frame then return frame, true end
-    end
-    return CreateFrame(frameType, name, parent, fallback), false
-end
+local create = Util.CreateFrame
 
 local function fontObject(name, fallback)
     return _G[name] and name or fallback
@@ -119,7 +112,7 @@ end
 gear:SetFrameLevel(panel:GetFrameLevel() + 10)
 gear:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
 gear:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
-gear:SetScript("OnClick", function() ns.Settings.Open() end)
+gear:SetScript("OnClick", function() Settings.Open() end)
 gear:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(L.SETTINGS_TITLE)
@@ -586,7 +579,7 @@ local function openCardMenu(card)
             item:SetEnabled(free)
         end
         root:CreateButton(L.SHARE_CARD, function()
-            ns.Share.Show(entry, row.slot)
+            Share.Show(entry, row.slot)
         end)
         root:CreateDivider()
         root:CreateButton(L.DELETE_CARD, function()
@@ -954,7 +947,7 @@ remove:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 -- Sharing in the channel chosen for captures (Options → Announcements).
 local share = button(detail, L.SHARE_CARD, 110, function()
-    ns.Share.Show(detail.entry, detail.slot)
+    Share.Show(detail.entry, detail.slot)
 end)
 share:SetPoint("RIGHT", remove, "LEFT", -8, 0)
 share:SetScript("OnEnter", function(self)
@@ -1001,21 +994,21 @@ local function showDetail(slot, perRace, filled)
         detail.body:SetText(L.NO_DETAILS)
     end
 
-    local progress = {}
+    local bars = {}
     if slot.pet then
-        progress[1] = { L.PETS, Catalog.Filled(entries, Catalog.petSlots), #Catalog.petSlots }
+        bars[1] = { L.PETS, Catalog.Filled(entries, Catalog.petSlots), #Catalog.petSlots }
     elseif combination then
         for _, info in ipairs(Catalog.races) do
             if info.id == combination.raceID then
-                progress[#progress + 1] = { info.name, perRace[info.id] or 0, info.total }
+                bars[#bars + 1] = { info.name, perRace[info.id] or 0, info.total }
             end
         end
         local have, total = Catalog.ClassProgress(entries, combination.token)
-        progress[#progress + 1] = { combination.class, have, total }
+        bars[#bars + 1] = { combination.class, have, total }
     end
-    if not slot.pet then progress[#progress + 1] = { L.HOME, filled, #Catalog.slots } end
+    if not slot.pet then bars[#bars + 1] = { L.HOME, filled, #Catalog.slots } end
     for i, row in ipairs(progressRows) do
-        local item = progress[i]
+        local item = bars[i]
         row.label:SetShown(item ~= nil)
         row.bar:SetShown(item ~= nil)
         if item then
@@ -1080,9 +1073,9 @@ end
 -- SetShown(shown): it shows or hides its frames, and refreshes them when shown.
 local pages = {}
 
-local function registerPage(name, page)
-    pages[name] = page
-    page.SetShown(false)
+local function registerPage(name, handler)
+    pages[name] = handler
+    handler.SetShown(false)
 end
 
 -- Side tabs, on the right edge of the window: one per mode.
@@ -1157,8 +1150,8 @@ local function showMode()
     for _, part in ipairs(journalParts) do part:SetShown(journal) end
     if not journal then filterFrame:Hide() end
     -- Hide first, then show: two pages never overlap, even for a moment.
-    for name, page in pairs(pages) do
-        if name ~= mode then page.SetShown(false) end
+    for name, handler in pairs(pages) do
+        if name ~= mode then handler.SetShown(false) end
     end
     if pages[mode] then pages[mode].SetShown(true) end
     for _, tab in ipairs(sideTabs) do paintSideTab(tab) end
@@ -1205,8 +1198,8 @@ refresh = function()
         lastQuery.perRace = Catalog.RaceProgress(entries)
     end
     local rows, filled = lastQuery.rows, lastQuery.filled
-    local pages = math.max(1, math.ceil(#rows / PAGE_SIZE))
-    page = math.max(1, math.min(page, pages))
+    local pageCount = math.max(1, math.ceil(#rows / PAGE_SIZE))
+    page = math.max(1, math.min(page, pageCount))
     local total = #Catalog.slots
     Art.FitLine(counts, L.PROGRESS:format(filled, total, filled == total and L.COMPLETE or ""), 225)
     percent:SetText(L.PERCENT:format(math.floor(filled / total * 100 + 0.5)))
@@ -1249,10 +1242,10 @@ refresh = function()
     detail:SetShown(detailSlot ~= nil)
     empty:SetText(viewMode == 5 and search:GetText() == "" and L.NO_FAVORITES or L.NO_RESULTS)
     empty:SetShown(#rows == 0 and not detailSlot)
-    pageText:SetText(L.PAGE:format(page, pages))
+    pageText:SetText(L.PAGE:format(page, pageCount))
     results:SetText(L.RESULTS:format(#rows))
     previous:SetEnabled(page > 1)
-    nextPage:SetEnabled(page < pages)
+    nextPage:SetEnabled(page < pageCount)
 
     for i, card in ipairs(cards) do
         local row = rows[(page - 1) * PAGE_SIZE + i]
@@ -1272,19 +1265,19 @@ refresh = function()
     updatePortraits(lastTarget)
 end
 
-local function isSortSelected(mode)
-    return sortMode == mode
+local function isSortSelected(choice)
+    return sortMode == choice
 end
 
-local function selectSort(mode)
-    sortMode, page = mode, 1
+local function selectSort(choice)
+    sortMode, page = choice, 1
     refresh()
 end
 
 -- The radio options of the Blizzard menu represent a single active sort.
 sortButton:SetupMenu(function(_, menu)
-    for mode, name in ipairs(sortNames) do
-        menu:CreateRadio(name, isSortSelected, selectSort, mode)
+    for choice, name in ipairs(sortNames) do
+        menu:CreateRadio(name, isSortSelected, selectSort, choice)
     end
 end)
 -- The query waits for a short pause in the typing; text set by the code (cleared
@@ -1310,169 +1303,12 @@ panel:HookScript("OnShow", function()
 end)
 panel:HookScript("OnHide", function() Art.Sound("IG_SPELLBOOK_CLOSE") end)
 
--- Capture from the target portrait -------------------------------------------------
+-- Capture from the target portrait (PortraitCapture.lua) ------------------------------
 
-local capturePortrait
-
--- Target frame of another interface (EllesmereUI, oUF layouts…): the frame showing
--- the "target" unit whose parent is on screen. Blizzard's frame is skipped, and so
--- are frames left under a hidden parent. The result is kept until it stops matching;
--- a failed search is only tried again after a short delay.
-local otherTarget, lastSearch
-local function showsTarget(frame)
-    if frame == TargetFrame or (frame.IsForbidden and frame:IsForbidden()) then return false end
-    local unit = frame.unit
-    if unit ~= "target" and frame.GetAttribute then unit = frame:GetAttribute("unit") end
-    local parent = frame:GetParent()
-    return unit == "target" and parent ~= nil and parent:IsVisible() and frame:GetWidth() > 40
-end
-
-local function findOtherTarget()
-    if otherTarget and showsTarget(otherTarget) then return otherTarget end
-    otherTarget = nil
-    local now = GetTime()
-    if lastSearch and now - lastSearch < 2 then return end
-    lastSearch = now
-    local best, bestArea = nil, 0
-    local frame = EnumerateFrames()
-    while frame do
-        if showsTarget(frame) then
-            local area = frame:GetWidth() * frame:GetHeight()
-            if area > bestArea then best, bestArea = frame, area end
-        end
-        frame = EnumerateFrames(frame)
-    end
-    otherTarget = best
-    return best
-end
-
--- Displayed target frame and region where the ball sits. ElvUI creates its own after
--- the addon loads and reparents Blizzard's to a hidden parent, so the choice is
--- made again on every update. Without an ElvUI portrait, we aim at the whole frame.
-local function targetAnchor()
-    local elvFrame, blizzard = _G.ElvUF_Target, TargetFrame
-    if elvFrame and not (blizzard and blizzard:GetParent() == UIParent) then
-        local portrait = elvFrame.Portrait
-        return elvFrame, portrait and portrait:IsShown() and portrait or elvFrame
-    end
-    -- Blizzard's frame is hidden while there is a target: another interface replaced it.
-    local replaced = not blizzard or blizzard:GetParent() ~= UIParent
-        or (UnitExists("target") and not blizzard:IsShown())
-    local other = replaced and findOtherTarget()
-    if other then
-        local portrait = other.Portrait
-        return other, portrait and portrait.IsShown and portrait:IsShown() and portrait or other
-    end
-    if not blizzard then return end
-    local container = blizzard.TargetFrameContainer
-    -- Forever uses the modern container. Some frames still expose the old portrait.
-    local portrait = (container and container.Portrait) or TargetFramePortrait
-    if portrait then return blizzard, portrait end
-end
-
-local function createPortraitCapture()
-    local badge = CreateFrame("Button", nil, UIParent)
-    badge:SetSize(22, 22)
-    badge:SetScript("OnClick", Collection.Capture)
-    badge:Hide()
-    local badgeBall = ns.CaptureVisuals.DrawBadge(badge)
-    -- Gray checked ball: the combination is already taken, a click would replace it.
-    local badgeCheck = badge:CreateTexture(nil, "OVERLAY")
-    badgeCheck:SetSize(14, 14)
-    badgeCheck:SetPoint("BOTTOMRIGHT", 4, -3)
-    badgeCheck:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-    badgeCheck:Hide()
-    -- The ball breathes gently to signal a name to capture.
-    local pulse = badge:CreateAnimationGroup()
-    pulse:SetLooping("BOUNCE")
-    local grow = pulse:CreateAnimation("Scale")
-    if grow.SetScaleFrom then
-        grow:SetScaleFrom(1, 1)
-        grow:SetScaleTo(1.15, 1.15)
-    else
-        grow:SetScale(1.15, 1.15)
-    end
-    grow:SetDuration(0.6)
-    grow:SetSmoothing("IN_OUT")
-    -- Only a card still to discover makes the ball breathe.
-    function badge:SetHolder(holder)
-        self.holder = holder
-        badgeBall:SetDesaturated(holder ~= nil)
-        badgeCheck:SetShown(holder ~= nil)
-        if holder then
-            pulse:Stop()
-        elseif self:IsShown() and not pulse:IsPlaying() then
-            pulse:Play()
-        end
-    end
-    badge:SetScript("OnShow", function(self)
-        if not self.holder then pulse:Play() end
-    end)
-    badge:SetScript("OnHide", function() pulse:Stop() end)
-    badge:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("ForeverDex")
-        if self.holder then
-            GameTooltip:AddLine(L.COMBINATION_OWNED:format(self.holder.name), 1, 1, 1)
-            GameTooltip:AddLine(L.CLICK_TO_REPLACE, 0.7, 0.7, 0.7)
-        else
-            GameTooltip:AddLine(L.ADD_TARGET, 1, 1, 1)
-        end
-        GameTooltip:Show()
-    end)
-    badge:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-    -- Small checked orb: this player is already in the collection. It is gray
-    -- when another player holds the card for this combination.
-    local owned = CreateFrame("Frame", nil, UIParent)
-    owned:SetSize(18, 18)
-    owned:EnableMouse(true)
-    owned:Hide()
-    local orb = owned:CreateTexture(nil, "ARTWORK")
-    orb:SetAllPoints()
-    Art.SmoothTexture(orb, ns.CaptureVisuals.BALL)
-    local check = owned:CreateTexture(nil, "OVERLAY")
-    check:SetSize(14, 14)
-    check:SetPoint("BOTTOMRIGHT", 5, -4)
-    check:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
-    function owned:SetHolder(holder)
-        self.holder = holder
-        orb:SetDesaturated(holder ~= nil)
-    end
-    owned:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("ForeverDex")
-        GameTooltip:AddLine(self.holder and L.COMBINATION_OWNED:format(self.holder.name) or L.ALREADY_ADDED, 1, 1, 1)
-        GameTooltip:Show()
-    end)
-    owned:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    return badge, owned
-end
-
-local capture, owned = createPortraitCapture()
-capture:Hide()
-owned:Hide()
-
--- Attaches the ball and orb to the current target frame; returns false if there is none.
-local attachedHost, attachedRegion
-local function attachCapture()
-    local host, region = targetAnchor()
-    capturePortrait = region
-    if not host then return false end
-    if host == attachedHost and region == attachedRegion then return true end
-    attachedHost, attachedRegion = host, region
-    for _, marker in ipairs({ capture, owned }) do
-        marker:SetParent(host)
-        marker:ClearAllPoints()
-        marker:SetPoint("CENTER", region, "TOPRIGHT", -6, -6)
-        -- Wide margin: ElvUI puts its text on raised layers.
-        marker:SetFrameLevel(host:GetFrameLevel() + 120)
-    end
-    return true
-end
+local PortraitCapture = ns.PortraitCapture
 
 updateTarget = function()
-    local anchored = attachCapture()
+    local anchored = PortraitCapture.Attach()
     local entry = Collection.ReadTarget()
     -- A hunter pet has no fixed card: only a pet already in the collection counts as saved.
     local pet = not entry and Collection.ReadPet() or nil
@@ -1487,22 +1323,7 @@ updateTarget = function()
     end
     -- The card for this combination is held by another player.
     local holder = current and not alreadySaved and current or nil
-    local showCapture = false
-    if capture then
-        -- Setting: always (new card or replacement), empty card only, or never.
-        local mode = ns.Settings.Get("portraitButton")
-        local target = entry or pet
-        showCapture = anchored and target ~= nil and not alreadySaved
-        if mode == "missing" then showCapture = anchored and target ~= nil and current == nil end
-        if mode == "off" then showCapture = false end
-        capture:SetHolder(holder)
-        capture:SetShown(showCapture)
-    end
-    if owned then
-        -- Without a clickable ball, the orb still shows that the combination is taken.
-        owned:SetHolder(holder)
-        owned:SetShown(anchored and current ~= nil and not showCapture and ns.Settings.Get("ownedMarker") or false)
-    end
+    PortraitCapture.Update(anchored, entry or pet, current, alreadySaved, holder)
     compare:SetEnabled(ns.Duel ~= nil and ns.Duel.CanRequest())
     if viewMode == 4 then
         local slot, label
@@ -1517,8 +1338,8 @@ end
 
 panel:HookScript("OnShow", updateTarget)
 
-ns.Settings.OnChange(function(key)
-    if key == nil or key == "windowScale" then panel:SetScale(ns.Settings.Get("windowScale")) end
+Settings.OnChange(function(key)
+    if key == nil or key == "windowScale" then panel:SetScale(Settings.Get("windowScale")) end
     if key == nil or key == "portraitButton" or key == "ownedMarker" then updateTarget() end
 end)
 panel:HookScript("OnHide", updateTarget)
@@ -1562,7 +1383,7 @@ ns.UI = {
     Refresh = function(entry, isNew, noThrow)
         local Visuals = ns.CaptureVisuals
         -- The starting point is read before the refresh, which hides the ball.
-        local origin = not noThrow and ((capture and capture:IsVisible() and capture) or (panelCapture:IsVisible() and panelCapture))
+        local origin = not noThrow and ((PortraitCapture.Ball:IsVisible() and PortraitCapture.Ball) or (panelCapture:IsVisible() and panelCapture))
         local x1, y1 = Visuals.Center(origin)
         -- A frame attached to a secure frame (ElvUI) can hide its position:
         -- the ball then starts from the cursor, which has just clicked on it.
@@ -1579,9 +1400,10 @@ ns.UI = {
         local card = visibleCard(entry.key)
         -- The ball lands on the target portrait, at its size. Without a visible
         -- target frame, it falls back onto the card or below the button.
-        local landing = (capturePortrait and capturePortrait:IsVisible() and capturePortrait) or card
+        local region = PortraitCapture.Region()
+        local landing = (region and region:IsVisible() and region) or card
         local x2, y2, size = Visuals.Center(landing)
-        if not x2 then x2, y2, size = Visuals.Center(attachedHost) end
+        if not x2 then x2, y2, size = Visuals.Center(PortraitCapture.Host()) end
         local home = ns.MinimapButton
         local hx, hy, homeSize = Visuals.Center(home and home:IsVisible() and home)
         Visuals.Play({

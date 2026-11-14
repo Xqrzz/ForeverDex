@@ -1,6 +1,6 @@
 local _, ns = ...
 ns.Module(function()
-local L, Art = ns.L, ns.Art
+local L, Art, Collection, Settings, Util = ns.L, ns.Art, ns.Collection, ns.Settings, ns.Util
 local CaptureVisuals = {}
 ns.CaptureVisuals = CaptureVisuals
 
@@ -36,7 +36,7 @@ end
 -- A position can be "secret" (an ElvUI secure frame, for example): the client
 -- forbids any computation on it, so we answer as if it were unknown.
 local function isSecret(value)
-    return issecretvalue ~= nil and issecretvalue(value)
+    return value ~= nil and not Util.Readable(value)
 end
 
 function CaptureVisuals.Center(region)
@@ -269,7 +269,8 @@ end
 homing:SetScript("OnUpdate", function(_, delta)
     local now = run.elapsed + delta
     run.elapsed = now
-    local x, y, size, glow, alpha, spin = run.x2, run.y2, run.endSize, 1, 1, 13
+    local x, y, glow, alpha, spin = run.x2, run.y2, 1, 1, 13
+    local size
     local travelEnd = RISE + run.travel
     if now < RISE then
         local t = easeOut(now / RISE)
@@ -444,7 +445,7 @@ toast:SetScript("OnClick", function()
 end)
 
 local function showToast(entry)
-    if not ns.Settings.Get("toast") then return end
+    if not Settings.Get("toast") then return end
     local catalog = ns.Catalog
     local combination = catalog.byKey[entry.combination or entry.key]
     local slot = catalog.slotByKey[entry.key]
@@ -454,7 +455,7 @@ local function showToast(entry)
     local color = combination and RAID_CLASS_COLORS[combination.token]
     if color then toastCombo:SetTextColor(color.r, color.g, color.b) else toastCombo:SetTextColor(0.8, 0.8, 0.8) end
 
-    local target = ns.Collection.ReadTarget() or ns.Collection.ReadPet()
+    local target = Collection.ReadTarget() or Collection.ReadPet()
     if target and target.id == entry.id and SetPortraitTexture then
         toastIcon:SetTexture(nil)
         toastIcon:SetTexCoord(0, 1, 0, 1)
@@ -503,11 +504,11 @@ function CaptureVisuals.Play(options)
     stopHoming()
     effect:Hide()
     local entry = options.entry
-    local mode = ns.Settings.Get("animation")
+    local mode = Settings.Get("animation")
     if not options.fromX or mode == "off" then
         -- No animation (or no visible starting point): everything happens at once.
         if options.onReveal then options.onReveal() end
-        ns.Collection.Announce(entry, true)
+        Collection.Announce(entry, true)
         if options.onHome then options.onHome() end
         showToast(entry)
         return
@@ -535,7 +536,7 @@ function CaptureVisuals.Play(options)
     end
     at(CLICK - shift, token, function()
         Art.Sound("IG_QUEST_LIST_COMPLETE")
-        ns.Collection.Announce(entry, true)
+        Collection.Announce(entry, true)
         if options.onReveal then options.onReveal() end
     end)
     at(FLY - shift, token, function()

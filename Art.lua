@@ -1,6 +1,5 @@
 local _, ns = ...
 ns.Module(function()
-local L = ns.L
 local Art = {}
 ns.Art = Art
 
@@ -196,25 +195,38 @@ end
 -- it looks like the background is cut off, so it is cropped away. Its carved recess
 -- starts about 50 px from the top: content goes below that.
 Art.JOURNAL_RECESS = 58
+
+-- Shows a part of the Adventure Guide background, given as fractions of the art
+-- (left, right, top, bottom). An atlas cannot be cropped: its file is used instead.
+local function cropJournal(texture, left, right, top, bottom)
+    Art.Apply(texture, Art.JOURNAL_BG)
+    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("UI-EJ-Classic")
+    local file = info and (info.file or info.filename)
+    local x1, x2, y1, y2 = 0, 1, 0, 1
+    if file then
+        texture:SetTexture(file)
+        x1, x2, y1, y2 = info.leftTexCoord, info.rightTexCoord, info.topTexCoord, info.bottomTexCoord
+    end
+    texture:SetTexCoord(x1 + (x2 - x1) * left, x1 + (x2 - x1) * right,
+        y1 + (y2 - y1) * top, y1 + (y2 - y1) * bottom)
+end
+
 function Art.JournalBackground(frame)
     local art = frame:CreateTexture(nil, "BACKGROUND", nil, 1)
     art:SetPoint("TOPLEFT", 3, -3)
     art:SetPoint("BOTTOMRIGHT", -3, 3)
-    Art.Apply(art, Art.JOURNAL_BG)
-    local KEEP = 0.96
-    local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("UI-EJ-Classic")
-    local file = info and (info.file or info.filename)
-    if file then
-        local left, right = info.leftTexCoord, info.rightTexCoord
-        art:SetTexture(file)
-        art:SetTexCoord(left, left + (right - left) * KEEP, info.topTexCoord, info.bottomTexCoord)
-    else
-        art:SetTexCoord(0, KEEP, 0, 1)
-    end
+    cropJournal(art, 0, 0.96, 0, 1)
     local veil = frame:CreateTexture(nil, "BACKGROUND", nil, 2)
     veil:SetAllPoints(art)
     veil:SetColorTexture(0, 0, 0, 0.3)
     return art
+end
+
+-- Only the painted inside of the same art, for the screens that are not a journal (duel,
+-- combat): stretched whole over them, its carved gold rim and scroll bar rail looked
+-- like a blurred frame behind the scene.
+function Art.JournalInterior(texture)
+    cropJournal(texture, 0.04, 0.92, 0.18, 0.9)
 end
 
 -- Row of a side list, like the races of the journal: background, selection and hover

@@ -1,6 +1,6 @@
 local _, ns = ...
 ns.Module(function()
-local L, Catalog, Settings = ns.L, ns.Catalog, ns.Settings
+local L, Catalog, Settings, Achievements, Collection = ns.L, ns.Catalog, ns.Settings, ns.Achievements, ns.Collection
 local Share = {}
 ns.Share = Share
 
@@ -339,12 +339,12 @@ local function preview(channelKey, text)
 end
 
 function Share.PreviewCapture()
-    local name = ns.Collection.PlayerName() or UNKNOWNOBJECT
+    local name = Collection.PlayerName() or UNKNOWNOBJECT
     preview("shareCaptureChannel", captureText({ name = name }, "new"))
 end
 
 function Share.PreviewAchievement()
-    local list = ns.Achievements and ns.Achievements.list
+    local list = Achievements and Achievements.list
     if not list or #list == 0 then return end
     preview("shareAchievementChannel", achievementText({ list[math.random(#list)] }))
 end

@@ -1,6 +1,6 @@
 local _, ns = ...
 ns.Module(function()
-local L, Catalog, Art = ns.L, ns.Catalog, ns.Art
+local L, Catalog, Art, Settings, Util = ns.L, ns.Catalog, ns.Art, ns.Settings, ns.Util
 local Duel = ns.Duel
 local arena, window = Duel.Arena, Duel.Window
 local BLUE, RED = Duel.BLUE, Duel.RED
@@ -49,7 +49,7 @@ local function setTextScale(line, scale)
 end
 
 local function calm()
-    return not ns.Settings.Get("duelAnimation")
+    return not Settings.Get("duelAnimation")
 end
 
 -- Stage: the blue and red table of the duel screen ----------------------------------------
@@ -65,7 +65,7 @@ base:SetColorTexture(0.03, 0.03, 0.04, 1)
 local table_ = stage:CreateTexture(nil, "BACKGROUND", nil, 1)
 table_:SetPoint("TOPLEFT", 3, -3)
 table_:SetPoint("BOTTOMRIGHT", -3, 3)
-Art.Apply(table_, Art.JOURNAL_BG)
+Art.JournalInterior(table_)
 local veil = stage:CreateTexture(nil, "BACKGROUND", nil, 2)
 veil:SetAllPoints(table_)
 veil:SetColorTexture(0, 0, 0, 0.55)
@@ -442,8 +442,7 @@ picker:Hide()
 
 local LIST_W, ROW_H = 540, 40
 local pickPage, pickKey, refreshPicker = 1, nil, nil
-local okSearch, search = pcall(CreateFrame, "EditBox", nil, picker, "SearchBoxTemplate")
-if not okSearch or not search then search = CreateFrame("EditBox", nil, picker, "InputBoxTemplate") end
+local search = Util.CreateFrame("EditBox", nil, picker, "SearchBoxTemplate", "InputBoxTemplate")
 search:SetSize(LIST_W - 8, 22)
 search:SetPoint("TOPLEFT", 22, -78)
 search:SetAutoFocus(false)

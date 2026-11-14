@@ -6,6 +6,8 @@
 ## IconTexture: Interface\AddOns\ForeverDex\Media\IconSmall
 ## SavedVariables: ForeverDexDB
 
+Util.lua
+Comm.lua
 Locale.lua
 Locales\deDE.lua
 Locales\enUS.lua
@@ -24,8 +26,11 @@ News.lua
 CaptureVisuals.lua
 Duel.lua
 Combat.lua
+PresenceIcon.lua
 Presence.lua
+PresenceOptions.lua
 Share.lua
+PortraitCapture.lua
 UI.lua
 HomeUI.lua
 AchievementsUI.lua
