@@ -456,7 +456,8 @@ ns.Locales.enUS = {
         "The next legendary name might be standing in line at the auction house right now.",
     },
     HOME_NEWS_LINES = {
-        "Share a card in the channel chosen for captures: right-click the card, or the Share button on its page.",
-        "Fixed a blocked action when opening the options during combat: they now open when combat ends.",
+        "The collectors icons are much lighter on performance, even in a crowded city.",
+        "Searching the journal and turning its pages are more responsive.",
+        "Fixed a blurred gold frame behind the duel and combat screens.",
     },
 }

@@ -453,7 +453,8 @@ ns.Locales.deDE = {
         "Der nächste legendäre Name steht vielleicht gerade am Auktionshaus Schlange.",
     },
     HOME_NEWS_LINES = {
-        "Teile eine Karte im für Fänge gewählten Kanal: Rechtsklick auf die Karte oder die Schaltfläche Teilen auf ihrer Seite.",
-        "Blockierte Aktion beim Öffnen der Optionen im Kampf behoben: Sie öffnen sich jetzt nach dem Kampf.",
+        "Die Sammler-Symbole belasten die Leistung deutlich weniger, selbst in einer vollen Stadt.",
+        "Suchen und Blättern im Buch reagieren schneller.",
+        "Unscharfer goldener Rahmen hinter den Duell- und Kampfbildschirmen behoben.",
     },
 }

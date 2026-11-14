@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.92
+
+- The collectors icons are much lighter on performance, even in a crowded city
+- Searching the journal and turning its pages are more responsive
+- Fixed a blurred gold frame behind the duel and combat screens
+
 ## 1.7.91
 
 - Share a card in the channel chosen for captures: right-click the card, or the Share button on its page

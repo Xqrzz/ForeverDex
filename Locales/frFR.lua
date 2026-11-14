@@ -453,7 +453,8 @@ ns.Locales.frFR = {
         "Le prochain nom légendaire fait peut-être la queue à l’hôtel des ventes en ce moment même.",
     },
     HOME_NEWS_LINES = {
-        "Partage d’une carte dans le canal choisi pour les captures : clic droit sur la carte, ou bouton Partager sur sa page.",
-        "Correction d’une action bloquée à l’ouverture des options en combat : elles s’ouvrent désormais à la fin du combat.",
+        "Les icônes des collectionneurs pèsent bien moins sur les performances, même dans une ville bondée.",
+        "La recherche et le changement de page du carnet sont plus réactifs.",
+        "Correction d’un cadre doré flou derrière les écrans de duel et de combat.",
     },
 }

@@ -453,7 +453,8 @@ ns.Locales.itIT = {
         "Il prossimo nome leggendario potrebbe essere in fila alla casa d’aste proprio adesso.",
     },
     HOME_NEWS_LINES = {
-        "Condividi una carta nel canale scelto per le catture: clic destro sulla carta o il pulsante Condividi nella sua pagina.",
-        "Corretta un’azione bloccata all’apertura delle opzioni in combattimento: ora si aprono alla fine del combattimento.",
+        "Le icone dei collezionisti pesano molto meno sulle prestazioni, anche in una città affollata.",
+        "La ricerca e il cambio di pagina del diario sono più reattivi.",
+        "Corretta una cornice dorata sfocata dietro le schermate di duello e di combattimento.",
     },
 }

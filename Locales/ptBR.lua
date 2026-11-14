@@ -453,7 +453,8 @@ ns.Locales.ptBR = {
         "O próximo nome lendário pode estar na fila da casa de leilões agora mesmo.",
     },
     HOME_NEWS_LINES = {
-        "Compartilhe uma carta no canal escolhido para as capturas: clique direito na carta ou o botão Compartilhar na página dela.",
-        "Corrigida uma ação bloqueada ao abrir as opções em combate: agora elas abrem ao fim do combate.",
+        "Os ícones de colecionadores pesam muito menos no desempenho, mesmo numa cidade lotada.",
+        "A busca e a troca de página do diário respondem mais rápido.",
+        "Corrigida uma moldura dourada borrada atrás das telas de duelo e de combate.",
     },
 }

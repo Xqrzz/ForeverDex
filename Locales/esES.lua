@@ -453,7 +453,8 @@ ns.Locales.esES = {
         "Puede que el próximo nombre legendario esté haciendo cola en la casa de subastas ahora mismo.",
     },
     HOME_NEWS_LINES = {
-        "Comparte una carta en el canal elegido para las capturas: clic derecho en la carta o el botón Compartir de su página.",
-        "Corregida una acción bloqueada al abrir las opciones en combate: ahora se abren al terminar el combate.",
+        "Los iconos de coleccionistas pesan mucho menos en el rendimiento, incluso en una ciudad abarrotada.",
+        "La búsqueda y el cambio de página del diario responden más rápido.",
+        "Corregido un marco dorado borroso detrás de las pantallas de duelo y de combate.",
     },
 }
