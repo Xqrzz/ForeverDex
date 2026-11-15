@@ -583,7 +583,7 @@ local function openCardMenu(card)
         end)
         root:CreateDivider()
         local delete = root:CreateButton(L.DELETE_CARD, function()
-            StaticPopup_Show("FOREVERDEX_DELETE", entry.name, nil, key)
+            ns.Dialog.Show("FOREVERDEX_DELETE", entry.name, nil, key)
         end)
         -- A favorite cannot be deleted: it has to leave the favorites first.
         if entry.favorite then
@@ -941,7 +941,7 @@ back:SetPoint("BOTTOMLEFT", 16, 12)
 local remove = button(detail, L.DELETE_CARD, 150, function()
     local entry = detail.entry
     if not entry or not detail.slot then return end
-    StaticPopup_Show("FOREVERDEX_DELETE", entry.name, nil, detail.slot.key)
+    ns.Dialog.Show("FOREVERDEX_DELETE", entry.name, nil, detail.slot.key)
 end)
 remove:SetPoint("BOTTOMRIGHT", -16, 12)
 -- A favorite is protected: the tooltip still explains why the button is off.

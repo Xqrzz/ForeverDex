@@ -34,13 +34,13 @@ read_globals = {
     "IsInGroup", "IsInGuild", "IsInInstance", "IsInRaid", "LE_PARTY_CATEGORY_HOME",
     "LE_PARTY_CATEGORY_INSTANCE", "Menu", "MenuUtil", "Minimap", "NO", "PanelTemplates_SetNumTabs",
     "PanelTemplates_SetTab", "PlaySound", "RAID_CLASS_COLORS", "ReloadUI", "SOUNDKIT",
-    "STATICPOPUP_NUMDIALOGS", "SendChatMessage", "SetCVar", "SetPortraitTexture", "SettingsPanel", "StaticPopup_Show",
+    "STATICPOPUP_NUMDIALOGS", "SendChatMessage", "SetCVar", "SetItemRef", "SetPortraitTexture", "SettingsPanel", "StaticPopup_Show",
     "StaticPopup_Visible", "TargetFrame", "TargetFramePortrait", "TooltipDataProcessor",
     "UIParent", "UISpecialFrames", "UNITNAME_TITLE_GUARDIAN", "UNITNAME_TITLE_MINION",
     "UNITNAME_TITLE_PET", "UNKNOWNOBJECT", "UnitAffectingCombat", "UnitCanAttack", "UnitClass",
     "UnitCreatureFamily", "UnitCreatureType", "UnitExists", "UnitFactionGroup", "UnitFullName",
     "UnitGUID", "UnitIsPlayer", "UnitIsUnit", "UnitLevel", "UnitName", "UnitPlayerControlled",
-    "UnitRace", "UnitSex", "UnitTokenFromGUID", "YES", "hooksecurefunc", "date", "issecretvalue", "time", "tinsert",
+    "UnitRace", "UnitSex", "UnitTokenFromGUID", "YES", "hooksecurefunc", "date", "issecretvalue", "strsplit", "time", "tinsert",
     "wipe",
 }
 

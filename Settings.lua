@@ -411,7 +411,7 @@ action(right, L.SETTINGS_DEFAULTS, 220, function() Settings.ResetAll() end, L.SE
 local reset = action(right, L.SETTINGS_RESET, 220, function()
     local count = 0
     for _ in pairs(ForeverDexDB and ForeverDexDB.cards or {}) do count = count + 1 end
-    if count > 0 then StaticPopup_Show("FOREVERDEX_RESET", count) end
+    if count > 0 then ns.Dialog.Show("FOREVERDEX_RESET", count) end
 end, L.SETTINGS_RESET_TIP)
 local resetLabel = reset:GetFontString()
 if resetLabel then resetLabel:SetTextColor(1, 0.35, 0.3) end
@@ -436,7 +436,7 @@ StaticPopupDialogs["FOREVERDEX_RESET"] = {
     showAlert = true,
     OnAccept = function()
         -- The first dialog must be closed before opening the second.
-        C_Timer.After(0, function() StaticPopup_Show("FOREVERDEX_RESET_CONFIRM") end)
+        C_Timer.After(0, function() ns.Dialog.Show("FOREVERDEX_RESET_CONFIRM") end)
     end,
 }
 StaticPopupDialogs["FOREVERDEX_RESET_CONFIRM"] = {
@@ -461,7 +461,7 @@ StaticPopupDialogs["FOREVERDEX_RELOAD"] = {
     OnAccept = function() ReloadUI() end,
 }
 Settings.OnChange(function(key)
-    if key == "language" then StaticPopup_Show("FOREVERDEX_RELOAD") end
+    if key == "language" then ns.Dialog.Show("FOREVERDEX_RELOAD") end
 end)
 
 -- Registration in Options → AddOns.
@@ -480,6 +480,9 @@ local strayMenu = false -- the window was opened by us, the Escape menu was clos
 
 local function closeStrayMenu()
     if not strayMenu or not GameMenuFrame or InCombatLockdown() then return end
+    -- With the controller, closing the menu from here would block the game's
+    -- controller bars (same as the game menu button, ForeverDex.lua).
+    if ns.PopupMenu.GamepadInterface() then return end
     if GameMenuFrame:IsShown() then HideUIPanel(GameMenuFrame) end
 end
 

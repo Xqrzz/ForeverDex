@@ -370,7 +370,7 @@ local function openMenu(cell)
         last:SetEnabled(index ~= Guilds.Count())
         root:CreateDivider()
         root:CreateButton(L.GUILD_DELETE, function()
-            StaticPopup_Show("FOREVERDEX_DELETE_GUILD", Guilds.ColoredName(guild), nil, guild.id)
+            ns.Dialog.Show("FOREVERDEX_DELETE_GUILD", Guilds.ColoredName(guild), nil, guild.id)
         end)
     end)
 end

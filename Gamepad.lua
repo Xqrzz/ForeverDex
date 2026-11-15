@@ -97,6 +97,10 @@ local capturing = false
 -- every button but Select goes on to the game. The window opens with the focus.
 local focused = true
 local FOCUS_BUTTON = "PADBACK"
+local focusListeners = {}
+local function focusChanged()
+    for _, listener in ipairs(focusListeners) do listener(focused) end
+end
 
 local function setCapture(on)
     if on == capturing then return end
@@ -118,6 +122,8 @@ end
 
 -- The dialog of ForeverDex on screen, if any: it takes the buttons first.
 local function dialog()
+    local own = _G.ForeverDexDialog
+    if own and own:IsShown() then return own end
     for i = 1, STATICPOPUP_NUMDIALOGS or 4 do
         local popup = _G["StaticPopup" .. i]
         if popup and popup:IsShown() and type(popup.which) == "string" and popup.which:find("^FOREVERDEX_") then
@@ -313,6 +319,7 @@ input:SetScript("OnGamePadButtonDown", function(self, button)
             marker:Hide()
             updateHints()
         end
+        focusChanged()
     elseif focused then
         used = press(button)
     else
@@ -405,12 +412,20 @@ local function topWindow()
     end
 end
 
+-- The ForeverDex menu opened outside any ForeverDex window (a name in chat).
+local MENU_OPTIONS = {
+    mode = function() return "menu" end,
+    close = function() PopupMenu.Close() end,
+    hintsOffset = 8,
+}
+
 local function update()
     local top = topWindow()
+    if not top and PopupMenu.IsShown() then top = PopupMenu.Frame end
     if top ~= window then
         leave(focus)
         focus = nil
-        window, options = top, top and attached[top]
+        window, options = top, top and (attached[top] or MENU_OPTIONS)
         if window then
             hints:SetParent(window)
             hints:SetFrameStrata(window:GetFrameStrata())
@@ -420,7 +435,10 @@ local function update()
     end
     local on = window ~= nil and PopupMenu.GamepadInterface()
     -- Each opening of a window gives it the focus.
-    if not capturing then focused = true end
+    if not capturing and not focused then
+        focused = true
+        focusChanged()
+    end
     setCapture(on and true or false)
     if capturing then refreshTargets() end
 end
@@ -449,6 +467,11 @@ function Gamepad.Refresh()
     if capturing then refreshTargets() end
 end
 
+-- listener(focused): Select moved the focus between the window and the character.
+function Gamepad.OnFocusChanged(listener)
+    focusListeners[#focusListeners + 1] = listener
+end
+
 -- True while the window is driven by the controller (menus then open on their owner).
 function Gamepad.Driving()
     return capturing
@@ -471,6 +494,10 @@ events:SetScript("OnEvent", function(_, event)
 end)
 
 -- Menu and dialogs change the hints while they are open.
-PopupMenu.OnVisibilityChanged(function() if capturing then updateHints() end end)
+PopupMenu.OnVisibilityChanged(function()
+    update()
+    if capturing then updateHints() end
+end)
+Gamepad.RegisterPage("menu", function() return { targets = {} } end)
 hooksecurefunc("StaticPopup_Show", function() if capturing then C_Timer.After(0, updateHints) end end)
 end)

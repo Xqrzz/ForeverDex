@@ -233,10 +233,35 @@ if GameMenuFrame and GameMenuFrame.buttonPool and GameMenuFrame.Layout then
     menuButton:SetSize(200, 35)
     menuButton:SetText("ForeverDex")
     menuButton:Hide()
+    -- The menu is not closed: closing it from an addon (HideUIPanel) hands the
+    -- controller back to the character from addon code, and the game's controller
+    -- bars are then blocked (ADDON_ACTION_FORBIDDEN on SetPreferredGamepadInteractTarget).
+    -- It waits, invisible, under the journal and comes back when the journal closes
+    -- or when Select gives the focus to the character: B then closes it, the game's way.
+    local menuUnder = false
+    local function coverMenu(on)
+        GameMenuFrame:SetAlpha(on and 0 or 1)
+    end
+    local function releaseMenu()
+        if not menuUnder then return end
+        menuUnder = false
+        coverMenu(false)
+    end
+    local hooked = false
     menuButton:SetScript("OnClick", function()
         if InCombatLockdown() then return end
-        HideUIPanel(GameMenuFrame)
+        local window = _G.ForeverDexWindow
+        if window and not hooked then
+            hooked = true
+            window:HookScript("OnHide", releaseMenu)
+        end
+        menuUnder = true
+        coverMenu(true)
         ns.UI.Show(ns.UI.Mode() or "home")
+    end)
+    GameMenuFrame:HookScript("OnHide", releaseMenu)
+    ns.Gamepad.OnFocusChanged(function(focused)
+        if menuUnder and GameMenuFrame:IsShown() then coverMenu(focused) end
     end)
 
     local GAP, STEP = 4, 39
@@ -253,6 +278,7 @@ if GameMenuFrame and GameMenuFrame.buttonPool and GameMenuFrame.Layout then
     end
 
     hooksecurefunc(GameMenuFrame, "Layout", function()
+        if not menuUnder then coverMenu(false) end
         -- Only in controller mode: with the mouse, the minimap icon is at hand and
         -- the menu stays exactly the game's.
         if InCombatLockdown() or not ns.PopupMenu.GamepadInterface() then

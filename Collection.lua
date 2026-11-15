@@ -277,14 +277,14 @@ local function place(entry, noThrow)
         save(entry, noThrow)
     elseif current.id ~= entry.id and current.favorite then
         if Collection.FindBonusSlot(entry) then
-            StaticPopup_Show("FOREVERDEX_FAVORITE_HELD", current.name, entry.name, { entry = entry, noThrow = noThrow })
+            ns.Dialog.Show("FOREVERDEX_FAVORITE_HELD", current.name, entry.name, { entry = entry, noThrow = noThrow })
         else
             print(L.CHAT_PREFIX .. L.FAVORITE_HELD:format(current.name))
         end
     elseif current.id ~= entry.id and not Settings.Get("confirmReplace") then
         save(entry, noThrow)
     elseif current.id ~= entry.id then
-        StaticPopup_Show("FOREVERDEX_REPLACE", current.name, entry.name, { entry = entry, noThrow = noThrow })
+        ns.Dialog.Show("FOREVERDEX_REPLACE", current.name, entry.name, { entry = entry, noThrow = noThrow })
     end
 end
 
@@ -429,11 +429,13 @@ local function captureFromChat(context)
     local sender, faction, ambiguous = readChatSender(guid, context)
     if not sender then return end
     if ambiguous and not faction then
-        StaticPopup_Show("FOREVERDEX_FACTION", sender.first .. " " .. sender.surname, nil, sender)
+        ns.Dialog.Show("FOREVERDEX_FACTION", sender.first .. " " .. sender.surname, nil, sender)
     else
         storeFromChat(sender, faction)
     end
 end
+
+Collection.CaptureFromChat = captureFromChat
 
 if Menu and Menu.ModifyMenu then
     Menu.ModifyMenu("MENU_UNIT_FRIEND", function(_, root, context)

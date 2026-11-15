@@ -221,19 +221,17 @@ end
 local gamepadActive = ns.PopupMenu.GamepadActive
 
 -- Right-click on a player portrait, a party member, a name in chat (guild chat
--- included) or a guild member in the guild window. With the controller already on at
--- login, the portrait menus are not touched at all.
+-- included) or a guild member in the guild window. Checked at each opening: the
+-- player may switch between the mouse and the controller at any time.
 if Menu and Menu.ModifyMenu then
-    if not gamepadActive() then
-        for _, tag in ipairs({ "MENU_UNIT_PLAYER", "MENU_UNIT_PARTY", "MENU_UNIT_RAID_PLAYER" }) do
-            Menu.ModifyMenu(tag, function(_, root, context)
-                if gamepadActive() then return end
-                local unit = context and context.unit
-                if not unit or not Duel.CanRequest(unit) then return end
-                root:CreateDivider()
-                root:CreateButton(L.COMPARE_MENU, function() Duel.Request(unit) end)
-            end)
-        end
+    for _, tag in ipairs({ "MENU_UNIT_PLAYER", "MENU_UNIT_PARTY", "MENU_UNIT_RAID_PLAYER" }) do
+        Menu.ModifyMenu(tag, function(_, root, context)
+            if gamepadActive() then return end
+            local unit = context and context.unit
+            if not unit or not Duel.CanRequest(unit) then return end
+            root:CreateDivider()
+            root:CreateButton(L.COMPARE_MENU, function() Duel.Request(unit) end)
+        end)
     end
     -- In chat, the option follows "Add to ForeverDex", already preceded by a separator.
     Menu.ModifyMenu("MENU_UNIT_FRIEND", function(_, root, context)
@@ -252,6 +250,28 @@ if Menu and Menu.ModifyMenu then
             end)
         end)
     end
+end
+
+-- Controller interface: the game's menu on a name in chat cannot hold our entries
+-- (above). ForeverDex opens its own small menu next to it instead, driven by the
+-- controller (Gamepad.lua): "Add to ForeverDex" and "Compare". It follows the game's
+-- handling of the link (hooksecurefunc): the game's menu itself is never touched.
+if hooksecurefunc and SetItemRef then
+    hooksecurefunc("SetItemRef", function(link, _, mouseButton, chatFrame)
+        if mouseButton ~= "RightButton" or not gamepadActive() or type(link) ~= "string" then return end
+        local kind, name, lineID = strsplit(":", link)
+        if kind ~= "player" or not name or name == "" then return end
+        local context = { name = name, chatTarget = name, lineID = tonumber(lineID) }
+        if not Collection.ChatSenderGUID(context) then return end
+        -- Once the game's menu is up, so that ours does not close at its click.
+        C_Timer.After(0, function()
+            ns.PopupMenu.OpenLeftOfCursor(chatFrame or UIParent, function(_, root)
+                root:CreateTitle("ForeverDex")
+                root:CreateButton(L.CHAT_CAPTURE, function() Collection.CaptureFromChat(context) end)
+                root:CreateButton(L.COMPARE_MENU, function() requestFromChat(context) end)
+            end)
+        end)
+    end)
 end
 
 StaticPopupDialogs["FOREVERDEX_DUEL"] = {
@@ -291,7 +311,7 @@ ns.Comm.On("QANDC", function(text, sender)
             return
         end
         -- A request window is already open: we do not replace it.
-        if StaticPopup_Visible and StaticPopup_Visible("FOREVERDEX_DUEL") then return end
+        if ns.Dialog.Visible("FOREVERDEX_DUEL") then return end
         local inCombat = (InCombatLockdown and InCombatLockdown())
             or (UnitAffectingCombat and UnitAffectingCombat("player"))
         if Settings.Get("duelCombatRefuse") and inCombat then
@@ -301,7 +321,7 @@ ns.Comm.On("QANDC", function(text, sender)
             return
         end
         partners[who] = { chunks = {}, display = display or who, combination = combination, address = sender, combat = canFight(body) }
-        StaticPopup_Show("FOREVERDEX_DUEL", display or who, nil, who)
+        ns.Dialog.Show("FOREVERDEX_DUEL", display or who, nil, who)
     elseif kind == "A" and outgoing and outgoing.target == who then
         outgoing.accepted = true
         local combination, display = parseIdentity(body)

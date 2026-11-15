@@ -13,23 +13,21 @@ ns.PopupMenu = PopupMenu
 -- methods ForeverDex uses (CreateTitle, CreateButton, CreateRadio, CreateDivider), and
 -- items with SetEnabled and SetTooltip.
 
-function PopupMenu.GamepadActive()
-    if C_GamePad and C_GamePad.IsEnabled and C_GamePad.IsEnabled() then return true end
-    return GetCVarBool ~= nil and GetCVarBool("GamePadEnable") == true
-end
-
 -- The interface currently drawn for the controller. On Forever, the controller setting
 -- stays on when the player takes the mouse again: only the interface style switches
--- (as EllesmereUI reads it). What the player sees (the gold frame, the button hints,
--- the game menu button) follows this; the menus keep the wider check above, since the
--- controller code of the game runs as soon as the setting is on.
+-- (as EllesmereUI reads it). The game's controller code (focus, controller bars) also
+-- runs only in that style (InputUtil.IsGamepadUIEnabled), so everything follows it:
+-- the menus, the gold frame, the button hints, the game menu button. The setting
+-- itself is only read on clients without interface styles.
 function PopupMenu.GamepadInterface()
     local style, types = C_InputInterfaceStyle, Enum and Enum.InputDeviceInterfaceType
     if style and style.GetCurrentStyle and types and types.Gamepad then
         return style.GetCurrentStyle() == types.Gamepad
     end
-    return PopupMenu.GamepadActive()
+    if C_GamePad and C_GamePad.IsEnabled and C_GamePad.IsEnabled() then return true end
+    return GetCVarBool ~= nil and GetCVarBool("GamePadEnable") == true
 end
+PopupMenu.GamepadActive = PopupMenu.GamepadInterface
 
 local ROW_H, PADDING, MIN_WIDTH = 20, 10, 140
 
@@ -149,8 +147,9 @@ local function light(index)
     if index and rows[index] then rows[index]:LockHighlight() end
 end
 
--- anchor: "below" (a dropdown), "beside" (next to its owner, with the controller) or
--- nil (at the cursor).
+-- anchor: "below" (a dropdown), "beside" (next to its owner, with the controller),
+-- "cursorLeft" (ending at the cursor, left of a game menu opened there) or nil (at the
+-- cursor).
 local function show(owner, generator, anchor)
     local anchorBelow = anchor == "below"
     local root = newRoot()
@@ -193,7 +192,11 @@ local function show(owner, generator, anchor)
         frame:SetScale(1)
         local x, y = GetCursorPosition()
         local scale = UIParent:GetEffectiveScale()
-        frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale - 4, y / scale + 4)
+        if anchor == "cursorLeft" then
+            frame:SetPoint("TOPRIGHT", UIParent, "BOTTOMLEFT", x / scale - 8, y / scale + 4)
+        else
+            frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", x / scale - 4, y / scale + 4)
+        end
     end
     frame.owner = owner
     light(nil)
@@ -204,6 +207,7 @@ end
 
 -- Controller driving (Gamepad.lua) ---------------------------------------------------------
 
+PopupMenu.Frame = frame
 function PopupMenu.IsShown() return frame:IsShown() end
 function PopupMenu.Close() frame:Hide() end
 
@@ -238,6 +242,12 @@ function PopupMenu.Open(owner, generator)
     else
         show(owner, generator, ns.Gamepad and ns.Gamepad.Driving() and "beside" or nil)
     end
+end
+
+-- Controller interface only: ForeverDex's menu left of the cursor, where the game has
+-- just opened its own menu (a name in chat, Duel.lua).
+function PopupMenu.OpenLeftOfCursor(owner, generator)
+    show(owner, generator, "cursorLeft")
 end
 
 -- A game dropdown (DropdownButton) keeps its look; with the controller, a click opens

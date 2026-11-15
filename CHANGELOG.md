@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.1
+
+- Controller: right-clicking a name in chat opens a small ForeverDex menu next to the game's one, to add the player or compare collections, usable with the D-pad
+- Mouse: the ForeverDex entries are back in the game's menus (chat, portraits, guild list), even when the controller setting stays enabled
+- Controller: ForeverDex confirmations open in their own window, answered with A, B and X
+- Fixed blocked actions with the controller when opening ForeverDex from the game menu and when answering a ForeverDex confirmation
+
 ## 1.8.0
 
 - Guilds: capture a player's guild on its own with a right-click on the portrait ball, and collect its banner on the new Guilds page, in Alliance or Horde colors and in the order you choose
