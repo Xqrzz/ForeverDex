@@ -5,7 +5,7 @@
 - Controller: right-clicking a name in chat opens a small ForeverDex menu next to the game's one, to add the player or compare collections, usable with the D-pad
 - Mouse: the ForeverDex entries are back in the game's menus (chat, portraits, guild list), even when the controller setting stays enabled
 - Controller: ForeverDex confirmations open in their own window, answered with A, B and X
-- Fixed blocked actions with the controller when opening ForeverDex from the game menu and when answering a ForeverDex confirmation
+- Fixed blocked actions with the controller when opening ForeverDex from the game menu, answering a ForeverDex confirmation, or choosing a sort or an option with the mouse
 
 ## 1.8.0
 

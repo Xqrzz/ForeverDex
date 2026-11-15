@@ -254,6 +254,16 @@ end
 -- ForeverDex's menu under it instead of the game's. onPick runs after a choice, to
 -- update the text the dropdown shows.
 function PopupMenu.AttachDropdown(dropdown, generator, onPick)
+    -- The game's dropdown opens its menu from a built-in mouse handler that our script
+    -- does not replace: with the controller interface, its opening is refused here,
+    -- whether the click comes from the mouse or the virtual cursor.
+    local openMenu = dropdown.OpenMenu
+    if openMenu then
+        dropdown.OpenMenu = function(self, ...)
+            if PopupMenu.GamepadActive() then return end
+            return openMenu(self, ...)
+        end
+    end
     local original = dropdown:GetScript("OnMouseDown")
     dropdown:SetScript("OnMouseDown", function(self, ...)
         if not PopupMenu.GamepadActive() then
