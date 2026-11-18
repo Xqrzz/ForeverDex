@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.9.0
+## 1.8.2
 
 - Daily challenges: 7 new achievements, for the challenges met, for meeting the challenge several days in a row, and for replacing a card with a funnier name
 - The challenges met are now counted from this version onwards
