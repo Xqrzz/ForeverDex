@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9.0
+
+- Daily challenges: 7 new achievements, for the challenges met, for meeting the challenge several days in a row, and for replacing a card with a funnier name
+- The challenges met are now counted from this version onwards
+- A replaced character is no longer lost: they go to the bonus cards, and the confirmation says so. When the bonus cards are full, the confirmation warns that they will leave the collection
+
 ## 1.8.1
 
 - Controller: right-clicking a name in chat opens a small ForeverDex menu next to the game's one, to add the player or compare collections, usable with the D-pad

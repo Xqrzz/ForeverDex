@@ -12,7 +12,7 @@ A collection journal for World of Warcraft: Forever. Meet a player with a funny 
 - **Duels**: compare your collection with another ForeverDex user
 - **Announcements** (optional): share your captures and achievements with your guild, group or a custom channel
 - **Home page**: a daily challenge (a combination to look for, just for fun), the latest news and a few statistics about your collection
-- **Achievements**: 40 goals (captures, races, classes, genders, pets, guilds…) announced with an achievement-style alert
+- **Achievements**: 47 goals (captures, races, classes, genders, pets, guilds, daily challenges…) announced with an achievement-style alert
 - Available in **English, French, German, Spanish, Italian, Portuguese and Russian**, with a language setting independent of the game client
 
 ## Installation

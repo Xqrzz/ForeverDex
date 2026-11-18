@@ -14,10 +14,13 @@ events:SetScript("OnEvent", function(self, event, name)
         ns.ApplyLanguage(saved and saved.language)
         for _, load in ipairs(ns.Modules) do load() end
         -- Achievements first: the refresh then shows them already unlocked.
+        -- The daily challenge is recorded before, so that its achievements see it.
         ns.Collection.Initialize(function(...)
+            ns.Home.OnCapture(...)
             ns.Achievements.OnCollectionChanged(...)
             ns.UI.Refresh(...)
         end)
+        ns.Home.SyncChallenge()
         -- What the collection already deserves is granted without alerts.
         ns.Achievements.Check(true)
         ns.UI.RestoreView()

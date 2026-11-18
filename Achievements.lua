@@ -66,6 +66,10 @@ local function measure(cards)
         if guild.faction == "Horde" then stats.horde = stats.horde + 1 end
         stats.guildMembers = math.max(stats.guildMembers, members[guild.name] or 0)
     end
+    -- Daily challenges met (Home.lua records them at the capture).
+    local log = ForeverDexDB and ForeverDexDB.challengeLog or {}
+    stats.challenges, stats.bestStreak = log.count or 0, log.best or 0
+    stats.improved = log.improved and 1 or 0
     return stats
 end
 
@@ -196,6 +200,32 @@ add({
     description = L.ACH_GUILD_MEMBERS_DESC:format(GUILD_MEMBERS),
     icon = { texture = "Interface\\Icons\\INV_BannerPVP_02" },
     progress = function(stats) return stats.guildMembers, GUILD_MEMBERS end,
+})
+
+local CHALLENGE_ICON = "Interface\\Icons\\INV_Misc_PocketWatch_01"
+category("challenges", L.ACH_CAT_CHALLENGES, { texture = CHALLENGE_ICON })
+local CHALLENGE_POINTS = { [1] = 5, [10] = 10, [25] = 10, [50] = 25 }
+for _, need in ipairs({ 1, 10, 25, 50 }) do
+    add({
+        id = "challenges" .. need, name = L.ACH_CHALLENGES[need], points = CHALLENGE_POINTS[need],
+        description = need == 1 and L.ACH_CHALLENGES_FIRST or L.ACH_CHALLENGES_DESC:format(need),
+        icon = { texture = CHALLENGE_ICON },
+        progress = function(stats) return stats.challenges, need end,
+    })
+end
+local STREAK_POINTS = { [3] = 10, [7] = 25 }
+for _, need in ipairs({ 3, 7 }) do
+    add({
+        id = "streak" .. need, name = L.ACH_STREAK[need], points = STREAK_POINTS[need],
+        description = L.ACH_STREAK_DESC:format(need),
+        icon = { texture = "Interface\\Icons\\Spell_Nature_TimeStop" },
+        progress = function(stats) return stats.bestStreak, need end,
+    })
+end
+add({
+    id = "challengeImproved", name = L.ACH_CHALLENGE_IMPROVED, description = L.ACH_CHALLENGE_IMPROVED_DESC,
+    points = 10, icon = { texture = "Interface\\Icons\\INV_Misc_Note_01" },
+    progress = function(stats) return stats.improved, 1 end,
 })
 
 Achievements.list = list

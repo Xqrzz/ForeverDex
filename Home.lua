@@ -9,7 +9,7 @@ ns.Home = Home
 
 -- Release summarized by the "What's new" box. Its lines are translated in each
 -- locale (HOME_NEWS_LINES): update both before a release.
-Home.NEWS_VERSION = "1.8.0"
+Home.NEWS_VERSION = "1.9.0"
 
 local DAY = 86400
 local RECENT = 7 * DAY
@@ -81,6 +81,54 @@ function Home.Challenge(now)
         line = seed(day),
         resetsIn = math.max(0, nextDay(dayStart) - now),
     }
+end
+
+-- Challenges met, for the achievements, in ForeverDexDB.challengeLog:
+--   count     challenges met
+--   lastDay   day of the last one ("YYYY-MM-DD")
+--   streak    challenges met on consecutive days, up to lastDay
+--   best      longest streak
+--   improved  a challenge was met by replacing a card already filled
+-- Recorded at the capture: a challenge met is never taken back, even if the card is
+-- deleted afterwards. Days before this log existed are not known.
+function Home.ChallengeLog()
+    local log = ForeverDexDB.challengeLog
+    if type(log) ~= "table" then
+        log = { count = 0, streak = 0, best = 0 }
+        ForeverDexDB.challengeLog = log
+    end
+    return log
+end
+
+local function record(replaced, now)
+    local log, day = Home.ChallengeLog(), date("%Y-%m-%d", now)
+    if log.lastDay == day then return end
+    -- One second before midnight is still yesterday, whatever the length of the day.
+    local yesterday = date("%Y-%m-%d", startOfDay(now) - 1)
+    log.streak = log.lastDay == yesterday and (log.streak or 0) + 1 or 1
+    log.count = (log.count or 0) + 1
+    log.best = math.max(log.best or 0, log.streak)
+    log.lastDay = day
+    if replaced then log.improved = true end
+end
+
+-- After a change of the collection, before the achievements are checked. Only a
+-- capture counts: it has just dated its card, where a favorite or a move between the
+-- standard and bonus cards keeps the old date. isNew: the card was empty.
+function Home.OnCapture(entry, isNew)
+    if type(entry) ~= "table" or not entry.key or not ForeverDexDB.cards[entry.key] then return end
+    local now = time()
+    if now - (entry.capturedAt or 0) > 2 then return end
+    local challenge = Home.Challenge(now)
+    if challenge.done and challenge.slot.key == entry.key then record(not isNew, now) end
+end
+
+-- At login: a challenge met today before the log existed still counts. Only an
+-- already drawn challenge: drawing one here would pick it before the player looks.
+function Home.SyncChallenge()
+    local now, saved = time(), ForeverDexDB.challenge
+    if type(saved) ~= "table" or saved.day ~= date("%Y-%m-%d", now) then return end
+    if Home.Challenge(now).done then record(false, now) end
 end
 
 -- Statistics -------------------------------------------------------------------------

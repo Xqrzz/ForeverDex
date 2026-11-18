@@ -169,9 +169,32 @@ end
 -- by Collection.Announce, when the capture is revealed.
 local pendingShares = setmetatable({}, { __mode = "k" })
 
+-- A replaced standard card goes to the bonus cards, with its date and details.
+-- Returns "moved", "kept" (already a bonus card) or "lost" (bonus cards full).
+local function bonusFate(old)
+    local slot, label = Collection.FindBonusSlot(old)
+    if slot then return "moved", slot end
+    return label == L.BONUS_DUPLICATE and "kept" or "lost"
+end
+
+local function sendReplacedToBonus(old)
+    local fate, slot = bonusFate(old)
+    if fate == "moved" then
+        old.combination = old.key
+        old.key = slot.key
+        ForeverDexDB.cards[slot.key] = old
+        print(L.MOVED_TO_BONUS:format(old.name))
+    elseif fate == "lost" then
+        print(L.CHAT_PREFIX .. L.REPLACED_LOST:format(old.name))
+    end
+end
+
 -- noThrow: the capture does not come from a portrait, so no ball throw.
 local function save(entry, noThrow)
-    local isNew = ForeverDexDB.cards[entry.key] == nil
+    local old = ForeverDexDB.cards[entry.key]
+    local isNew = old == nil
+    -- Only standard cards are replaced: bonus and pet captures always take a free slot.
+    if old and old.id ~= entry.id and Catalog.byKey[entry.key] then sendReplacedToBonus(old) end
     entry.capturedAt = time()
     local zone = GetRealZoneText and GetRealZoneText()
     if readable(zone) and zone ~= "" then entry.zone = zone end
@@ -223,6 +246,18 @@ StaticPopupDialogs["FOREVERDEX_REPLACE"] = {
     -- The dialog receives the initial capture, since the target may change in the meantime.
     OnAccept = function(_, data) save(data.entry, data.noThrow) end,
     OnAlt = function(_, data) Collection.SaveAsBonus(data.entry, data.noThrow) end,
+}
+
+-- Same question when the bonus cards are full: the replaced character leaves the collection.
+StaticPopupDialogs["FOREVERDEX_REPLACE_FULL"] = {
+    text = L.REPLACE_FULL_PROMPT,
+    button1 = L.REPLACE,
+    button2 = CANCEL,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    showAlert = true,
+    OnAccept = function(_, data) save(data.entry, data.noThrow) end,
 }
 
 -- Removes a card from the collection: it goes back to "to discover".
@@ -284,7 +319,8 @@ local function place(entry, noThrow)
     elseif current.id ~= entry.id and not Settings.Get("confirmReplace") then
         save(entry, noThrow)
     elseif current.id ~= entry.id then
-        ns.Dialog.Show("FOREVERDEX_REPLACE", current.name, entry.name, { entry = entry, noThrow = noThrow })
+        local which = bonusFate(current) == "lost" and "FOREVERDEX_REPLACE_FULL" or "FOREVERDEX_REPLACE"
+        ns.Dialog.Show(which, current.name, entry.name, { entry = entry, noThrow = noThrow })
     end
 end
 
