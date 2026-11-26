@@ -46,6 +46,7 @@ local function raceIcon(theme, sex)
 end
 
 local slots, byKey, slotByKey, raceList, classList, seenClass = {}, {}, {}, {}, {}, {}
+local standardSlots = {}
 function Catalog.SlotKey(race, class, sex)
     return race .. ":" .. class .. ":" .. sex
 end
@@ -79,13 +80,14 @@ for _, race in ipairs(races) do
                 portraitAtlas = raceIcon(theme, sex),
             }
             slots[slot.index], byKey[slot.key], slotByKey[slot.key] = slot, slot, slot
+            standardSlots[#standardSlots + 1] = slot
             info.total = info.total + 1
         end
     end
 end
 
 local bonusSlots = {}
-for i = 1, 39 do
+for i = 1, 139 do
     local slot = { index = #slots + 1, key = "bonus:" .. i, race = L.BONUS, class = "" }
     slots[slot.index], slotByKey[slot.key] = slot, slot
     bonusSlots[i] = slot
@@ -106,6 +108,7 @@ for i = 1, 60 do
 end
 
 Catalog.slots = slots
+Catalog.standardSlots = standardSlots
 Catalog.byKey = byKey
 Catalog.bonusSlots = bonusSlots
 Catalog.petSlots = petSlots
@@ -133,11 +136,15 @@ function Catalog.Filled(entries, list)
     return count
 end
 
+function Catalog.StandardProgress(entries)
+    return Catalog.Filled(entries, standardSlots), #standardSlots
+end
+
 -- Standard cards filled for each race (bonuses do not count).
 function Catalog.RaceProgress(entries)
     local counts = {}
-    for _, slot in ipairs(slots) do
-        if slot.raceID and entries[slot.key] then
+    for _, slot in ipairs(standardSlots) do
+        if entries[slot.key] then
             counts[slot.raceID] = (counts[slot.raceID] or 0) + 1
         end
     end
@@ -150,10 +157,15 @@ end
 -- player's faction. The second value tells whether several cards were possible.
 local raceIDsByFile
 -- Server races unknown to the client API: their faction is written by hand.
-local KNOWN_FACTIONS = { [95] = "Alliance", [96] = "Horde" }
-local function raceFaction(raceID)
+local KNOWN_FACTIONS = {
+    [1] = "Alliance", [3] = "Alliance", [4] = "Alliance", [7] = "Alliance", [95] = "Alliance",
+    [2] = "Horde", [5] = "Horde", [6] = "Horde", [8] = "Horde", [96] = "Horde",
+}
+
+function Catalog.RaceFaction(raceID)
+    if KNOWN_FACTIONS[raceID] then return KNOWN_FACTIONS[raceID] end
     local info = C_CreatureInfo.GetFactionInfo and C_CreatureInfo.GetFactionInfo(raceID)
-    return info and info.groupTag or KNOWN_FACTIONS[raceID]
+    return info and info.groupTag
 end
 
 function Catalog.SlotForFiles(raceFile, classToken, sex, faction)
@@ -179,7 +191,7 @@ function Catalog.SlotForFiles(raceFile, classToken, sex, faction)
     if #candidates > 1 then
         faction = faction or UnitFactionGroup("player")
         for _, slot in ipairs(candidates) do
-            if raceFaction(slot.raceID) == faction then return slot, true end
+            if Catalog.RaceFaction(slot.raceID) == faction then return slot, true end
         end
     end
     return candidates[1], #candidates > 1
@@ -260,10 +272,11 @@ local function searchable(slot, entry)
     return cached
 end
 
-function Catalog.Query(entries, searchText, viewMode, sortMode, filters)
+function Catalog.Query(entries, searchText, viewMode, sortMode, filters, guildID)
     local query = normalize(searchText):match("^%s*(.-)%s*$")
     local rows, filled = {}, 0
     local function add(slot, entry)
+        if guildID and (not entry or entry.guildID ~= guildID) then return end
         local card = searchable(slot, entry)
         local details = card.details
         -- Capturer filter: only filled cards have one, older captures count as unknown.

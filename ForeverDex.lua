@@ -10,16 +10,23 @@ events:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" then
         if name ~= addon then return end
         installed = ForeverDexDB ~= nil
-        local saved = ForeverDexDB and ForeverDexDB.settings
+        local db, compatible = ns.SavedData.Prepare(ForeverDexDB)
+        if compatible == false then
+            self:UnregisterEvent("ADDON_LOADED")
+            print("ForeverDex: please update the addon to load this newer collection.")
+            return
+        end
+        ForeverDexDB = db
+        local saved = db.settings
         ns.ApplyLanguage(saved and saved.language)
         for _, load in ipairs(ns.Modules) do load() end
         -- Achievements first: the refresh then shows them already unlocked.
         -- The daily challenge is recorded before, so that its achievements see it.
-        ns.Collection.Initialize(function(...)
-            ns.Home.OnCapture(...)
-            ns.Achievements.OnCollectionChanged(...)
-            ns.UI.Refresh(...)
-        end)
+        ns.Collection.Initialize(function(entry, isNew, noThrow)
+            ns.Guilds.InvalidateMembers()
+            ns.Achievements.OnCollectionChanged(entry, isNew, noThrow)
+            ns.UI.Refresh(entry, isNew, noThrow)
+        end, ns.Home.OnCapture)
         ns.Home.SyncChallenge()
         -- What the collection already deserves is granted without alerts.
         ns.Achievements.Check(true)

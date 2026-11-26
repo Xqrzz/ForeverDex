@@ -29,7 +29,7 @@ read_globals = {
     "ERR_CHAT_PLAYER_NOT_FOUND_S", "Enum", "EnumerateFrames", "EnumerateServerChannels",
     "FACTION_ALLIANCE", "FACTION_HORDE", "GRAY_FONT_COLOR", "GameMenuFrame", "GameTooltip", "GameTooltip_SetTitle",
     "GetBindingAction", "GetBindingText", "GetCVar", "GetCVarBool", "GetChannelName", "GetCursorPosition", "GetGuildInfo", "GetLocale",
-    "GetNormalizedRealmName", "GetNumPartyMembers", "GetPlayerInfoByGUID", "GetRealZoneText",
+    "GetNormalizedRealmName", "GetNumGroupMembers", "GetNumPartyMembers", "GetPlayerInfoByGUID", "GetRealZoneText",
     "GetTime", "GetUnitName", "HIGHLIGHT_FONT_COLOR", "HideUIPanel", "InCombatLockdown",
     "IsInGroup", "IsInGuild", "IsInInstance", "IsInRaid", "LE_PARTY_CATEGORY_HOME",
     "LE_PARTY_CATEGORY_INSTANCE", "Menu", "MenuUtil", "Minimap", "NO", "PanelTemplates_SetNumTabs",

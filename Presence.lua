@@ -41,7 +41,7 @@ local PRUNE_EVERY = 60    -- seconds between two clean-ups of what is remembered
 local QUEUE_MAX = 40      -- pings waiting at most; the oldest ones are dropped
 
 
-local readable, safe, shortName = Util.Readable, Util.Safe, Util.ShortName
+local readable, safe, playerAddress, unitAddress = Util.Readable, Util.Safe, Util.PlayerAddress, Util.UnitAddress
 
 local function inCombat()
     return (InCombatLockdown and InCombatLockdown()) or safe(UnitAffectingCombat, "player") == true
@@ -97,13 +97,13 @@ end
 
 -- Nameplates ------------------------------------------------------------------------
 
-local known = {}   -- [short name] = { has, checked, asking, shown, address }
-local plates = {}  -- [unit] = short name of the friendly player on that plate
+local known = {}   -- [address] = { has, checked, asking, shown, address }
+local plates = {}  -- [unit] = address of the friendly player on that plate
 local icons = {}   -- [unit] = icon hanging from that plate
 local spare = {}   -- icons no longer used
-local queue = {}   -- short names waiting for their ping, in order
+local queue = {}   -- addresses waiting for their ping, in order
 local queued = {}
-local answered = {} -- [short name] = time of our last answer
+local answered = {} -- [address] = time of our last answer
 local demoKnown = {} -- [short name] = what the demo pretends to know
 
 local function getPlate(unit)
@@ -312,7 +312,7 @@ local NOT_FOUND_GAP = 5 -- seconds during which the game's answer is expected
 local whispered = {}    -- [address] = time of our last whisper to it
 
 local function send(message, target)
-    whispered[target] = GetTime()
+    whispered[playerAddress(target)] = GetTime()
     return safe(ns.Comm.Whisper, message, target)
 end
 
@@ -334,10 +334,10 @@ if ChatFrame_AddMessageEventFilter then
     -- it expires, so that every window hides the line.
     ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", function(_, _, message)
         if not readable(message) or type(message) ~= "string" then return false end
-        local address = notFoundName(message)
-        local at = address and whispered[address]
+        local who = playerAddress(notFoundName(message))
+        local at = who and whispered[who]
         if not at or GetTime() - at > NOT_FOUND_GAP then return false end
-        local entry = known[shortName(address)]
+        local entry = known[who]
         if entry then entry.has, entry.checked, entry.asking = false, GetTime(), nil end
         return true
     end)
@@ -347,7 +347,7 @@ local function wantPing(who)
     local entry = known[who]
     if not entry then return true end
     if entry.asking then return false end
-    return GetTime() - (entry.checked or 0) > KNOWN_FOR
+    return not entry.checked or GetTime() - entry.checked > KNOWN_FOR
 end
 
 -- Queues a ping for the player on this unit (nameplate, mouseover or target),
@@ -355,13 +355,12 @@ end
 local function consider(unit)
     -- Nothing is queued while the icons are off: the queue would only grow.
     if demo or not look.show or not eligible(unit) or inRange(unit) == false then return end
-    local name = safe(UnitName, unit)
-    if not name or name == "" then return end
-    local who = shortName(name)
-    if queued[who] or not wantPing(who) then return end
+    local address = unitAddress(unit)
+    local who = playerAddress(address)
+    if not who or queued[who] or not wantPing(who) then return end
     local entry = known[who] or {}
     known[who] = entry
-    entry.address = safe(GetUnitName, unit, true) or entry.address or name
+    entry.address = address
     queued[who] = true
     queue[#queue + 1] = who
     -- A crowded city must not pile up pings: the oldest ones are given up.
@@ -369,7 +368,7 @@ local function consider(unit)
 end
 
 -- Sends the next ping in the queue, if the moment allows it.
-local lastPing = 0
+local lastPing = -math.huge
 local function pingNext(now)
     if #queue == 0 or now - lastPing < PING_GAP or demo then return end
     if not look.show or inCombat() or inInstance() then return end
@@ -429,9 +428,8 @@ end
 
 local function addPlate(unit)
     if not eligible(unit) then plates[unit] = nil return end
-    local name = safe(UnitName, unit)
-    if not name or name == "" then return end
-    plates[unit] = shortName(name)
+    plates[unit] = playerAddress(unitAddress(unit))
+    if not plates[unit] then return end
     consider(unit)
     update(unit)
 end
@@ -467,9 +465,7 @@ local function addTooltipLine(tooltip)
     local ok, _, unit = pcall(tooltip.GetUnit, tooltip)
     if not ok or not readable(unit) or not unit then return end
     if not eligible(unit) then return end
-    local name = safe(UnitName, unit)
-    if not name or name == "" then return end
-    local entry = entryFor(shortName(name), unit)
+    local entry = entryFor(playerAddress(unitAddress(unit)), unit)
     if entry and entry.has then
         tooltip:AddLine(TOOLTIP_ICON .. L.PRESENCE_TOOLTIP, 0.39, 0.87, 0.82)
         tooltip:Show()
@@ -485,8 +481,7 @@ end
 -- An answer arriving while the player is still under the mouse shows the line at once.
 local function refreshTooltip(who)
     if not (GameTooltip and GameTooltip:IsShown()) then return end
-    local name = safe(UnitName, "mouseover")
-    if name and shortName(name) == who and safe(UnitIsPlayer, "mouseover") then
+    if safe(UnitIsPlayer, "mouseover") and playerAddress(unitAddress("mouseover")) == who then
         pcall(GameTooltip.SetUnit, GameTooltip, "mouseover")
     end
 end
@@ -507,12 +502,15 @@ end
 
 -- Pings and answers, received through Comm.lua.
 ns.Comm.On("PH", function(text, sender)
-    local kind = text:sub(1, 1)
-    local who = shortName(sender)
-    if who == shortName(safe(UnitName, "player") or "") then return end
+    if demo then return end
+    local who = playerAddress(sender)
+    if not who or who == playerAddress(unitAddress("player")) then return end
+    -- Later versions may add fields after a tab: they are ignored here.
+    local kind, fields = text:match("^([PH])(.*)$")
+    if not kind or (fields ~= "" and fields:sub(1, 1) ~= "\t") then return end
     if kind == "P" then
         -- A quiet ping still deserves an answer, but its sender is not shown.
-        if not text:find("\tq", 2, true) then
+        if not (fields .. "\t"):find("\tq\t", 1, true) then
             heard(who, sender)
             refreshTooltip(who)
         end
@@ -522,6 +520,8 @@ ns.Comm.On("PH", function(text, sender)
             send("H", sender)
         end
     else
+        local entry = known[who]
+        if not entry or not entry.asking or GetTime() - entry.asking > WAIT_ANSWER then return end
         heard(who, sender)
         refreshTooltip(who)
     end
@@ -639,7 +639,7 @@ end
 function Presence.Report()
     local count, names = 0, {}
     for who, entry in pairs(known) do
-        if entry.has then count = count + 1 names[#names + 1] = who end
+        if entry.has then count = count + 1 names[#names + 1] = entry.address or who end
     end
     table.sort(names)
     DEFAULT_CHAT_FRAME:AddMessage(L.CHAT_PREFIX .. L.PRESENCE_REPORT:format(count, table.concat(names, ", ")))

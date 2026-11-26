@@ -4,112 +4,20 @@ local L, Catalog, Collection, Art, Settings, Util = ns.L, ns.Catalog, ns.Collect
 local Duel = {}
 ns.Duel = Duel
 
--- Collection exchange ---------------------------------------------------------
---
--- Both players need ForeverDex. Everything goes through whispered addon
--- messages (invisible in chat):
---   Q<key>=<name>  comparison request, with the requester's combination and name
---   A<key>=<name>  request accepted: each side then sends its collection
---   N              request declined
---   D<i>/<n>#...   chunk i of n of the collection (255 bytes at most per message)
---   C...           combat, see Combat.lua
--- A collection received without an accepted request is ignored.
--- Q and A end with a tab and "combat" when the sender can fight.
---
--- Cross-version compatibility: these four messages never change shape.
--- Anything new goes through either a new message type (unknown types are
--- ignored) or fields added after a tab, which readers ignore.
+local readable, playerAddress = Util.Readable, Util.PlayerAddress
 
-local CHUNK, TIMEOUT = 220, 25
-
-local readable, shortName = Util.Readable, Util.ShortName
-
--- Messages go through Comm.lua, which owns the prefix.
-local send = ns.Comm.Whisper
-
--- A player is recognized by their short name (Util.ShortName); replies go to the
--- address received.
-
--- The player's combination and full name, sent with each request.
-local function identity()
-    local _, _, race = UnitRace("player")
-    local _, _, class = UnitClass("player")
-    local sex = UnitSex("player")
-    local key = race and class and sex and Catalog.SlotKey(race, class, sex) or ""
-    local firstName, surname = UnitFullName("player")
-    local name = surname and surname ~= "" and (firstName .. " " .. surname) or firstName or UnitName("player")
-    return (key .. "=" .. tostring(name):gsub("[~=#]", "") .. "\tcombat")
-end
-
-local function parseIdentity(text)
-    local key, name = text:match("^([^=]*)=([^\t]*)")
-    return Catalog.byKey[key or ""], name ~= "" and name or nil
-end
-
-local function canFight(text)
-    return text:find("\tcombat", 1, true) ~= nil
-end
-
-local function serialize()
-    local parts = {}
-    for key, entry in pairs(ForeverDexDB.cards) do
-        -- Pets stay out of duels: the duel screen only shows player cards.
-        local slot = Catalog.slotByKey[key]
-        if slot and not slot.pet and entry.name then
-            local name = entry.name:gsub("[~=@#|]", "")
-            parts[#parts + 1] = key .. (entry.combination and ("@" .. entry.combination) or "") .. "=" .. name
+local exchange = ns.DuelExchange.New({
+    message = function(message) DEFAULT_CHAT_FRAME:AddMessage(L.CHAT_PREFIX .. message) end,
+    prompt = function(partner) ns.Dialog.Show("FOREVERDEX_DUEL", partner.display, nil, partner) end,
+    promptVisible = function() return ns.Dialog.Visible("FOREVERDEX_DUEL") end,
+    completed = function(partner, cards) Duel.Show(partner, cards) end,
+    combat = function(body, who, token)
+        local session = Duel.Session
+        if session and session.who == who and session.token == token and Duel.OnCombatMessage then
+            Duel.OnCombatMessage(body)
         end
-    end
-    return table.concat(parts, "~")
-end
-
--- Received data is filtered: keys known to the catalog, short names.
-local function parse(payload)
-    local cards = {}
-    for item in payload:gmatch("[^~]+") do
-        local key, combination, name = item:match("^([^=@]+)@?([^=]*)=([^\t]+)")
-        if key and Catalog.slotByKey[key] and #name <= 48 then
-            cards[key] = {
-                key = key, name = name,
-                combination = combination ~= "" and Catalog.byKey[combination] and combination or nil,
-            }
-        end
-    end
-    return cards
-end
-
--- Whispers are only throttled inside instances: 10 messages, then 1 per second.
--- A refused piece is sent again once the allowance has recovered.
-local THROTTLED = Enum and Enum.SendAddonMessageResult and Enum.SendAddonMessageResult.AddonMessageThrottle
-local RETRY_DELAY, RETRY_COUNT = 1.1, 60
-
-local function sendPiece(message, target, retries)
-    local result = send(message, target)
-    if THROTTLED and result == THROTTLED and retries > 0 then
-        C_Timer.After(RETRY_DELAY, function() sendPiece(message, target, retries - 1) end)
-    end
-end
-
-local function sendCollection(target)
-    local payload = serialize()
-    local total = math.max(1, math.ceil(#payload / CHUNK))
-    for i = 1, total do
-        local piece = payload:sub((i - 1) * CHUNK + 1, i * CHUNK)
-        C_Timer.After((i - 1) * 0.15, function()
-            sendPiece(("D%d/%d#%s"):format(i, total, piece), target, RETRY_COUNT)
-        end)
-    end
-end
-
-local outgoing -- sent request: { target, display, combination, accepted }
-local partners = {} -- [short name] = { expected, chunks, display, combination }
--- Anti-spam: after a refusal, requests from the same player are dropped for a minute.
-local BLOCK_TIME = 60
-local blocked = {} -- [short name] = time the block ends
-
-local function print(message)
-    DEFAULT_CHAT_FRAME:AddMessage(L.CHAT_PREFIX .. message)
-end
+    end,
+})
 
 function Duel.CanRequest(unit)
     unit = unit or "target"
@@ -121,51 +29,17 @@ function Duel.CanRequest(unit)
 end
 
 local function startRequest(name, realm, display, combination)
-    -- One request at a time: it clears on the reply or after the timeout.
-    if outgoing and not outgoing.accepted then
-        print(L.DUEL_PENDING)
-        return
-    end
     if readable(realm) and realm and realm ~= "" then name = name .. "-" .. realm end
-    outgoing = {
-        target = shortName(name),
-        display = display or shortName(name),
-        combination = combination,
-    }
-    partners[outgoing.target] = { chunks = {}, display = outgoing.display, combination = outgoing.combination }
-    send("Q" .. identity(), name)
-    print(L.DUEL_SENT:format(outgoing.display))
-    local pending = outgoing
-    C_Timer.After(TIMEOUT, function()
-        if outgoing == pending and not pending.accepted then
-            print(L.DUEL_NO_ANSWER:format(pending.display))
-            outgoing = nil
-        end
-    end)
+    exchange.Request(name, display, combination)
 end
 
 function Duel.Request(unit)
     unit = unit or "target"
     if not Duel.CanRequest(unit) then return end
-    -- GetUnitName(unit, true) gives the name in the format whispers expect.
-    local name = GetUnitName and GetUnitName(unit, true)
-    local realm
-    if not readable(name) or not name or name == "" then name, realm = UnitName(unit) end
+    local address = Util.UnitAddress(unit)
+    if not address then return end
     local player = Collection.ReadTarget(unit)
-    startRequest(name, realm, player and player.name, player and Catalog.byKey[player.key])
-end
-
--- From chat, the player has no unit: their name comes from the message line.
-local function requestFromChat(context)
-    local guid = Collection.ChatSenderGUID(context)
-    if not guid then return end
-    local _, class, _, race, sex, name, realm = GetPlayerInfoByGUID(guid)
-    if not readable(name) or name == "" then return end
-    local combination
-    if readable(class) and readable(race) and readable(sex) then
-        combination = Catalog.SlotForFiles(race, class, sex, Collection.ChatSenderFaction(guid, context))
-    end
-    startRequest(name, realm, nil, combination)
+    exchange.Request(address, player and player.name, player and Catalog.byKey[player.key])
 end
 
 -- From the guild member list, the player has no unit either: the menu gives their
@@ -189,6 +63,20 @@ local function whisperName(name, realm)
     return full, realm
 end
 
+-- From chat, the player has no unit: their name comes from the message line.
+local function requestFromChat(context)
+    local guid = Collection.ChatSenderGUID(context)
+    if not guid then return end
+    local _, class, _, race, sex, name, realm = GetPlayerInfoByGUID(guid)
+    if not readable(name) or name == "" then return end
+    local combination
+    if readable(class) and readable(race) and readable(sex) then
+        combination = Catalog.SlotForFiles(race, class, sex, Collection.ChatSenderFaction(guid, context))
+    end
+    local address, addressRealm = whisperName(name, realm)
+    startRequest(address, addressRealm, nil, combination)
+end
+
 local function guildMember(context)
     if not context then return end
     -- The Communities window also lists offline members: they could not answer.
@@ -210,7 +98,7 @@ local function guildMember(context)
     end
     local name = context.name
     if not readable(name) or type(name) ~= "string" or name == "" then return end
-    if shortName(name) == UnitName("player") then return end
+    if playerAddress(name) == playerAddress(Util.UnitAddress("player")) then return end
     return whisperName(name, context.server)
 end
 
@@ -278,83 +166,12 @@ StaticPopupDialogs["FOREVERDEX_DUEL"] = {
     text = L.DUEL_PROMPT,
     button1 = ACCEPT,
     button2 = DECLINE,
-    timeout = 30,
+    timeout = ns.DuelExchange.PROMPT_TIMEOUT,
     whileDead = true,
     hideOnEscape = true,
-    OnAccept = function(_, who)
-        local partner = partners[who]
-        if not partner then return end
-        partner.expected = true
-        send("A" .. identity(), partner.address)
-        sendCollection(partner.address)
-    end,
-    OnCancel = function(_, who)
-        local partner = partners[who]
-        partners[who] = nil
-        blocked[who] = GetTime() + BLOCK_TIME
-        send("N", partner and partner.address or who)
-    end,
+    OnAccept = function(_, partner) exchange.Accept(partner) end,
+    OnCancel = function(_, partner) exchange.Decline(partner) end,
 }
-
-ns.Comm.On("QANDC", function(text, sender)
-    if not ForeverDexDB then return end
-    local who = shortName(sender)
-    local kind, body = text:sub(1, 1), text:sub(2)
-
-    if kind == "Q" then
-        local combination, display = parseIdentity(body)
-        -- "Ignore all" and the block after a refusal show strictly nothing here;
-        -- the requester simply gets a refusal, so they do not have to wait.
-        local now = GetTime()
-        if Settings.Get("duelRequests") == "refuse" or now < (blocked[who] or 0) then
-            send("N", sender)
-            return
-        end
-        -- A request window is already open: we do not replace it.
-        if ns.Dialog.Visible("FOREVERDEX_DUEL") then return end
-        local inCombat = (InCombatLockdown and InCombatLockdown())
-            or (UnitAffectingCombat and UnitAffectingCombat("player"))
-        if Settings.Get("duelCombatRefuse") and inCombat then
-            blocked[who] = now + BLOCK_TIME
-            send("N", sender)
-            print(L.DUEL_AUTO_REFUSED:format(display or who))
-            return
-        end
-        partners[who] = { chunks = {}, display = display or who, combination = combination, address = sender, combat = canFight(body) }
-        ns.Dialog.Show("FOREVERDEX_DUEL", display or who, nil, who)
-    elseif kind == "A" and outgoing and outgoing.target == who then
-        outgoing.accepted = true
-        local combination, display = parseIdentity(body)
-        local partner = partners[who] or { chunks = {} }
-        partner.expected = true
-        partner.display = display or partner.display
-        partner.combination = combination or partner.combination
-        partner.combat = canFight(body)
-        partners[who] = partner
-        print(L.DUEL_ACCEPTED:format(partner.display))
-        sendCollection(sender)
-    elseif kind == "N" and outgoing and outgoing.target == who then
-        print(L.DUEL_REFUSED:format(outgoing.display))
-        outgoing, partners[who] = nil, nil
-    elseif kind == "D" then
-        local partner = partners[who]
-        if not partner or not partner.expected then return end
-        local index, total, piece = body:match("^(%d+)/(%d+)#(.*)$")
-        index, total = tonumber(index), tonumber(total)
-        if not index or not total or total > 200 or index > total then return end
-        partner.total = total
-        partner.chunks[index] = piece
-        for i = 1, total do
-            if not partner.chunks[i] then return end
-        end
-        partners[who] = nil
-        if outgoing and outgoing.target == who then outgoing = nil end
-        partner.address = partner.address or sender
-        Duel.Show(partner, parse(table.concat(partner.chunks, "", 1, total)))
-    elseif kind == "C" and Duel.OnCombatMessage then
-        Duel.OnCombatMessage(body, who)
-    end
-end)
 
 -- Duel screen ----------------------------------------------------------------------
 
@@ -731,15 +548,14 @@ end
 
 -- What Combat.lua needs from the duel screen.
 Duel.Window, Duel.Arena, Duel.VsFrame = window, arena, vsFrame
-Duel.Send, Duel.Sound = send, duelSound
+Duel.Sound = duelSound
 Duel.BLUE, Duel.RED = BLUE, RED
 
 function Duel.Show(partner, cards)
+    if Duel.CloseCombat then Duel.CloseCombat() end
     state.cards, state.page, state.filter = cards, 1, 1
-    Duel.Session = partner.address and {
-        address = partner.address, who = shortName(partner.address),
-        display = partner.display, combination = partner.combination, combat = partner.combat,
-    } or nil
+    Duel.Session = partner.address and partner or nil
+    if Duel.Session and not partner.who then partner.who = playerAddress(partner.address) end
     if Duel.RefreshCombat then Duel.RefreshCombat() end
     local counts = render()
     local _, _, race = UnitRace("player")
@@ -748,8 +564,7 @@ function Duel.Show(partner, cards)
     local firstName, surname = UnitFullName("player")
     local myName = surname and surname ~= "" and (firstName .. " " .. surname) or firstName
     paintSide(mine, myName or UnitName("player"), myCombination, "player", counts.mineTotal)
-    local target = Collection.ReadTarget()
-    local targeted = target and partner.display and target.name == partner.display
+    local targeted = partner.who and playerAddress(Util.UnitAddress("target")) == partner.who
     paintSide(theirs, partner.display or "?", partner.combination, targeted and "target" or nil, counts.theirsTotal)
 
     local animated = Settings.Get("duelAnimation")

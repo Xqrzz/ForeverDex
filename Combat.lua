@@ -1,7 +1,7 @@
 local _, ns = ...
 ns.Module(function()
 local L, Catalog, Art, Settings, Util = ns.L, ns.Catalog, ns.Art, ns.Settings, ns.Util
-local Duel = ns.Duel
+local Duel, Fight, Cards = ns.Duel, ns.DuelFight, ns.DuelCards
 local arena, window = Duel.Arena, Duel.Window
 local BLUE, RED = Duel.BLUE, Duel.RED
 
@@ -33,7 +33,10 @@ local function chat(message)
 end
 
 local function sendToPartner(body)
-    if Duel.Session then Duel.Send("C" .. body, Duel.Session.address) end
+    local session = Duel.Session
+    if not session then return end
+    if session.token then body = fight.round .. "|" .. body end
+    ns.DuelExchange.SendCombat(session, body)
 end
 
 local function clamp(value)
@@ -271,7 +274,7 @@ end
 -- Timeline: a scene is called every frame, cues fire once at their time.
 local scene, cues, cueIndex, clock = nil, nil, 1, 0
 local shakeTime, shakePower, shakeX, shakeY = 0, 0, 0, 0
-local bannerAt, versusAt, nextStatus = nil, nil, 0
+local bannerAt, versusAt, nextStatus, finishAt = nil, nil, 0, nil
 local BANNER_SCALE, VERSUS_SCALE = 1.7, 2.4
 
 local function play(newScene, newCues)
@@ -585,7 +588,7 @@ end
 -- Fight --------------------------------------------------------------------------------
 
 local function resetStage()
-    scene = nil
+    scene, finishAt = nil, nil
     bannerAt, versusAt, shakeTime, shakeX, shakeY = nil, nil, 0, 0, 0
     mourning:SetAlpha(0)
     for _, spark in ipairs(particles) do
@@ -608,6 +611,7 @@ end
 
 local function stop(message)
     fight = nil
+    stage:SetScript("OnUpdate", nil)
     resetStage()
     stage:Hide()
     if message then chat(message) end
@@ -651,7 +655,7 @@ local function checkDeadline()
     stop(idle and L.COMBAT_EXPIRED or L.COMBAT_TIMEOUT:format(opponentName()))
 end
 
-stage:SetScript("OnUpdate", function(_, delta)
+local function updateStage(_, delta)
     nextStatus = nextStatus - delta
     if nextStatus <= 0 then
         nextStatus = 0.25
@@ -680,12 +684,19 @@ stage:SetScript("OnUpdate", function(_, delta)
     updateRings(delta)
     updatePuffs(delta)
     updateParticles(delta)
-end)
+    if finishAt and clock >= finishAt then
+        scene = nil
+        stage:SetScript("OnUpdate", nil)
+    end
+end
 
 local function begin(isChallenger)
     local session = Duel.Session
     if not session or not session.combat then return end
-    fight = { phase = "pick" }
+    session.round = (session.round or 0) + 1
+    fight = Fight.New(session.round)
+    stage:SetScript("OnUpdate", updateStage)
+    nextStatus = 0
     resetStage()
     stage:Show()
     pickPage, pickKey = 1, nil
@@ -698,22 +709,9 @@ local function begin(isChallenger)
     if isChallenger then sendToPartner("S") end
 end
 
-local function encode(entry)
-    local name = entry.name:gsub("[~=@#|]", "")
-    return entry.key .. (entry.combination and ("@" .. entry.combination) or "") .. "=" .. name
-end
-
-local function decode(text)
-    local key, combination, name = text:match("^([^=@]+)@?([^=]*)=([^\t]+)$")
-    if not key or not Catalog.slotByKey[key] or #name > 48 then return end
-    return { key = key, name = name, combination = combination ~= "" and Catalog.byKey[combination] and combination or nil }
-end
-
 local function exchange()
-    if fight.mine and fight.theirReady and not fight.sent then
-        fight.sent = true
-        sendToPartner("P" .. encode(fight.mine))
-    end
+    local entry = Fight.CardToSend(fight)
+    if entry then sendToPartner("P" .. Cards.Encode(entry)) end
 end
 
 -- A card thrown from the top of the screen: huge and close at first, then
@@ -737,8 +735,7 @@ local function thrown(landsAt, now)
 end
 
 local function reveal()
-    fight.phase = "reveal"
-    fight.deadline = nil
+    if not Fight.Reveal(fight) then return end
     resetStage()
     paintCard(cardMine, fight.mine, myLabel())
     paintCard(cardTheirs, fight.theirs, opponentName())
@@ -762,7 +759,7 @@ local function reveal()
             shake(2, 0.2)
         end },
         { 2.85, function()
-            fight.phase = "vote"
+            if not Fight.OpenVote(fight) then return end
             showTitle(L.COMBAT_VOTE_TITLE)
             voteMine:Show()
             voteTheirs:Show()
@@ -787,6 +784,8 @@ end
 local function showEndButtons()
     rematch:Show()
     leave:Show()
+    -- Let the last particles and the banner settle before stopping the renderer.
+    finishAt = clock + (calm() and 0 or 2)
 end
 
 local function showLine(text)
@@ -877,8 +876,7 @@ local function loseScene(card, other, startX, otherX, winnerName, loserName, cue
 end
 
 local function resolve()
-    fight.phase = "result"
-    fight.deadline = nil
+    if not Fight.Resolve(fight) then return end
     voteMine:Hide()
     voteTheirs:Hide()
     title:Hide()
@@ -942,68 +940,68 @@ local function resolve()
     end
 end
 
-local function tryResolve()
-    if fight.myVote and fight.theirVote then resolve() end
-end
-
 function forward.begin(isChallenger) begin(isChallenger) end
 
 function forward.confirm()
     if not fight or fight.phase ~= "pick" or not pickKey then return end
     local entry = ForeverDexDB.cards[pickKey]
-    if not entry then return end
-    fight.phase, fight.mine = "wait", entry
+    local encoded = entry and Cards.Encode(entry)
+    if not encoded or not Fight.Pick(fight, Cards.Decode(encoded)) then return end
     picker:Hide()
     Duel.Sound("IG_CHARACTER_INFO_TAB")
-    paintCard(cardMine, entry, myLabel())
+    paintCard(cardMine, fight.mine, myLabel())
     setCard(cardMine, 0, CARD_Y - 10, 1)
     showTitle(L.COMBAT_PICK_TITLE)
     updateStatus()
     sendToPartner("R")
     exchange()
+    reveal()
 end
 
 function forward.vote(choice)
-    if not fight or fight.phase ~= "vote" or fight.myVote then return end
-    fight.myVote = choice
+    if not fight or not Fight.Vote(fight, choice) then return end
     voteMine:SetEnabled(false)
     voteTheirs:SetEnabled(false)
     updateStatus()
     Art.Sound("IG_MAINMENU_OPTION_CHECKBOX_ON")
     sendToPartner("V" .. choice)
-    tryResolve()
+    resolve()
 end
 
 function forward.close()
-    if fight and fight.phase ~= "result" then sendToPartner("X") end
+    if not fight then return end
+    if fight.phase ~= "result" then sendToPartner("X") end
     stop()
 end
+Duel.CloseCombat = forward.close
 
 -- Messages from the opponent. Only the current duel partner is listened to.
-function Duel.OnCombatMessage(body, who)
+function Duel.OnCombatMessage(body)
     local session = Duel.Session
-    if not session or who ~= session.who or not window:IsShown() then return end
+    if not session or not window:IsShown() then return end
+    local round
+    if session.token then
+        local number, message = body:match("^(%d+)|(.*)$")
+        if not number then return end
+        round, body = tonumber(number), message
+    end
     local kind, payload = body:sub(1, 1), body:sub(2)
     if kind == "S" then
+        if round and round ~= (session.round or 0) + 1 then return end
         if not fight or fight.phase == "result" then begin(false) end
         return
     end
-    if not fight then return end
-    if kind == "X" then
+    if not fight or (round and round ~= fight.round) then return end
+    if kind == "X" and fight.phase ~= "result" then
         stop(L.COMBAT_LEFT:format(opponentName()))
-    elseif kind == "R" then
-        fight.theirReady = true
+    elseif kind == "R" and Fight.Ready(fight) then
         updateStatus()
         exchange()
-    elseif kind == "P" and not fight.theirs then
-        local card = decode(payload)
-        if not card then return end
-        fight.theirs = card
+    elseif kind == "P" and Fight.ReceiveCard(fight, Cards.Decode(payload)) then
         exchange()
-        if fight.mine and fight.phase == "wait" then reveal() end
-    elseif kind == "V" and (payload == "O" or payload == "T") and not fight.theirVote then
-        fight.theirVote = payload
-        tryResolve()
+        reveal()
+    elseif kind == "V" and Fight.Vote(fight, payload, true) then
+        resolve()
     end
 end
 

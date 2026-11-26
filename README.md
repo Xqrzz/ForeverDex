@@ -4,7 +4,7 @@ A collection journal for World of Warcraft: Forever. Meet a player with a funny 
 
 ## Features
 
-- **112 cards**, one for each race, class and gender combination, plus **39 bonus slots** for the names you just can't leave behind
+- **112 cards**, one for each race, class and gender combination, plus **139 bonus slots** for the names you just can't leave behind
 - **Capture from the target portrait** or by right-clicking a name in chat, with a full capture animation (which can be shortened or turned off)
 - **Detail page for each capture**: date, zone, level and guild when the game provides them, and which of your characters made the capture
 - **Search by name, guild or zone**, with filters (race, class, gender, capturing character) and sorting that are remembered between sessions, plus a Favorites tab

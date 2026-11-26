@@ -360,7 +360,7 @@ local function openMenu(cell)
     ns.PopupMenu.Open(cell, function(_, root)
         root:CreateTitle(guild.name)
         if Guilds.MemberCount(guild) > 0 then
-            root:CreateButton(L.GUILD_SHOW_MEMBERS, function() UI.ShowSearch(guild.name) end)
+            root:CreateButton(L.GUILD_SHOW_MEMBERS, function() UI.ShowGuildMembers(guild) end)
         end
         root:CreateButton(L.SHARE_CARD, function() ns.Share.ShowGuild(guild) end)
         local index = Guilds.Find(guild.id)
@@ -514,7 +514,7 @@ local function buildCell(index)
         if mouseButton == "RightButton" then
             openMenu(self)
         elseif Guilds.MemberCount(self.guild) > 0 then
-            UI.ShowSearch(self.guild.name)
+            UI.ShowGuildMembers(self.guild)
         end
     end)
     cell:SetScript("OnEnter", function(self)
@@ -680,7 +680,7 @@ ns.Gamepad.RegisterPage("guilds", function()
             local members = Guilds.MemberCount(guild) > 0
             targets[#targets + 1] = {
                 frame = cell,
-                A = members and { L.GUILD_SHOW_MEMBERS, function() UI.ShowSearch(guild.name) end } or nil,
+                A = members and { L.GUILD_SHOW_MEMBERS, function() UI.ShowGuildMembers(guild) end } or nil,
                 noA = not members,
                 X = { L.PAD_MOVE, function()
                     carrying = { id = guild.id, from = Guilds.Find(guild.id) }

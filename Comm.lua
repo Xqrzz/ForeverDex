@@ -35,9 +35,10 @@ end
 
 local events = CreateFrame("Frame")
 events:RegisterEvent("CHAT_MSG_ADDON")
-events:SetScript("OnEvent", function(_, _, prefix, text, _, sender)
+events:SetScript("OnEvent", function(_, _, prefix, text, channel, sender)
     if not readable(prefix) or prefix ~= PREFIX then return end
-    if not readable(text) or not readable(sender) then return end
+    if not readable(channel) or channel ~= "WHISPER" then return end
+    if not readable(text) or type(text) ~= "string" or not readable(sender) or type(sender) ~= "string" then return end
     local handler = handlers[text:sub(1, 1)]
     if handler then handler(text, sender) end
 end)

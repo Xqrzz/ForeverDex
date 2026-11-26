@@ -3,7 +3,7 @@ ns.Module(function()
 local L, Catalog, Settings, Util = ns.L, ns.Catalog, ns.Settings, ns.Util
 local Collection = {}
 ns.Collection = Collection
-local onChanged
+local onChanged, onCapture
 local readable = Util.Readable
 
 local function setCharacterName(entry, firstName, surname)
@@ -39,7 +39,14 @@ function Collection.ReadTarget(unit)
     local level = UnitLevel(unit)
     if readable(level) and level > 0 then entry.level = level end
     local guild = GetGuildInfo(unit)
-    if readable(guild) and guild ~= "" then entry.guild = guild end
+    if readable(guild) and guild ~= "" then
+        entry.guild = guild
+        local faction = UnitFactionGroup(unit)
+        if not readable(faction) or (faction ~= "Horde" and faction ~= "Alliance") then
+            faction = Catalog.RaceFaction(slot.raceID)
+        end
+        entry.guildID = ns.Guilds.ID(guild, faction)
+    end
     return entry
 end
 
@@ -95,7 +102,8 @@ end
 -- Full name of the character playing right now (first name and last name).
 local function playerName()
     local first, surname = UnitFullName("player")
-    return surname and surname ~= "" and (first .. " " .. surname) or first
+    if not readable(first) then return end
+    return readable(surname) and surname ~= "" and (first .. " " .. surname) or first
 end
 Collection.PlayerName = playerName
 
@@ -138,7 +146,7 @@ end
 -- Saved data conversions. migrations[n] moves the data from version n - 1
 -- to version n. To change the format: increase DB_VERSION and add a
 -- conversion, without ever changing the ones already released.
-local DB_VERSION = 1
+local DB_VERSION = ns.SavedData.VERSION
 local migrations = {
     -- Older versions stored the last name in the realm field.
     [1] = function(db)
@@ -152,11 +160,41 @@ local migrations = {
             end
         end
     end,
+    [2] = function(db)
+        for key, entry in pairs(db.cards) do
+            if entry.guild and not entry.guildID then
+                local slot = Catalog.byKey[entry.combination or key]
+                local faction = slot and Catalog.RaceFaction(slot.raceID)
+                entry.guildID = ns.Guilds.ID(entry.guild, faction)
+            end
+        end
+        -- A guild captured while the target's faction was unreadable was saved as
+        -- "Name|": it takes the faction of its member's card, or of the only one the
+        -- journal knows for that name, unless that guild is already captured.
+        local taken = {}
+        for _, guild in ipairs(db.guilds) do taken[guild.id] = true end
+        for _, guild in ipairs(db.guilds) do
+            if guild.id == ns.Guilds.ID(guild.name) then
+                local fromMember, ids, count = nil, {}, 0
+                for _, entry in pairs(db.cards) do
+                    local id = entry.guild == guild.name and entry.guildID
+                    if id and id ~= guild.id then
+                        if not ids[id] then ids[id], count = true, count + 1 end
+                        if guild.member and entry.name == guild.member then fromMember = id end
+                    end
+                end
+                local id = fromMember or (count == 1 and next(ids)) or nil
+                if id and not taken[id] then
+                    taken[guild.id], taken[id] = nil, true
+                    guild.id, guild.faction = id, id:match("|([^|]+)$")
+                end
+            end
+        end
+    end,
 }
 
-function Collection.Initialize(onCollectionChanged)
-    ForeverDexDB = ForeverDexDB or { cards = {} }
-    onChanged = onCollectionChanged
+function Collection.Initialize(onCollectionChanged, onCardCaptured)
+    onChanged, onCapture = onCollectionChanged, onCardCaptured
     -- Saved data older than the version number counts as 0. Saved data newer than
     -- the addon is left untouched. The version advances after each successful conversion.
     for version = (ForeverDexDB.version or 0) + 1, DB_VERSION do
@@ -164,10 +202,6 @@ function Collection.Initialize(onCollectionChanged)
         ForeverDexDB.version = version
     end
 end
-
--- Announcements to other players (Share.lua), prepared at the capture and sent
--- by Collection.Announce, when the capture is revealed.
-local pendingShares = setmetatable({}, { __mode = "k" })
 
 -- A replaced standard card goes to the bonus cards, with its date and details.
 -- Returns "moved", "kept" (already a bonus card) or "lost" (bonus cards full).
@@ -189,24 +223,29 @@ local function sendReplacedToBonus(old)
     end
 end
 
+-- The account-wide collection records when, where and by whom something was captured.
+function Collection.StampCapture(entry)
+    entry.capturedAt = time()
+    local zone = GetRealZoneText and GetRealZoneText()
+    if readable(zone) and zone ~= "" then entry.zone = zone end
+    local capturer = playerName()
+    if readable(capturer) and capturer ~= "" and capturer ~= UNKNOWNOBJECT then
+        local _, classToken = UnitClass("player")
+        entry.capturedBy, entry.capturedByClass = capturer, classToken
+    end
+end
+
 -- noThrow: the capture does not come from a portrait, so no ball throw.
 local function save(entry, noThrow)
     local old = ForeverDexDB.cards[entry.key]
     local isNew = old == nil
     -- Only standard cards are replaced: bonus and pet captures always take a free slot.
     if old and old.id ~= entry.id and Catalog.byKey[entry.key] then sendReplacedToBonus(old) end
-    entry.capturedAt = time()
-    local zone = GetRealZoneText and GetRealZoneText()
-    if readable(zone) and zone ~= "" then entry.zone = zone end
-    -- The collection is shared by every character of the account: the one who captured is kept.
-    local capturer = playerName()
-    if readable(capturer) and capturer and capturer ~= "" and capturer ~= UNKNOWNOBJECT then
-        local _, classToken = UnitClass("player")
-        entry.capturedBy, entry.capturedByClass = capturer, classToken
-    end
+    Collection.StampCapture(entry)
     ForeverDexDB.cards[entry.key] = entry
+    if onCapture then onCapture(entry, isNew) end
     -- Prepared now, while the player's click is still running: see Share.Capture.
-    pendingShares[entry] = ns.Share.Capture(entry, isNew)
+    ns.Share.PrepareCapture(entry, isNew)
     -- A new card is announced on the ball's "click"; a replacement right away.
     if not isNew then Collection.Announce(entry, false) end
     onChanged(entry, isNew, noThrow)
@@ -217,11 +256,7 @@ end
 -- The announcement to other players, if any, leaves at the same moment.
 local lastLine
 function Collection.Announce(entry, isNew)
-    local share = pendingShares[entry]
-    if share then
-        pendingShares[entry] = nil
-        share()
-    end
+    ns.Share.RevealCapture(entry)
     if not Settings.Get("chatMessage") then return end
     local lines = isNew and L.CAPTURE_LINES or L.REPLACE_LINES
     local index = math.random(#lines)
@@ -234,6 +269,13 @@ function Collection.Announce(entry, isNew)
     print(L.CHAT_PREFIX .. lines[index]:format(name))
 end
 
+local function confirmReplacement(_, data)
+    local current = ForeverDexDB.cards[data.entry.key]
+    if current ~= data.current or current.favorite or current.id == data.entry.id then return end
+    if bonusFate(current) ~= data.fate then return end
+    save(data.entry, data.noThrow)
+end
+
 StaticPopupDialogs["FOREVERDEX_REPLACE"] = {
     text = L.REPLACE_PROMPT,
     button1 = L.REPLACE,
@@ -244,7 +286,7 @@ StaticPopupDialogs["FOREVERDEX_REPLACE"] = {
     whileDead = true,
     hideOnEscape = true,
     -- The dialog receives the initial capture, since the target may change in the meantime.
-    OnAccept = function(_, data) save(data.entry, data.noThrow) end,
+    OnAccept = confirmReplacement,
     OnAlt = function(_, data) Collection.SaveAsBonus(data.entry, data.noThrow) end,
 }
 
@@ -257,13 +299,13 @@ StaticPopupDialogs["FOREVERDEX_REPLACE_FULL"] = {
     whileDead = true,
     hideOnEscape = true,
     showAlert = true,
-    OnAccept = function(_, data) save(data.entry, data.noThrow) end,
+    OnAccept = confirmReplacement,
 }
 
 -- Removes a card from the collection: it goes back to "to discover".
-function Collection.Delete(key)
+function Collection.Delete(key, expected)
     local entry = ForeverDexDB.cards[key]
-    if not entry then return end
+    if not entry or (expected and entry ~= expected) then return end
     -- Last guard: a favorite became so while the confirmation was open.
     if entry.favorite then
         print(L.CHAT_PREFIX .. L.DELETE_FAVORITE)
@@ -291,7 +333,7 @@ StaticPopupDialogs["FOREVERDEX_DELETE"] = {
     whileDead = true,
     hideOnEscape = true,
     showAlert = true,
-    OnAccept = function(_, key) Collection.Delete(key) end,
+    OnAccept = function(_, data) Collection.Delete(data.key, data.entry) end,
 }
 
 -- The card is a favorite: it is never replaced. The new character can still go to
@@ -319,8 +361,11 @@ local function place(entry, noThrow)
     elseif current.id ~= entry.id and not Settings.Get("confirmReplace") then
         save(entry, noThrow)
     elseif current.id ~= entry.id then
-        local which = bonusFate(current) == "lost" and "FOREVERDEX_REPLACE_FULL" or "FOREVERDEX_REPLACE"
-        ns.Dialog.Show(which, current.name, entry.name, { entry = entry, noThrow = noThrow })
+        local fate = bonusFate(current)
+        local which = fate == "lost" and "FOREVERDEX_REPLACE_FULL" or "FOREVERDEX_REPLACE"
+        ns.Dialog.Show(which, current.name, entry.name, {
+            current = current, entry = entry, noThrow = noThrow, fate = fate,
+        })
     end
 end
 

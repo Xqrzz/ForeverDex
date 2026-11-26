@@ -1,6 +1,7 @@
 local _, ns = ...
 ns.Module(function()
 local L, Catalog, Settings, Achievements, Collection = ns.L, ns.Catalog, ns.Settings, ns.Achievements, ns.Collection
+local readable = ns.Util.Readable
 local Share = {}
 ns.Share = Share
 
@@ -159,18 +160,6 @@ local function finish(text)
     return clip(plain(text))
 end
 
-local function standardProgress()
-    local have, total = 0, 0
-    local cards = ForeverDexDB and ForeverDexDB.cards or {}
-    for _, slot in ipairs(Catalog.slots) do
-        if slot.sex then
-            total = total + 1
-            if cards[slot.key] then have = have + 1 end
-        end
-    end
-    return have, total
-end
-
 -- What kind of capture this is: new, replace, bonus or pet.
 local function captureKind(entry, isNew)
     local slot = Catalog.slotByKey[entry.key]
@@ -185,7 +174,7 @@ local CAPTURE_LINES = {
 }
 
 local function captureText(entry, kind)
-    local have, total = standardProgress()
+    local have, total = Catalog.StandardProgress(ForeverDexDB and ForeverDexDB.cards or {})
     return finish(fill(pick(L[CAPTURE_LINES[kind]]), {
         name = entry.name, family = entry.family or "", owner = entry.owner or "",
         count = have, total = total,
@@ -238,26 +227,79 @@ local function safeSend(text, chatType, target)
     return true
 end
 
+-- The roster identifies the audience even when the channel stays PARTY or RAID.
+local function audience(chatType)
+    if chatType == "GUILD" then
+        local name, _, _, realm = GetGuildInfo("player")
+        if not readable(name) or name == "" then return end
+        return name .. "|" .. (readable(realm) and realm or "")
+    end
+    local category = LE_PARTY_CATEGORY_HOME
+    if chatType == "INSTANCE_CHAT" then category = LE_PARTY_CATEGORY_INSTANCE end
+    local count = GetNumGroupMembers and GetNumGroupMembers(category)
+    if not readable(count) or count < 2 then return end
+    local raid = chatType == "RAID" or (chatType == "INSTANCE_CHAT" and IsInRaid and IsInRaid(category))
+    local members = {}
+    for i = 1, count do
+        local unit = raid and ("raid" .. i) or (i == count and "player" or ("party" .. i))
+        local guid = UnitGUID(unit)
+        if not readable(guid) then return end
+        members[i] = guid
+    end
+    table.sort(members)
+    return table.concat(members, "|")
+end
+
+local captureRevision, achievementRevision = 0, 0
+local pendingAudiences = {}
+
+local function cancelChangedAudiences(guildChanged)
+    for announcement in pairs(pendingAudiences) do
+        if (announcement.chatType == "GUILD") == guildChanged and not announcement.sameAudience() then
+            announcement.cancel()
+        end
+    end
+end
+local CAPTURE_SETTINGS = {
+    shareCaptures = true, shareCaptureChannel = true, shareCaptureScope = true, shareBonus = true, sharePets = true,
+}
+local ACHIEVEMENT_SETTINGS = {
+    shareAchievements = true, shareAchievementChannel = true, shareAchievementMin = true,
+}
+Settings.OnChange(function(key)
+    if key == nil or CAPTURE_SETTINGS[key] then captureRevision = captureRevision + 1 end
+    if key == nil or ACHIEVEMENT_SETTINGS[key] then achievementRevision = achievementRevision + 1 end
+end)
+
 -- Returns the function that sends the message, to call at the reveal. It sends once,
 -- and REVEAL_LIMIT seconds later at most. A channel may only accept a message sent
 -- during the player's click: that one leaves at once.
-local function schedule(choice, chatType, target, text)
+local function schedule(topic, choice, chatType, target, text)
     if chatType == "CHANNEL" then
         if not safeSend(text, chatType, target) then warn(L.SHARE_UNAVAILABLE) end
         return NOOP
     end
-    local sent = false
+    local originalAudience = audience(chatType)
+    if not originalAudience then return NOOP end
+    local capture = topic == "capture"
+    local revision = capture and captureRevision or achievementRevision
+    local toggle = capture and "shareCaptures" or "shareAchievements"
+    local channel = capture and "shareCaptureChannel" or "shareAchievementChannel"
+    local announcement = { chatType = chatType }
+    function announcement.sameAudience()
+        return destination(choice) == chatType and audience(chatType) == originalAudience
+    end
+    function announcement.cancel()
+        pendingAudiences[announcement] = nil
+    end
+    pendingAudiences[announcement] = true
     local function release()
-        if sent then return end
-        sent = true
-        -- The player may have left the guild or the group while the ball flew: the
-        -- destination is read again, and nothing leaves if it no longer exists.
-        local currentType, currentTarget = destination(choice)
-        if not currentType then
-            warn(currentTarget)
-            return
-        end
-        if not safeSend(text, currentType, currentTarget) then warn(L.SHARE_UNAVAILABLE) end
+        if not pendingAudiences[announcement] then return end
+        announcement.cancel()
+        if not Settings.Get(toggle) or Settings.Get(channel) ~= choice then return end
+        if revision ~= (capture and captureRevision or achievementRevision) then return end
+        if not announcement.sameAudience() then return end
+        if not safeSend(text, chatType, target) then warn(L.SHARE_UNAVAILABLE) end
     end
     C_Timer.After(REVEAL_LIMIT, release)
     return release
@@ -278,7 +320,7 @@ function Share.Capture(entry, isNew)
         return NOOP
     end
     if not ready("capture") then return NOOP end
-    return schedule(choice, chatType, target, captureText(entry, kind))
+    return schedule("capture", choice, chatType, target, captureText(entry, kind))
 end
 
 -- Prepares the announcement of a guild capture (Guilds.lua): same switch, channel and
@@ -295,7 +337,23 @@ function Share.CaptureGuild(guild)
     local text = finish(fill(pick(L.SHARE_GUILD_CAPTURE_LINES), {
         guild = "<" .. guild.name .. ">", count = ns.Guilds.Count(),
     }))
-    return schedule(choice, chatType, target, text)
+    return schedule("capture", choice, chatType, target, text)
+end
+
+-- Both capture types prepare the chat line while the player's click is active.
+local pendingCaptures = setmetatable({}, { __mode = "k" })
+function Share.PrepareCapture(entry, isNew, isGuild)
+    if isGuild then
+        pendingCaptures[entry] = Share.CaptureGuild(entry)
+    else
+        pendingCaptures[entry] = Share.Capture(entry, isNew)
+    end
+end
+
+function Share.RevealCapture(entry)
+    local release = pendingCaptures[entry]
+    pendingCaptures[entry] = nil
+    if release then release() end
 end
 
 -- Prepares the announcement of the achievements earned together (one message for
@@ -314,7 +372,7 @@ function Share.Achievements(list)
         return NOOP
     end
     if not ready("achievement") then return NOOP end
-    return schedule(choice, chatType, target, achievementText(kept))
+    return schedule("achievement", choice, chatType, target, achievementText(kept))
 end
 
 -- Shares a card of the collection on demand (card menu, detail page), in the channel
@@ -441,7 +499,17 @@ end)
 local channelEvents = CreateFrame("Frame")
 channelEvents:RegisterEvent("CHANNEL_UI_UPDATE")
 channelEvents:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE")
-channelEvents:SetScript("OnEvent", refreshStatus)
+pcall(channelEvents.RegisterEvent, channelEvents, "GROUP_ROSTER_UPDATE")
+pcall(channelEvents.RegisterEvent, channelEvents, "PLAYER_GUILD_UPDATE")
+channelEvents:SetScript("OnEvent", function(_, event)
+    if event == "GROUP_ROSTER_UPDATE" then
+        cancelChangedAudiences(false)
+    elseif event == "PLAYER_GUILD_UPDATE" then
+        cancelChangedAudiences(true)
+    else
+        refreshStatus()
+    end
+end)
 
 B.section(right, L.SHARE_SENDING_SECTION)
 B.checkbox(right, "shareTag", L.SHARE_TAG_OPTION, L.SHARE_TAG_TIP)

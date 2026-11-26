@@ -32,7 +32,7 @@ local function list()
 end
 Guilds.List = list
 
-local function guildID(name, faction)
+function Guilds.ID(name, faction)
     return name .. "|" .. (faction or "")
 end
 
@@ -110,39 +110,40 @@ function Guilds.Milestone(count)
     return count
 end
 
--- Cards of the journal whose character belongs to this guild.
-function Guilds.MemberCount(guild)
-    local count = 0
-    for _, entry in pairs(ForeverDexDB.cards) do
-        if entry.guild == guild.name then count = count + 1 end
-    end
-    return count
+local memberCounts, indexedCards
+function Guilds.InvalidateMembers()
+    memberCounts, indexedCards = nil, nil
 end
 
--- Reads the guild of the target player. Returns the guild (not saved yet), or nil
--- with a reason: "player" (not a readable player) or "none" (no guild).
-function Guilds.ReadTarget(unit)
-    unit = unit or "target"
-    local member = Collection.ReadTarget(unit)
-    if not member then return nil, "player" end
-    if not member.guild then return nil, "none" end
-    local faction = UnitFactionGroup(unit)
-    if not readable(faction) or (faction ~= "Horde" and faction ~= "Alliance") then faction = nil end
+-- Index once per collection change, also shared by the guild achievement.
+function Guilds.MemberCount(guild)
+    local cards = ForeverDexDB.cards
+    if indexedCards ~= cards or not memberCounts then
+        memberCounts, indexedCards = {}, cards
+        for _, entry in pairs(cards) do
+            local id = entry.guildID
+            if id then memberCounts[id] = (memberCounts[id] or 0) + 1 end
+        end
+    end
+    return memberCounts[guild.id] or 0
+end
+
+local function guildOf(member)
+    if not member or not member.guildID then return end
+    local faction = member.guildID:match("|([^|]+)$")
     local combination = ns.Catalog.byKey[member.key]
     return {
-        id = guildID(member.guild, faction),
+        id = member.guildID,
         name = member.guild,
         faction = faction,
         member = member.name,
         memberClass = combination and combination.token,
-        emblem = readEmblem(unit),
     }
 end
 
--- State of the target for the portrait ball: the guild read, and whether it is
--- already captured. No guild (or no player): nil.
-function Guilds.TargetState()
-    local guild = Guilds.ReadTarget()
+-- Reuse the player data already read for the portrait.
+function Guilds.TargetState(member)
+    local guild = guildOf(member)
     if not guild then return end
     return guild, Guilds.Find(guild.id) ~= nil
 end
@@ -157,17 +158,9 @@ local function changed(guild, isNew)
     for _, handler in ipairs(listeners) do handler(guild, isNew) end
 end
 
--- Announcements to other players (Share.lua), prepared at the capture, during the
--- player's click, and sent by Guilds.Announce when the ball clicks.
-local pendingShares = setmetatable({}, { __mode = "k" })
-
 local lastLine
 function Guilds.Announce(guild)
-    local share = pendingShares[guild]
-    if share then
-        pendingShares[guild] = nil
-        share()
-    end
+    ns.Share.RevealCapture(guild)
     if not Settings.Get("chatMessage") then return end
     local lines = L.GUILD_CAPTURE_LINES
     local index = math.random(#lines)
@@ -179,29 +172,22 @@ end
 -- The portrait ball (right-click), its orb, the Guilds page button, the key binding
 -- and "/fdex guild" all come here.
 function Guilds.Capture()
-    local guild, reason = Guilds.ReadTarget()
+    local member = Collection.ReadTarget()
+    if not member then return end
+    local guild = guildOf(member)
     if not guild then
-        if reason == "none" then
-            local member = Collection.ReadTarget()
-            print(L.CHAT_PREFIX .. L.GUILD_NONE_CHAT:format(member and member.name or UNKNOWNOBJECT))
-        end
+        print(L.CHAT_PREFIX .. L.GUILD_NONE_CHAT:format(member.name))
         return
     end
     if Guilds.Find(guild.id) then
         print(L.CHAT_PREFIX .. L.GUILD_ALREADY_CHAT:format(Guilds.ColoredName(guild)))
         return
     end
-    guild.capturedAt = time()
-    local zone = GetRealZoneText and GetRealZoneText()
-    if readable(zone) and zone ~= "" then guild.zone = zone end
-    local capturer = Collection.PlayerName()
-    if readable(capturer) and capturer and capturer ~= "" and capturer ~= UNKNOWNOBJECT then
-        local _, classToken = UnitClass("player")
-        guild.capturedBy, guild.capturedByClass = capturer, classToken
-    end
+    guild.emblem = readEmblem("target")
+    Collection.StampCapture(guild)
     local guilds = list()
     guilds[#guilds + 1] = guild
-    pendingShares[guild] = ns.Share.CaptureGuild(guild)
+    ns.Share.PrepareCapture(guild, true, true)
     changed(guild, true)
 end
 

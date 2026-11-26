@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.5
+
+- The journal now has 139 bonus slots. The existing bonus achievement still requires 39 cards
+- Collection comparisons and combats recover from interrupted exchanges and distinguish characters with the same first name
+- Guild banners open a journal filtered to that guild, and daily challenges follow local midnight across clock changes
+- Various interface improvements
+
 ## 1.8.2
 
 - Daily challenges: 7 new achievements, for the challenges met, for meeting the challenge several days in a row, and for replacing a card with a funnier name

@@ -18,10 +18,28 @@ function Util.Safe(func, ...)
     if ok and Util.Readable(value) then return value end
 end
 
--- First name only, without the realm: "Name-Realm" or "Name Surname" give "Name".
--- On Forever, the game does not always write the rest of the name the same way.
-function Util.ShortName(name)
-    return name:match("^[^%-%s]+") or name
+-- Forever uses First-Surname in whispers and can display First Surname elsewhere.
+-- Keep the surname, including when the client appends the local realm after it.
+function Util.PlayerAddress(name)
+    if not Util.Readable(name) or type(name) ~= "string" then return end
+    local address = name:match("^%s*(.-)%s*$"):gsub("%s+", "-"):lower()
+    if address == "" then return end
+    local character, realm = address:match("^(.+%-.+)%-([^%-]+)$")
+    if not character then return address end
+    local localRealm = Util.Safe(GetNormalizedRealmName)
+    if localRealm and realm == localRealm:lower() then return character end
+    return address
+end
+
+-- Uses the game's whisper format when available, falling back to the full unit name.
+function Util.UnitAddress(unit)
+    local name = Util.Safe(GetUnitName, unit, true)
+    if name == "" or name == UNKNOWNOBJECT then name = nil end
+    if name and name:find("[%s%-]") then return name end
+    local first, surname = UnitFullName(unit)
+    if not Util.Readable(first) or first == "" or first == UNKNOWNOBJECT then return name end
+    if Util.Readable(surname) and surname ~= "" then return first .. "-" .. surname end
+    return name or first
 end
 
 -- A template missing from this client must not prevent the addon from loading: the

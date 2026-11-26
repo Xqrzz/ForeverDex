@@ -22,6 +22,8 @@ local filters = { races = {}, classes = {}, sexes = {}, capturers = {} }
 -- Raised by every change of the collection (ns.UI.Refresh): what is computed from the
 -- cards is kept until it moves, so that turning a page does not query everything again.
 local collectionVersion = 0
+-- The guild filter shows filled cards: the tab it opens is not saved as the player's choice.
+local guildFilter, tabBeforeGuild
 local refresh, updateTarget
 
 local create = Util.CreateFrame
@@ -270,7 +272,7 @@ local function updateCapturers()
 end
 
 local function activeFilters()
-    local count = 0
+    local count = guildFilter and 1 or 0
     for _, set in pairs(filters) do
         for _ in pairs(set) do count = count + 1 end
     end
@@ -278,6 +280,7 @@ local function activeFilters()
 end
 
 local function clearFilters()
+    guildFilter = nil
     for _, set in pairs(filters) do wipe(set) end
 end
 
@@ -583,7 +586,7 @@ local function openCardMenu(card)
         end)
         root:CreateDivider()
         local delete = root:CreateButton(L.DELETE_CARD, function()
-            ns.Dialog.Show("FOREVERDEX_DELETE", entry.name, nil, key)
+            ns.Dialog.Show("FOREVERDEX_DELETE", entry.name, nil, { key = key, entry = entry })
         end)
         -- A favorite cannot be deleted: it has to leave the favorites first.
         if entry.favorite then
@@ -941,7 +944,7 @@ back:SetPoint("BOTTOMLEFT", 16, 12)
 local remove = button(detail, L.DELETE_CARD, 150, function()
     local entry = detail.entry
     if not entry or not detail.slot then return end
-    ns.Dialog.Show("FOREVERDEX_DELETE", entry.name, nil, detail.slot.key)
+    ns.Dialog.Show("FOREVERDEX_DELETE", entry.name, nil, { key = detail.slot.key, entry = entry })
 end)
 remove:SetPoint("BOTTOMRIGHT", -16, 12)
 -- A favorite is protected: the tooltip still explains why the button is off.
@@ -1199,12 +1202,13 @@ refresh = function()
     end
     local entries = ForeverDexDB.cards
     local view = ForeverDexDB.view
-    if view then view.sort, view.tab = sortMode, viewMode end
+    if view then view.sort, view.tab = sortMode, guildFilter and tabBeforeGuild or viewMode end
     updateFilterPanel()
     local key = table.concat({ collectionVersion, search:GetText(), viewMode, sortMode, filterSignature() }, "|")
-    if lastQuery.key ~= key or lastQuery.entries ~= entries then
-        lastQuery.key, lastQuery.entries = key, entries
-        lastQuery.rows, lastQuery.filled = Catalog.Query(entries, search:GetText(), viewMode, sortMode, filters)
+    if lastQuery.key ~= key or lastQuery.entries ~= entries or lastQuery.guild ~= guildFilter then
+        lastQuery.key, lastQuery.entries, lastQuery.guild = key, entries, guildFilter
+        lastQuery.rows, lastQuery.filled = Catalog.Query(entries, search:GetText(), viewMode, sortMode, filters,
+            guildFilter and guildFilter.id)
         lastQuery.perRace = Catalog.RaceProgress(entries)
     end
     local rows, filled = lastQuery.rows, lastQuery.filled
@@ -1264,7 +1268,7 @@ refresh = function()
     end
 
     local home = function() clearFilters(); detailKey, page = nil, 1; refresh() end
-    local section = raceName or tabNames[viewMode]
+    local section = guildFilter and ns.Guilds.ColoredName(guildFilter) or raceName or tabNames[viewMode]
     if detailSlot then
         showDetail(detailSlot, perRace, filled)
         setCrumbs({ { L.HOME, home }, { section, function() detailKey = nil; refresh() end },
@@ -1343,7 +1347,7 @@ updateTarget = function()
     -- The card for this combination is held by another player.
     local holder = current and not alreadySaved and current or nil
     local guild, guildOwned
-    if entry and ns.Guilds then guild, guildOwned = ns.Guilds.TargetState() end
+    if entry and ns.Guilds then guild, guildOwned = ns.Guilds.TargetState(entry) end
     PortraitCapture.Update(anchored, entry or pet, current, alreadySaved, holder, guild, guildOwned)
     for _, listener in ipairs(targetListeners) do listener(guild, guildOwned) end
     compare:SetEnabled(ns.Duel ~= nil and ns.Duel.CanRequest())
@@ -1490,10 +1494,12 @@ ns.UI = {
         return x1 ~= nil
     end,
     OnTargetChanged = function(listener) targetListeners[#targetListeners + 1] = listener end,
-    -- Opens the journal searching for a text (a guild name, from the Guilds page).
-    ShowSearch = function(query)
+    ShowGuildMembers = function(guild)
+        -- Going from one guild to another keeps the tab chosen before the first one.
+        tabBeforeGuild = guildFilter and tabBeforeGuild or viewMode
         clearFilters()
-        search:SetText(query or "")
+        guildFilter, page, viewMode = guild, 1, 2
+        search:SetText("")
         showWindow("collection")
     end,
     UpdateTarget = updateTarget,

@@ -6,7 +6,8 @@
 
 | File | Responsibility |
 | --- | --- |
-| `Util.lua` | Small helpers shared by every file (`ns.Util`): reading values the client may mark as secret, protected calls, short player names, frames built on a template the client may lack. Defined before any module runs. |
+| `Util.lua` | Helpers for restricted client values, protected calls, full whisper addresses and fallback frame templates. |
+| `SavedData.lua` | Prepares saved tables before modules load and preserves saves from newer versions. |
 | `Comm.lua` | Addon messages (`ns.Comm`): the single prefix, whispers, and the dispatch of each message to the file that handles its type (first letter). |
 | `Locale.lua`, `Locales/` | Strings for each language. A missing string falls back to English. Also holds `ns.Module`: the other files register their code with it and run at `ADDON_LOADED`, once the saved language is known. |
 | `Art.lua` | Client textures, atlases and sounds, with a fallback when an atlas is missing. |
@@ -16,7 +17,10 @@
 | `Collection.lua` | Reading the target, saved data migration, adding and replacing cards. |
 | `Guilds.lua` | Guild captures (right-click on the portrait ball): reading the target's guild, the ordered list in `ForeverDexDB.guilds`, moving and removing guilds, faction colors and crests. |
 | `CaptureVisuals.lua` | Capture animation and the notification rising from the bottom of the screen, for a card (capture ball) or a guild (guild ball). |
-| `Duel.lua` | Comparison between two ForeverDex users: request, agreement, exchange over whispered addon messages, and the duel screen. |
+| `DuelCards.lua` | Shared card format for collection comparison and combat. |
+| `DuelExchange.lua` | Comparison requests, transfer timers and version-compatible whisper messages. |
+| `Duel.lua` | Comparison screen, prompts, and game entry points. |
+| `DuelFight.lua`, `Combat.lua` | Combat state transitions and the interface that renders them. |
 | `PresenceIcon.lua` | The glowing icon of the collectors: its layers, its looping animation groups, its arrival and departure, and the icon choices. Shared by the nameplates and the options preview. |
 | `Presence.lua` | Nearby ForeverDex players: ping and answer messages (`P`, `H`), the icon hung from the nameplates the player already shows (their nameplate settings are never changed), the tooltip line and the in-game test. It keeps `Icon.look` up to date from the settings. |
 | `PresenceOptions.lua` | Collectors settings page, with a live preview. |
@@ -36,7 +40,9 @@
 
 `ForeverDexDB.cards` maps each card to a stable key. A combination uses the game's numeric IDs (`race:class:sex`). A bonus uses `bonus:n` and keeps its original combination. Translated labels are never part of a key.
 
-`ForeverDexDB.version` is the saved data format. To change it, increase `DB_VERSION` in `Collection.lua` and add a conversion to `migrations`, without changing the ones already released. Test it on a copy of real saved data before releasing.
+`ForeverDexDB.version` is the saved data format. Increase `SavedData.VERSION` and add a conversion to `migrations` in `Collection.lua` while preserving the released conversions. Test it on a copy of real saved data before releasing.
+
+The guild identity on a card combines its name and faction. The version 2 migration uses the card’s race where possible, including the original combination of a bonus card. Cards with an unknown faction belong to the neutral identity for that name. A captured guild saved without a faction takes the faction of its member's card, or of the only one known for that name, unless a guild with that identity is already captured. The bonus achievement keeps its original goal of 39 even as the catalog grows.
 
 `ForeverDexDB.challenge` keeps the daily challenge (`day`, `key`) until midnight, so that capturing the card does not draw another one. It is drawn again whenever it is missing or out of date.
 
@@ -56,12 +62,18 @@ Before a release, update `Home.NEWS_VERSION` in `Home.lua` and `HOME_NEWS_LINES`
 
 ## Comparison compatibility
 
-Two players must be able to compare collections across different versions. Never change the shape of the `Q`, `A`, `N` and `D` messages in `Duel.lua`. To add data, create a new message type (ignored by older versions) or add a field after a tab in an existing item. Cards whose key is unknown to the catalog are ignored on receipt. `Presence.lua` uses the `P` and `H` types on the same prefix; older versions ignore them.
+Two players must be able to compare collections across versions. Keep the base `Q`, `A`, `N`, `D` and `C` message shapes in `DuelExchange.lua`. The optional tab-delimited comparison token in `Q` and `A` allows newer peers to use `T` for collection chunks and `W` for combat. The combat message then includes a round number. A peer that does not echo the token continues on the historical exchange. Clients ignore card keys outside their catalog. In 1.8.2, this includes `bonus:40` through `bonus:139`.
+
+All messages use the same whisper prefix and a full player address. `Presence.lua` still uses `P` and `H`, with replies applied to the matching outstanding ping.
 
 ## In-game checks
 
-Reload the UI with `/reload`. Check opening from the minimap, searching by full name, replacing a card and adding a bonus. Changing target must bring back the generic portrait. Test on both a French and an English client to check labels, tooltips and the confirmation dialog.
+Reload the UI with `/reload`. Check opening from the minimap, searching by full name, replacing a card and adding a bonus. Changing target must bring back the generic portrait. Test on both a French and an English client to check labels, tooltips and the confirmation dialog. Check mouse and controller during and after combat, nameplates, a full collection exchange between two updated clients, and a comparison with 1.8.2.
+
+For performance checks, compare rapid target changes, the guild board while moving focus with a controller, and the combat stage after the verdict, using the same saved collection and graphics settings. The guild-filter regression checks how often the collection is scanned offline. Use the game profiler for frame time and addon CPU.
 
 ## Static checks
 
 `luacheck .` must report no warning. `.luacheckrc` lists every game API the addon reads and every global it writes: add a new API there when you start using it. GitHub runs the same check on each push and pull request.
+
+Run `TZ=Europe/Paris lua5.1 tests/regressions.lua` (or use `luajit`) from the addon directory. The fixtures use simulated game APIs, two comparison peers, and the 1.8.2 message format. They cover confirmation races, interrupted reveals, announcement audiences, migrations, guild filters, clock changes, presence and combat transitions. GitHub runs the same suite and `tests/startup.lua`, which loads the manifest in order and exercises addon initialization.

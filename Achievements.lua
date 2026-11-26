@@ -34,17 +34,15 @@ local function measure(cards)
         captures = 0, standard = 0, bonus = 0, standardTotal = 0,
         races = {}, classes = {}, sexes = {}, seenRaces = {}, seenClasses = {},
     }
+    stats.standard, stats.standardTotal = Catalog.StandardProgress(cards)
+    stats.bonus = Catalog.Filled(cards, Catalog.bonusSlots)
+    stats.captures = stats.standard + stats.bonus
     for _, slot in ipairs(Catalog.slots) do
         local entry = cards[slot.key]
-        if entry then stats.captures = stats.captures + 1 end
         if slot.sex then
-            stats.standardTotal = stats.standardTotal + 1
-            if entry then stats.standard = stats.standard + 1 end
             tally(stats.races, slot.raceID, entry)
             tally(stats.classes, slot.token, entry)
             tally(stats.sexes, slot.sexID, entry)
-        elseif entry then
-            stats.bonus = stats.bonus + 1
         end
         local combination = slot.sex and slot or (entry and Catalog.byKey[entry.combination])
         if entry and combination then
@@ -57,14 +55,10 @@ local function measure(cards)
     -- the journal.
     local guilds = ForeverDexDB and ForeverDexDB.guilds or {}
     stats.guilds, stats.alliance, stats.horde, stats.guildMembers = #guilds, 0, 0, 0
-    local members = {}
-    for _, entry in pairs(cards) do
-        if entry.guild then members[entry.guild] = (members[entry.guild] or 0) + 1 end
-    end
     for _, guild in ipairs(guilds) do
         if guild.faction == "Alliance" then stats.alliance = stats.alliance + 1 end
         if guild.faction == "Horde" then stats.horde = stats.horde + 1 end
-        stats.guildMembers = math.max(stats.guildMembers, members[guild.name] or 0)
+        stats.guildMembers = math.max(stats.guildMembers, ns.Guilds.MemberCount(guild))
     end
     -- Daily challenges met (Home.lua records them at the capture).
     local log = ForeverDexDB and ForeverDexDB.challengeLog or {}
@@ -142,7 +136,7 @@ end
 
 -- Back to the collection category: genders, the full journal and the bonus slots.
 current = categories[2]
-local perSex = (#Catalog.slots - #Catalog.bonusSlots) / 2
+local perSex = #Catalog.standardSlots / 2
 add({
     id = "sex2", name = L.ACH_MALE, description = L.ACH_MALE_DESC:format(perSex), points = 25,
     icon = { texture = "Interface\\Icons\\INV_Misc_Head_Human_01" },
@@ -155,14 +149,16 @@ add({
 })
 add({
     id = "complete", name = L.ACH_COMPLETE, points = 50,
-    description = L.ACH_COMPLETE_DESC:format(#Catalog.slots - #Catalog.bonusSlots),
+    description = L.ACH_COMPLETE_DESC:format(#Catalog.standardSlots),
     icon = { texture = ORB },
     progress = function(stats) return stats.standard, stats.standardTotal end,
 })
+-- This achievement keeps its original goal as the bonus collection grows.
+local BONUS_GOAL = 39
 add({
-    id = "bonus", name = L.ACH_BONUS, description = L.ACH_BONUS_DESC:format(#Catalog.bonusSlots), points = 25,
+    id = "bonus", name = L.ACH_BONUS, description = L.ACH_BONUS_DESC:format(BONUS_GOAL), points = 25,
     icon = { texture = "Interface\\Icons\\INV_Misc_Note_02" },
-    progress = function(stats) return stats.bonus, #Catalog.bonusSlots end,
+    progress = function(stats) return stats.bonus, BONUS_GOAL end,
 })
 
 category("pets", L.ACH_CAT_PETS, { texture = PET_ICON })

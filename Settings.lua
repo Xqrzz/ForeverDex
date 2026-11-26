@@ -59,7 +59,8 @@ end
 function Settings.Get(key)
     local saved = ForeverDexDB and ForeverDexDB.settings
     local value = saved and saved[key]
-    if value == nil then return DEFAULTS[key] end
+    local default = DEFAULTS[key]
+    if value == nil or (default ~= nil and type(value) ~= type(default)) then return default end
     return value
 end
 

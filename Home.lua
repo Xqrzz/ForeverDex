@@ -9,7 +9,7 @@ ns.Home = Home
 
 -- Release summarized by the "What's new" box. Its lines are translated in each
 -- locale (HOME_NEWS_LINES): update both before a release.
-Home.NEWS_VERSION = "1.8.2"
+Home.NEWS_VERSION = "1.8.5"
 
 local DAY = 86400
 local RECENT = 7 * DAY
@@ -19,7 +19,7 @@ local RECENT = 7 * DAY
 -- Midnight of the local day containing the given time.
 local function startOfDay(now)
     local parts = date("*t", now)
-    parts.hour, parts.min, parts.sec = 0, 0, 0
+    parts.hour, parts.min, parts.sec, parts.isdst = 0, 0, 0, nil
     return time(parts)
 end
 
@@ -41,14 +41,10 @@ end
 -- the challenge then becomes finding a funnier name than the one already there.
 local function pick(day)
     local entries, pool = ForeverDexDB.cards, {}
-    for _, slot in ipairs(Catalog.slots) do
-        if slot.sex and not entries[slot.key] then pool[#pool + 1] = slot end
+    for _, slot in ipairs(Catalog.standardSlots) do
+        if not entries[slot.key] then pool[#pool + 1] = slot end
     end
-    if #pool == 0 then
-        for _, slot in ipairs(Catalog.slots) do
-            if slot.sex then pool[#pool + 1] = slot end
-        end
-    end
+    if #pool == 0 then pool = Catalog.standardSlots end
     return pool[seed(day) % #pool + 1].key
 end
 
@@ -72,7 +68,8 @@ function Home.Challenge(now)
     local slot = Catalog.byKey[saved.key]
     local entry = ForeverDexDB.cards[slot.key]
     local dayStart = startOfDay(now)
-    local done = entry ~= nil and (entry.capturedAt or 0) >= dayStart
+    local capturedAt = entry and entry.capturedAt
+    local done = capturedAt ~= nil and capturedAt >= dayStart and capturedAt <= now
     return {
         slot = slot,
         entry = entry,
@@ -112,15 +109,11 @@ local function record(replaced, now)
     if replaced then log.improved = true end
 end
 
--- After a change of the collection, before the achievements are checked. Only a
--- capture counts: it has just dated its card, where a favorite or a move between the
--- standard and bonus cards keeps the old date. isNew: the card was empty.
+-- Called only when a capture is saved, before the achievements are checked.
 function Home.OnCapture(entry, isNew)
-    if type(entry) ~= "table" or not entry.key or not ForeverDexDB.cards[entry.key] then return end
-    local now = time()
-    if now - (entry.capturedAt or 0) > 2 then return end
-    local challenge = Home.Challenge(now)
-    if challenge.done and challenge.slot.key == entry.key then record(not isNew, now) end
+    if not Catalog.byKey[entry.key] then return end
+    local challenge = Home.Challenge(entry.capturedAt)
+    if challenge.slot.key == entry.key then record(not isNew, entry.capturedAt) end
 end
 
 -- At login: a challenge met today before the log existed still counts. Only an
@@ -160,13 +153,8 @@ end
 function Home.Stats(now)
     now = now or time()
     local entries = ForeverDexDB.cards
-    local stats = { standard = 0, total = 0, recent = 0 }
-    for _, slot in ipairs(Catalog.slots) do
-        if slot.sex then
-            stats.total = stats.total + 1
-            if entries[slot.key] then stats.standard = stats.standard + 1 end
-        end
-    end
+    local stats = { recent = 0 }
+    stats.standard, stats.total = Catalog.StandardProgress(entries)
 
     stats.bonus, stats.bonusTotal = Catalog.Filled(entries, Catalog.bonusSlots), #Catalog.bonusSlots
     stats.pets, stats.petsTotal = Catalog.Filled(entries, Catalog.petSlots), #Catalog.petSlots

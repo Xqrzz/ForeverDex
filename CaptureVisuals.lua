@@ -517,6 +517,7 @@ end
 -- Each playback gets a number: a new capture cancels the sounds and
 -- steps scheduled by the previous one.
 local playback = 0
+local pendingReveal
 -- The thrown ball, its flight home and its trail all use the ball of the click.
 local function useBall(file)
     if ball.ballFile == file then return end
@@ -532,19 +533,27 @@ local function at(delay, token, action)
     end)
 end
 
+local function reveal()
+    local finish = pendingReveal
+    pendingReveal = nil
+    if finish then finish() end
+end
+
 -- options: from (x, y), to (x, y, ball size), home (x, y, minimap
 -- icon size), entry, onReveal, onHome. A guild capture passes guild instead of
 -- entry: its own ball, chat line and notification.
 function CaptureVisuals.Play(options)
     playback = playback + 1
     local token = playback
-    -- One capture can interrupt another, for example from chat.
     stopHoming()
     effect:Hide()
+    -- An interrupted animation still has a saved capture to reveal.
+    reveal()
     local entry, guild = options.entry, options.guild
     useBall(guild and GUILD_BALL or BALL)
-    local function announce()
+    pendingReveal = function()
         if guild then ns.Guilds.Announce(guild) else Collection.Announce(entry, true) end
+        if options.onReveal then options.onReveal() end
     end
     local function notify()
         if guild then showGuildToast(guild) else showToast(entry) end
@@ -552,8 +561,7 @@ function CaptureVisuals.Play(options)
     local mode = Settings.Get("animation")
     if not options.fromX or mode == "off" then
         -- No animation (or no visible starting point): everything happens at once.
-        if options.onReveal then options.onReveal() end
-        announce()
+        reveal()
         if options.onHome then options.onHome() end
         notify()
         return
@@ -581,8 +589,7 @@ function CaptureVisuals.Play(options)
     end
     at(CLICK - shift, token, function()
         Art.Sound("IG_QUEST_LIST_COMPLETE")
-        announce()
-        if options.onReveal then options.onReveal() end
+        reveal()
     end)
     at(FLY - shift, token, function()
         effect:Hide()
