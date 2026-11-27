@@ -4,12 +4,12 @@ A collection journal for World of Warcraft: Forever. Meet a player with a funny 
 
 ## Features
 
-- **112 cards**, one for each race, class and gender combination, plus **139 bonus slots** for the names you just can't leave behind
+- **112 cards**, one for each race, class and gender combination, plus **unlimited bonus cards** for the names you just can't leave behind
 - **Capture from the target portrait** or by right-clicking a name in chat, with a full capture animation (which can be shortened or turned off)
 - **Detail page for each capture**: date, zone, level and guild when the game provides them, and which of your characters made the capture
 - **Search by name, guild or zone**, with filters (race, class, gender, capturing character) and sorting that are remembered between sessions, plus a Favorites tab
 - **Guilds**: capture a player's guild on its own and hang its banner, in Alliance or Horde colors, on the Guilds page; drag the banners to arrange them as you like
-- **Duels**: compare your collection with another ForeverDex user
+- **Duels**: compare your collection with another ForeverDex user and challenge them to a combat, with your standard cards and your favorites
 - **Announcements** (optional): share your captures and achievements with your guild, group or a custom channel
 - **Home page**: a daily challenge (a combination to look for, just for fun), the latest news and a few statistics about your collection
 - **Achievements**: 47 goals (captures, races, classes, genders, pets, guilds, daily challenges…) announced with an achievement-style alert

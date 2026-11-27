@@ -79,23 +79,22 @@ local function testCards()
     ns.Collection.ToggleFavorite(cards[standard])
     assert(captures == 1, "a favorite toggle was recorded as a capture")
 
+    -- Bonus cards have no limit: filling the last slot opens the next one.
     local bonuses = ns.Catalog.bonusSlots
     assert(#bonuses == 139 and #ns.Catalog.slots == 251)
-    for i = 1, 138 do
+    for i = 1, 139 do
         local key = "bonus:" .. i
         assert(bonuses[i].key == key)
-        cards[key] = { id = key }
+        cards[key] = cards[key] or { id = key }
     end
     local slot = ns.Collection.FindBonusSlot({ id = "unused" })
-    assert(slot.key == "bonus:139")
-    ns.Collection.ToggleFavorite(cards[standard])
-    env.UnitFullName = function() return "Dernier", "Test" end
-    ns.Collection.Capture()
-    assert(prompt[1] == "FOREVERDEX_REPLACE")
-    cards[slot.key] = { id = slot.key }
-    env.StaticPopupDialogs[prompt[1]].OnAccept(nil, prompt[2])
-    assert(cards[standard].name == "Nouveau Test", "a full bonus list changed the confirmed outcome")
-    assert(ns.Collection.FindBonusSlot({ id = "unused" }) == nil)
+    assert(slot.key == "bonus:140" and slot.index == 252 and ns.Catalog.slotByKey[slot.key] == slot)
+    ns.Collection.SaveAsBonus({ id = "Cent Quarante", name = "Cent Quarante", key = standard }, true)
+    assert(cards["bonus:140"].name == "Cent Quarante" and cards["bonus:140"].combination == standard)
+    assert(ns.Collection.FindBonusSlot({ id = "unused" }).key == "bonus:141")
+    assert(select(2, ns.Collection.FindBonusSlot({ id = "Cent Quarante" })) == ns.L.BONUS_DUPLICATE)
+    local _, total = ns.Catalog.StandardProgress(cards)
+    assert(total == 112, "the journal total counted bonus cards")
     for _, achievement in ipairs(ns.Achievements.list) do
         if achievement.id == "bonus" then
             local _, goal = achievement.progress({ bonus = 39 })
@@ -448,11 +447,13 @@ local function testExchange()
     for _, slot in ipairs(a.catalog.slots) do
         a.entries[slot.key] = { key = slot.key, name = "Carte de test " .. slot.key }
     end
+    a.entries["bonus:139"].favorite = true
     a.api.Request("Nom-Autre")
     advance(now)
     b.api.Accept(assert(b.prompt))
     advance(now + 20)
-    assert(#a.done == 1 and #b.done == 1 and b.done[1][2]["bonus:139"])
+    assert(#a.done == 1 and #b.done == 1 and b.done[1][2]["1:1:2"] and b.done[1][2]["bonus:139"])
+    assert(not b.done[1][2]["bonus:138"] and a.done[1][1].favorites and b.done[1][1].favorites)
     local token = a.done[1][1].token
     assert(token and token == b.done[1][1].token)
     a.exchange.SendCombat(a.done[1][1], "1|S")
@@ -478,10 +479,11 @@ local function testExchange()
     local legacyPayload = table.concat(legacyParts)
     local familiarCards = 0
     for key in legacyPayload:gmatch("([%d:bonus]+)=") do
-        local bonus = key:match("^bonus:(%d+)$")
-        if not bonus or tonumber(bonus) <= 39 then familiarCards = familiarCards + 1 end
+        assert(key == "bonus:139" or not key:find("bonus", 1, true), "a bonus card that is not a favorite was sent")
+        familiarCards = familiarCards + 1
     end
-    assert(familiarCards == 151 and a.done[2][1].token == nil and a.done[2][2]["bonus:39"])
+    assert(familiarCards == 113 and a.done[2][1].token == nil and not a.done[2][1].favorites)
+    assert(not a.done[2][2]["bonus:39"], "the bonus cards of an older version were kept")
     a.exchange.SendCombat(a.done[2][1], "S")
     advance(now)
 
@@ -519,7 +521,57 @@ local function testFight()
     assert(Fight.Resolve(fight) and fight.phase == "result" and not Fight.Ready(fight))
 end
 
+-- Saved bonus cards past the default slots; comparisons keep standard and favorite cards.
+local function testUnlimitedBonus()
+    local ns, _, loadModule = environment({
+        C_CreatureInfo = { GetClassInfo = function(id) return { classFile = tostring(id), className = tostring(id) } end },
+        ForeverDexDB = { cards = { ["bonus:300"] = { name = "Lointain", key = "bonus:300" } } },
+    })
+    loadCatalog(ns, loadModule)
+    loadModule("DuelCards.lua")
+    local Catalog, Cards = ns.Catalog, ns.DuelCards
+    assert(#Catalog.bonusSlots == 301 and Catalog.slotByKey["bonus:300"].index == 412)
+
+    local far = Cards.Decode("bonus:5000@1:1:2=Autre Collection")
+    assert(far and far.key == "bonus:5000" and far.combination == "1:1:2")
+    assert(not Catalog.slotByKey["bonus:5000"], "a received card added a slot to this journal")
+    assert(Catalog.SlotForKey("bonus:5000").index == 112 + 5000)
+    assert(not Cards.Decode("bonus:0=Zero") and not Cards.Decode("bonus:01=Zero") and not Cards.Decode("bonus:x=X"))
+
+    local entries = {}
+    for _, slot in ipairs(Catalog.standardSlots) do entries[slot.key] = { key = slot.key, name = ("S"):rep(40) } end
+    for i = 1, 2000 do
+        local key = "bonus:" .. i
+        entries[key] = { key = key, name = ("B"):rep(40) }
+    end
+    Catalog.SyncBonus(entries)
+    assert(#Catalog.bonusSlots == 2001)
+    local payload = Cards.Serialize(entries)
+    assert(not payload:find("bonus:", 1, true), "a comparison carried a bonus card that is not a favorite")
+    entries["bonus:1500"].favorite = true
+    payload = Cards.Serialize(entries)
+    local parsed = Cards.Parse(payload, true)
+    assert(parsed["bonus:1500"] and parsed["bonus:1500"].favorite and not parsed["bonus:1"])
+    for _, slot in ipairs(Catalog.standardSlots) do assert(parsed[slot.key], "a standard card was left out") end
+    -- An older version sends all its bonus cards: none of them are kept.
+    assert(not Cards.Parse(payload, false)["bonus:1500"])
+
+    -- Many favorites: the standard cards still fit, the last favorites are left out.
+    for i = 1, 2000 do entries["bonus:" .. i].favorite = true end
+    payload = Cards.Serialize(entries)
+    parsed = Cards.Parse(payload, true)
+    assert(#payload <= Cards.MAX_PAYLOAD and parsed["bonus:1"] and not parsed["bonus:2000"])
+    for _, slot in ipairs(Catalog.standardSlots) do assert(parsed[slot.key], "a standard card was left out") end
+
+    -- Combat cards: standard ones always, favorite bonus ones with an up-to-date opponent only.
+    assert(Cards.Shared(entries[Catalog.standardSlots[1].key], false))
+    assert(Cards.Shared(entries["bonus:5"], true) and not Cards.Shared(entries["bonus:5"], false))
+    entries["bonus:5"].favorite = nil
+    assert(not Cards.Shared(entries["bonus:5"], true))
+end
+
 testCards()
+testUnlimitedBonus()
 testReveal()
 testShare()
 testAddresses()

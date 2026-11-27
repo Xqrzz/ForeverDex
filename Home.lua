@@ -9,7 +9,7 @@ ns.Home = Home
 
 -- Release summarized by the "What's new" box. Its lines are translated in each
 -- locale (HOME_NEWS_LINES): update both before a release.
-Home.NEWS_VERSION = "1.8.5"
+Home.NEWS_VERSION = "1.8.6"
 
 local DAY = 86400
 local RECENT = 7 * DAY
@@ -140,7 +140,7 @@ end
 
 -- Short figures for the home page. Pets count as captures, but have no class.
 --   standard, total  standard cards filled, out of all combinations
---   bonus, pets      bonus cards and pets filled (bonusTotal, petsTotal)
+--   bonus, pets      bonus cards (no limit) and pets filled (petsTotal)
 --   racesComplete    races whose every combination is filled (racesTotal)
 --   recent           captures of the last seven days
 --   last             most recent capture (entry), or nil
@@ -156,7 +156,7 @@ function Home.Stats(now)
     local stats = { recent = 0 }
     stats.standard, stats.total = Catalog.StandardProgress(entries)
 
-    stats.bonus, stats.bonusTotal = Catalog.Filled(entries, Catalog.bonusSlots), #Catalog.bonusSlots
+    stats.bonus = Catalog.Filled(entries, Catalog.bonusSlots)
     stats.pets, stats.petsTotal = Catalog.Filled(entries, Catalog.petSlots), #Catalog.petSlots
     local perRace = Catalog.RaceProgress(entries)
     stats.racesComplete, stats.racesTotal = 0, #Catalog.races

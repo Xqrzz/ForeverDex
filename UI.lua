@@ -129,7 +129,7 @@ local percent = text(panel, "GameFontHighlightSmall", 0.85, 0.85, 0.85)
 percent:SetPoint("LEFT", counts, "RIGHT", 8, 0)
 local progress = Art.ProgressBar(panel, 250, 12, true)
 progress:SetPoint("TOPLEFT", 74, -50)
-progress:SetMinMaxValues(0, #Catalog.slots)
+progress:SetMinMaxValues(0, #Catalog.standardSlots)
 progress:SetValue(0)
 
 local panelCapture = button(panel, L.ADD_TARGET, 150, function()
@@ -1020,7 +1020,7 @@ local function showDetail(slot, perRace, filled)
         local have, total = Catalog.ClassProgress(entries, combination.token)
         bars[#bars + 1] = { combination.class, have, total }
     end
-    if not slot.pet then bars[#bars + 1] = { L.HOME, filled, #Catalog.slots } end
+    if not slot.pet then bars[#bars + 1] = { L.HOME, filled, #Catalog.standardSlots } end
     for i, row in ipairs(progressRows) do
         local item = bars[i]
         row.label:SetShown(item ~= nil)
@@ -1207,14 +1207,15 @@ refresh = function()
     local key = table.concat({ collectionVersion, search:GetText(), viewMode, sortMode, filterSignature() }, "|")
     if lastQuery.key ~= key or lastQuery.entries ~= entries or lastQuery.guild ~= guildFilter then
         lastQuery.key, lastQuery.entries, lastQuery.guild = key, entries, guildFilter
-        lastQuery.rows, lastQuery.filled = Catalog.Query(entries, search:GetText(), viewMode, sortMode, filters,
+        lastQuery.rows = Catalog.Query(entries, search:GetText(), viewMode, sortMode, filters,
             guildFilter and guildFilter.id)
         lastQuery.perRace = Catalog.RaceProgress(entries)
+        -- The journal's progress counts the standard cards only: bonus cards have no total.
+        lastQuery.filled = Catalog.StandardProgress(entries)
     end
-    local rows, filled = lastQuery.rows, lastQuery.filled
+    local rows, filled, total = lastQuery.rows, lastQuery.filled, #Catalog.standardSlots
     local pageCount = math.max(1, math.ceil(#rows / PAGE_SIZE))
     page = math.max(1, math.min(page, pageCount))
-    local total = #Catalog.slots
     Art.FitLine(counts, L.PROGRESS:format(filled, total, filled == total and L.COMPLETE or ""), 225)
     percent:SetText(L.PERCENT:format(math.floor(filled / total * 100 + 0.5)))
     progress:SetValue(filled)

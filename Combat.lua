@@ -381,7 +381,7 @@ local function setDefeated(card, defeated)
 end
 
 local function paintCard(card, entry, owner)
-    local slot = Catalog.slotByKey[entry.key]
+    local slot = Catalog.SlotForKey(entry.key)
     local combination, description = Catalog.Describe(slot or {}, entry)
     local theme = combination and combination.theme
     if theme then card.tint:SetColorTexture(theme[3], theme[4], theme[5]) else card.tint:SetColorTexture(0.2, 0.15, 0.1) end
@@ -537,13 +537,21 @@ picker:SetScript("OnMouseWheel", function(_, delta)
     end
 end)
 
+-- A combat uses the standard journal and the favorites, bonus ones included. An older
+-- version of the other player cannot read bonus cards: it only gets standard ones.
+local function canFight(entry)
+    return Cards.Shared(entry, Duel.Session and Duel.Session.favorites)
+end
+
 -- Favorites come first, then everything by name.
 local function pickerRows()
     local rows = Catalog.Query(ForeverDexDB.cards, search:GetText() or "", 2, 3, NO_FILTERS)
     local favorites, others = {}, {}
     for _, row in ipairs(rows) do
-        local list = row.entry.favorite and favorites or others
-        list[#list + 1] = row
+        if canFight(row.entry) then
+            local list = row.entry.favorite and favorites or others
+            list[#list + 1] = row
+        end
     end
     for _, row in ipairs(others) do favorites[#favorites + 1] = row end
     return favorites
@@ -576,6 +584,7 @@ refreshPicker = function()
         end
     end
     local entry = pickKey and ForeverDexDB.cards[pickKey]
+    if not canFight(entry) then entry = nil end
     confirm:SetEnabled(entry ~= nil)
     if entry then
         paintCard(cardMine, entry, myLabel())
@@ -945,7 +954,7 @@ function forward.begin(isChallenger) begin(isChallenger) end
 function forward.confirm()
     if not fight or fight.phase ~= "pick" or not pickKey then return end
     local entry = ForeverDexDB.cards[pickKey]
-    local encoded = entry and Cards.Encode(entry)
+    local encoded = canFight(entry) and Cards.Encode(entry)
     if not encoded or not Fight.Pick(fight, Cards.Decode(encoded)) then return end
     picker:Hide()
     Duel.Sound("IG_CHARACTER_INFO_TAB")
@@ -1029,7 +1038,11 @@ start:SetScript("OnLeave", function() GameTooltip:Hide() end)
 function Duel.RefreshCombat()
     if fight then stop() end
     local session = Duel.Session
-    start:SetEnabled(session ~= nil and session.combat == true and next(ForeverDexDB.cards) ~= nil)
+    local hasCard = false
+    for _, entry in pairs(ForeverDexDB.cards) do
+        if Cards.Shared(entry, session and session.favorites) then hasCard = true break end
+    end
+    start:SetEnabled(session ~= nil and session.combat == true and hasCard)
 end
 
 window:HookScript("OnHide", function()

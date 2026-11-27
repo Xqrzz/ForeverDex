@@ -273,7 +273,8 @@ local function buildSide(side)
     frame.bar = Art.ProgressBar(frame, 250, 10, true)
     frame.bar:SetPoint(left and "TOPLEFT" or "TOPRIGHT", frame.score, left and "BOTTOMLEFT" or "BOTTOMRIGHT", left and 4 or -4, -10)
     frame.bar:SetStatusBarColor(color[1], color[2], color[3])
-    frame.bar:SetMinMaxValues(0, #Catalog.slots)
+    -- The bar shows the standard journal; the score above it also counts the favorite bonus cards.
+    frame.bar:SetMinMaxValues(0, #Catalog.standardSlots)
     if not left then
         frame.bar:SetReverseFill(true)
     end
@@ -461,12 +462,38 @@ arena:SetScript("OnMouseWheel", function(_, delta)
     end
 end)
 
+-- The standard journal, side by side, then each player's favorite bonus cards. Two bonus
+-- cards with the same number are different characters: they are never paired.
+local function comparedRows()
+    local rows, bonus = {}, {}
+    for _, slot in ipairs(Catalog.standardSlots) do
+        rows[#rows + 1] = { slot = slot, own = ForeverDexDB.cards[slot.key], other = state.cards[slot.key] }
+    end
+    for _, slot in ipairs(Catalog.bonusSlots) do
+        local own = ForeverDexDB.cards[slot.key]
+        if own and own.favorite then bonus[#bonus + 1] = { slot = slot, own = own } end
+    end
+    for key, other in pairs(state.cards) do
+        local slot = not Catalog.byKey[key] and Catalog.SlotForKey(key)
+        if slot then bonus[#bonus + 1] = { slot = slot, other = other } end
+    end
+    table.sort(bonus, function(a, b)
+        if a.slot.index ~= b.slot.index then return a.slot.index < b.slot.index end
+        return a.own ~= nil and b.own == nil
+    end)
+    for _, row in ipairs(bonus) do rows[#rows + 1] = row end
+    return rows
+end
+
 render = function()
-    local visible, counts = {}, { both = 0, mine = 0, theirs = 0, mineTotal = 0, theirsTotal = 0 }
-    for _, slot in ipairs(Catalog.slots) do
-        local own, other = ForeverDexDB.cards[slot.key], state.cards[slot.key]
+    local visible = {}
+    local counts = { both = 0, mine = 0, theirs = 0, mineTotal = 0, theirsTotal = 0, mineStandard = 0, theirsStandard = 0 }
+    for _, row in ipairs(comparedRows()) do
+        local own, other, standard = row.own, row.other, row.slot.sex ~= nil
         if own then counts.mineTotal = counts.mineTotal + 1 end
         if other then counts.theirsTotal = counts.theirsTotal + 1 end
+        if standard and own then counts.mineStandard = counts.mineStandard + 1 end
+        if standard and other then counts.theirsStandard = counts.theirsStandard + 1 end
         if own and other then counts.both = counts.both + 1
         elseif own then counts.mine = counts.mine + 1
         elseif other then counts.theirs = counts.theirs + 1 end
@@ -474,7 +501,7 @@ render = function()
             or (state.filter == 2 and own and other)
             or (state.filter == 3 and own and not other)
             or (state.filter == 4 and other and not own)
-        if keep then visible[#visible + 1] = { slot = slot, own = own, other = other } end
+        if keep then visible[#visible + 1] = row end
     end
     local pages = math.max(1, math.ceil(#visible / ROWS))
     state.page = math.max(1, math.min(state.page, pages))
@@ -511,7 +538,7 @@ render = function()
     return counts
 end
 
-local function paintSide(side, display, combination, unit, total)
+local function paintSide(side, display, combination, unit, total, standard)
     Art.FitLine(side.name, display, 260, true)
     side.combo:SetText(combination and (combination.race .. L.SEPARATOR .. combination.class) or "")
     local color = combination and RAID_CLASS_COLORS[combination.token]
@@ -527,7 +554,7 @@ local function paintSide(side, display, combination, unit, total)
         icon:SetTexture(combination and combination.fallbackIcon or "Interface\\Icons\\INV_Misc_QuestionMark")
         icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
-    side.target = total
+    side.target, side.standard = total, standard
 end
 
 -- Scores count up from zero during the entrance. The count runs only until the scores
@@ -542,7 +569,7 @@ local function count(self, delta)
     for _, side in ipairs(sides) do
         local value = math.floor((side.target or 0) * fraction + 0.5)
         side.score:SetText(value)
-        side.bar:SetValue(value)
+        side.bar:SetValue(math.floor((side.standard or 0) * fraction + 0.5))
     end
 end
 
@@ -563,9 +590,10 @@ function Duel.Show(partner, cards)
     local myCombination = Catalog.byKey[Catalog.SlotKey(race or 0, class or 0, UnitSex("player") or 0)]
     local firstName, surname = UnitFullName("player")
     local myName = surname and surname ~= "" and (firstName .. " " .. surname) or firstName
-    paintSide(mine, myName or UnitName("player"), myCombination, "player", counts.mineTotal)
+    paintSide(mine, myName or UnitName("player"), myCombination, "player", counts.mineTotal, counts.mineStandard)
     local targeted = partner.who and playerAddress(Util.UnitAddress("target")) == partner.who
-    paintSide(theirs, partner.display or "?", partner.combination, targeted and "target" or nil, counts.theirsTotal)
+    paintSide(theirs, partner.display or "?", partner.combination, targeted and "target" or nil,
+        counts.theirsTotal, counts.theirsStandard)
 
     local animated = Settings.Get("duelAnimation")
     -- Without animation, scores show their final value directly.

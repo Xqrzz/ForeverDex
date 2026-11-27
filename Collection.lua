@@ -204,7 +204,7 @@ function Collection.Initialize(onCollectionChanged, onCardCaptured)
 end
 
 -- A replaced standard card goes to the bonus cards, with its date and details.
--- Returns "moved", "kept" (already a bonus card) or "lost" (bonus cards full).
+-- Returns "moved", "kept" (already a bonus card) or "lost" (only past the bonus maximum).
 local function bonusFate(old)
     local slot, label = Collection.FindBonusSlot(old)
     if slot then return "moved", slot end
@@ -527,11 +527,13 @@ if Menu and Menu.ModifyMenu then
     end)
 end
 
+-- Bonus cards have no limit: the catalog always keeps a free slot after the last one.
 function Collection.FindBonusSlot(entry)
-    local available
+    local cards, available = ForeverDexDB.cards, nil
+    Catalog.KeepFreeBonus(cards)
     -- We keep going after the first free slot to detect a duplicate further on.
     for _, slot in ipairs(Catalog.bonusSlots) do
-        local current = ForeverDexDB.cards[slot.key]
+        local current = cards[slot.key]
         if current and current.id == entry.id then return nil, L.BONUS_DUPLICATE end
         if not current and not available then available = slot end
     end

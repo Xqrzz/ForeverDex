@@ -92,5 +92,5 @@ for _, frame in ipairs(frames) do
         break
     end
 end
-assert(env.ForeverDexDB.version == 2 and ns.Duel and ns.DuelFight and #ns.Catalog.bonusSlots == 139)
+assert(env.ForeverDexDB.version == 2 and ns.Duel and ns.DuelFight and #ns.Catalog.bonusSlots >= 139)
 print("TOC initialization smoke passed")

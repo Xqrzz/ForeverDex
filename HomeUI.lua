@@ -405,7 +405,7 @@ local function paintStats(figures)
     paintStat(rows[1], L.HOME_STAT_JOURNAL, L.HOME_STAT_JOURNAL_VALUE:format(figures.standard, figures.total, percent))
 
     setIcon(rows[2].icon, ICONS .. "INV_Misc_Gift_01")
-    paintStat(rows[2], L.HOME_STAT_BONUS, ("%d / %d"):format(figures.bonus, figures.bonusTotal))
+    paintStat(rows[2], L.HOME_STAT_BONUS, tostring(figures.bonus))
 
     setIcon(rows[3].icon, ICONS .. "Ability_Hunter_BeastTaming")
     paintStat(rows[3], L.HOME_STAT_PETS, ("%d / %d"):format(figures.pets, figures.petsTotal))

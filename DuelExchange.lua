@@ -24,14 +24,17 @@ local function identity()
     local sex = UnitSex("player")
     local key = race and class and sex and Catalog.SlotKey(race, class, sex) or ""
     local name = ns.Collection.PlayerName() or UnitName("player")
-    return key .. "=" .. (Util.Readable(name) and name:gsub("[~=#|%c]", "") or "") .. "\tcombat"
+    -- "favorites": this version shares the standard journal and the favorites only.
+    return key .. "=" .. (Util.Readable(name) and name:gsub("[~=#|%c]", "") or "") .. "\tcombat\tfavorites"
 end
 
 local function readIdentity(body, session)
     local key, name = body:match("^([^=]*)=([^\t]*)")
     if name and name ~= "" and #name <= 64 and not name:find("[|%c]") then session.display = name end
     session.combination = Catalog.byKey[key or ""] or session.combination
-    session.combat = ("\t" .. body .. "\t"):find("\tcombat\t", 1, true) ~= nil
+    local fields = "\t" .. body .. "\t"
+    session.combat = fields:find("\tcombat\t", 1, true) ~= nil
+    session.favorites = fields:find("\tfavorites\t", 1, true) ~= nil
 end
 
 -- Keep Q/A/N/D compatible with old clients. Peers that echo the token use T for
@@ -64,6 +67,7 @@ function Exchange.New(ui)
         ui.completed({
             address = session.address, who = session.who, display = session.display,
             combination = session.combination, combat = session.combat, token = session.token,
+            favorites = session.favorites,
         }, session.cards)
     end
 
@@ -143,7 +147,7 @@ function Exchange.New(ui)
         session.chunks[index] = part
         session.received = session.received + 1
         if session.received ~= total then return end
-        session.cards = ns.DuelCards.Parse(table.concat(session.chunks, "", 1, total))
+        session.cards = ns.DuelCards.Parse(table.concat(session.chunks, "", 1, total), session.favorites)
         session.chunks = nil
         finishIfComplete(session)
     end

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.6
+
+- Unlimited bonus cards: a new free bonus slot appears as soon as the last one is filled
+- The journal's progress and total now count the 112 standard cards only. The bonus achievement still requires 39 cards
+- Collection comparisons and combats use the standard cards and your favorites, including favorite bonus cards
+- Against an older version of ForeverDex, comparisons ignore its bonus cards and combats use standard cards only
+
 ## 1.8.5
 
 - The journal now has 139 bonus slots. The existing bonus achievement still requires 39 cards

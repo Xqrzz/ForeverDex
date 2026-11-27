@@ -86,12 +86,36 @@ for _, race in ipairs(races) do
     end
 end
 
+-- Bonus slots have no limit. The journal always shows at least BONUS_MINIMUM of them,
+-- and one more appears whenever the last one is filled. They come after the standard
+-- cards, so bonus n keeps the number #standardSlots + n.
+local BONUS_MINIMUM, BONUS_MAXIMUM = 139, 99999
 local bonusSlots = {}
-for i = 1, 139 do
-    local slot = { index = #slots + 1, key = "bonus:" .. i, race = L.BONUS, class = "" }
-    slots[slot.index], slotByKey[slot.key] = slot, slot
-    bonusSlots[i] = slot
+-- Bonus keys known only from another player's collection: they show in the comparison
+-- without adding empty slots to this journal, and join it if the slot is created later.
+local detachedBonus = {}
+
+local function bonusIndex(key)
+    local index = type(key) == "string" and tonumber(key:match("^bonus:([1-9]%d*)$"))
+    if index and index <= BONUS_MAXIMUM then return index end
 end
+
+local function newBonusSlot(index)
+    local key = "bonus:" .. index
+    local slot = detachedBonus[key] or { key = key, race = L.BONUS, class = "" }
+    slot.index = #standardSlots + index
+    detachedBonus[key] = nil
+    return slot
+end
+
+local function addBonusSlots(count)
+    for i = #bonusSlots + 1, math.min(count, BONUS_MAXIMUM) do
+        local slot = newBonusSlot(i)
+        slots[#slots + 1], slotByKey[slot.key] = slot, slot
+        bonusSlots[i] = slot
+    end
+end
+addBonusSlots(BONUS_MINIMUM)
 
 -- Hunter pets: free slots in their own section, outside the player collection
 -- and its progress. Every pet card shares the hunter look, over a forest backdrop.
@@ -116,6 +140,36 @@ Catalog.slotByKey = slotByKey
 Catalog.races = raceList
 table.sort(classList, function(a, b) return a.name < b.name end)
 Catalog.classes = classList
+
+-- Keeps a free slot after the last bonus card. Cheap: it only looks at the last slot.
+function Catalog.KeepFreeBonus(entries)
+    while #bonusSlots < BONUS_MAXIMUM and entries[bonusSlots[#bonusSlots].key] do
+        addBonusSlots(#bonusSlots + 1)
+    end
+end
+
+-- Creates the slots of every saved bonus card, then keeps one free slot after the last.
+function Catalog.SyncBonus(entries)
+    local highest = 0
+    for key in pairs(entries) do
+        local index = bonusIndex(key)
+        if index and index > highest then highest = index end
+    end
+    addBonusSlots(highest)
+    Catalog.KeepFreeBonus(entries)
+end
+if ForeverDexDB then Catalog.SyncBonus(ForeverDexDB.cards) end
+
+-- Slot of a card key, including a bonus this journal has not created yet.
+function Catalog.SlotForKey(key)
+    local slot = slotByKey[key]
+    if slot then return slot end
+    local index = bonusIndex(key)
+    if not index then return end
+    slot = detachedBonus[key] or newBonusSlot(index)
+    detachedBonus[key] = slot
+    return slot
+end
 
 -- A filled bonus borrows the combination of the captured character.
 -- A pet is described by its family (Raptor, Boar…).
@@ -303,6 +357,7 @@ function Catalog.Query(entries, searchText, viewMode, sortMode, filters, guildID
             }
         end
     end
+    if ForeverDexDB and entries == ForeverDexDB.cards then Catalog.KeepFreeBonus(entries) end
     for _, slot in ipairs(slots) do
         local entry = entries[slot.key]
         if entry then filled = filled + 1 end
