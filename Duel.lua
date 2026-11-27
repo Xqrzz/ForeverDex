@@ -465,9 +465,9 @@ end)
 -- The standard journal, side by side, then each player's favorite bonus cards. Two bonus
 -- cards with the same number are different characters: they are never paired.
 local function comparedRows()
-    local rows, bonus = {}, {}
+    local list, bonus = {}, {}
     for _, slot in ipairs(Catalog.standardSlots) do
-        rows[#rows + 1] = { slot = slot, own = ForeverDexDB.cards[slot.key], other = state.cards[slot.key] }
+        list[#list + 1] = { slot = slot, own = ForeverDexDB.cards[slot.key], other = state.cards[slot.key] }
     end
     for _, slot in ipairs(Catalog.bonusSlots) do
         local own = ForeverDexDB.cards[slot.key]
@@ -481,8 +481,8 @@ local function comparedRows()
         if a.slot.index ~= b.slot.index then return a.slot.index < b.slot.index end
         return a.own ~= nil and b.own == nil
     end)
-    for _, row in ipairs(bonus) do rows[#rows + 1] = row end
-    return rows
+    for _, row in ipairs(bonus) do list[#list + 1] = row end
+    return list
 end
 
 render = function()
